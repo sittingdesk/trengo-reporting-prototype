@@ -1,0 +1,14 @@
+# Dependencies & build output
+node_modules/
+dist/
+
+# Editor / OS
+.DS_Store
+.claude/
+*.tsbuildinfo
+
+# Internal-only material — kept OUT of this public repo
+CLAUDE.md
+design.md
+TECH_FOUNDATION.md
+Reporting Prototypes/

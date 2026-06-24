@@ -1,0 +1,208 @@
+@import 'tailwindcss';
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Design tokens — translated verbatim from design.md (the source of truth).
+   Tailwind v4 is CSS-first: tokens declared in @theme generate utilities
+   (e.g. --color-grey-900 → bg-grey-900 / text-grey-900). NO tailwind.config.js.
+   Do not hardcode hex/px in components — reference these tokens via utilities.
+   ────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Font — design.md §2. NOTE: Inter is not bundled; falls back to system. */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Type scale — design.md §2 (size / line-height). Weights via font-* utils. */
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-lg: 18px;
+  --text-lg--line-height: 24px;
+
+  /* Grey scale — design.md §1 */
+  --color-grey-900: #111213;
+  --color-grey-800: #292c2e;
+  --color-grey-700: #4d5256;
+  --color-grey-600: #70767b;
+  --color-grey-400: #c6c9cd;
+  --color-grey-300: #e1e3e5;
+  --color-grey-200: #f4f5f6;
+  --color-grey-100: #f9fafb;
+  --color-white: #ffffff;
+
+  /* Leaf (brand) — design.md §1 */
+  --color-leaf-100: #e3f6f3;
+  --color-leaf-200: #ade5dc;
+  --color-leaf-300: #76ccbe;
+  --color-leaf-400: #49b2a1;
+  --color-leaf-500: #249888;
+  --color-leaf-600: #177b6b;
+  --color-leaf-700: #0c5d51;
+  --color-leaf-800: #054037;
+  --color-leaf-900: #01221d;
+
+  /* Sky */
+  --color-sky-100: #f4fcff;
+  --color-sky-200: #d7f3ff;
+  --color-sky-300: #bbeaff;
+  --color-sky-400: #9ee0ff;
+  --color-sky-500: #81d7ff;
+  --color-sky-600: #4fa1c8;
+  --color-sky-700: #286f90;
+  --color-sky-800: #0f4159;
+  --color-sky-900: #021721;
+
+  /* Purple */
+  --color-purple-100: #fbf4ff;
+  --color-purple-200: #f3ddff;
+  --color-purple-300: #eac6ff;
+  --color-purple-400: #e1b0ff;
+  --color-purple-500: #d999ff;
+  --color-purple-600: #a965d3;
+  --color-purple-700: #7e3ca7;
+  --color-purple-800: #571d7c;
+  --color-purple-900: #350950;
+
+  /* Peach */
+  --color-peach-100: #ffebe6;
+  --color-peach-200: #ffd0c5;
+  --color-peach-300: #ffb6a3;
+  --color-peach-400: #fe9b82;
+  --color-peach-500: #fe8161;
+  --color-peach-600: #df694c;
+  --color-peach-700: #be5439;
+  --color-peach-800: #9e4129;
+  --color-peach-900: #7d2f1c;
+
+  /* Sun */
+  --color-sun-50: #fffbf0;
+  --color-sun-100: #fff5db;
+  --color-sun-200: #ffedbe;
+  --color-sun-300: #ffe4a1;
+  --color-sun-400: #ffdc84;
+  --color-sun-500: #ffd467;
+  --color-sun-600: #f1b749;
+  --color-sun-700: #e2992e;
+  --color-sun-800: #d47b15;
+  --color-sun-900: #c55e00;
+
+  /* Semantic — design.md §1 */
+  --color-error-500: #e8374c;
+  --color-error-bg: #fad7db;
+
+  /* Border radius — design.md §4 */
+  --radius-sm: 6px;
+  --radius-base: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-pill: 24px;
+  --radius-circle: 9999px;
+
+  /* Shadows & focus rings — design.md §5 */
+  --shadow-100: 0 1px 4px 0 rgba(0, 0, 0, 0.06);
+  --shadow-300: 0 2px 4px -1px rgba(0, 0, 0, 0.08), 0 8px 16px -2px rgba(0, 0, 0, 0.02);
+  --shadow-500: 0 4px 8px -4px rgba(0, 0, 0, 0.16), 0 12px 24px -2px rgba(0, 0, 0, 0.03);
+  --shadow-focus: 0 0 0 4px rgba(36, 152, 136, 0.25), inset 0 0 0 1px #249888;
+  --shadow-focus-error: 0 0 0 4px #fad7db, inset 0 0 0 1px #e8374c;
+  --shadow-focus-sm: 0 0 0 2px rgba(36, 152, 136, 0.25), inset 0 0 0 2px #249888;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   shadcn-vue semantic tokens.
+   shadcn-vue components don't reference colours like "grey-900" directly —
+   they use semantic names (background, foreground, primary, border, ring…).
+   Here we MAP those semantic names onto our design.md tokens, so every
+   shadcn-vue component automatically inherits the Trengo design system.
+   This mapping is what makes shadcn-vue "just work" with our theme.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  --background: var(--color-white);
+  --foreground: var(--color-grey-900);
+  --card: var(--color-white);
+  --card-foreground: var(--color-grey-900);
+  --popover: var(--color-white);
+  --popover-foreground: var(--color-grey-900);
+  --primary: var(--color-leaf-500); /* brand colour (Leaf) */
+  --primary-foreground: var(--color-white);
+  --secondary: var(--color-grey-200);
+  --secondary-foreground: var(--color-grey-900);
+  --muted: var(--color-grey-200);
+  --muted-foreground: var(--color-grey-600);
+  --accent: var(--color-grey-200);
+  --accent-foreground: var(--color-grey-900);
+  --destructive: var(--color-error-500);
+  --destructive-foreground: var(--color-white);
+  --border: var(--color-grey-300);
+  --input: var(--color-grey-300);
+  --ring: var(--color-leaf-500);
+  --radius: 8px;
+  /* CLAUDE.md: the DEFAULT button is dark (Grey-900), kept separate from the
+     brand primary (Leaf). The Button component's default variant uses these. */
+  --button: var(--color-grey-900);
+  --button-foreground: var(--color-white);
+}
+
+/* Expose the semantic tokens as Tailwind utilities (bg-background, text-primary,
+   border-border, etc.). `inline` means the utilities read the live variables
+   above, so theming stays in one place. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-button: var(--button);
+  --color-button-foreground: var(--button-foreground);
+}
+
+/* Base — design.md §10 layout (panel/app background = Grey-100) */
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-grey-100);
+  color: var(--color-grey-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv01', 'cv02';
+}
+
+/* Tabular numerals for metrics/timers — design.md §2 */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom scrollbar — design.md §10 (4px, Grey-400 thumb, transparent track) */
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-grey-400);
+  border-radius: var(--radius-sm);
+}
