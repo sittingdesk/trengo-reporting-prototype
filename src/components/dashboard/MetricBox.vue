@@ -7,8 +7,8 @@ import { computed } from 'vue'
 import Icon from '@/components/Icon.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 import { getMetric } from '@/data/metrics'
-import { formatValue, fmtDelta, fmtCount } from '@/lib/format'
-import { metricValue, filterSignature } from '@/lib/mock'
+import { formatValue, fmtCount } from '@/lib/format'
+import { metricValue, filterSignature, rangeDays } from '@/lib/mock'
 import { useFilters } from '@/composables/useFilters'
 import { useSettings } from '@/composables/useSettings'
 
@@ -30,20 +30,25 @@ const formatted = computed(() =>
   metric.value && sample.value ? formatValue(sample.value.value, metric.value.unit) : '—',
 )
 
+// "vs prior N days" — the comparison window matches the current date range.
+const periodLabel = computed(() => {
+  const d = rangeDays(dateRange.value.start, dateRange.value.end)
+  return `prior ${d} ${d === 1 ? 'day' : 'days'}`
+})
+
 // Delta (only meaningful for ready value metrics, when toggled on).
 const delta = computed(() => {
   const m = metric.value
   const s = sample.value
   if (!m || !s || m.status !== 'ready' || m.resultType !== 'value') return null
-  const pct = (s.value - s.previous) / (s.previous || 1)
-  const up = pct > 0.0001
-  const down = pct < -0.0001
+  const pct = ((s.value - s.previous) / (s.previous || 1)) * 100
+  const up = pct > 0.05
+  const down = pct < -0.05
   const good = m.lowerIsBetter ? down : up
   const bad = m.lowerIsBetter ? up : down
   return {
-    label: fmtDelta(s.value, s.previous),
-    up,
-    down,
+    pct: `${Math.abs(pct).toFixed(1)}%`,
+    arrow: up ? '↑' : down ? '↓' : '→',
     tone: good ? 'good' : bad ? 'bad' : 'flat',
   }
 })
@@ -78,7 +83,7 @@ const seriesTotal = computed(() =>
 
     <!-- Pending / not available -->
     <div v-else-if="metric.status === 'pending'" class="flex flex-1 flex-col justify-center">
-      <div class="text-2xl font-extrabold text-grey-300 tabular-nums">—</div>
+      <div class="text-3xl font-extrabold text-grey-300 tabular-nums">—</div>
       <div class="mt-1 inline-flex items-center gap-1 text-xs text-grey-600">
         <Icon name="Info" :size="12" />
         Not available yet
@@ -87,7 +92,7 @@ const seriesTotal = computed(() =>
 
     <!-- Histogram -->
     <div v-else-if="metric.resultType === 'histogram'" class="flex flex-1 flex-col">
-      <div class="mb-2 text-2xl font-extrabold text-grey-900 tabular-nums">{{ seriesTotal }}</div>
+      <div class="mb-2 text-3xl font-extrabold text-grey-900 tabular-nums">{{ seriesTotal }}</div>
       <BarChart
         v-if="sample?.series && sample?.labels"
         :labels="sample.labels"
@@ -97,21 +102,19 @@ const seriesTotal = computed(() =>
     </div>
 
     <!-- Value (default) -->
-    <div v-else class="mt-auto flex items-end justify-between gap-2">
-      <div class="text-2xl font-extrabold text-grey-900 tabular-nums">{{ formatted }}</div>
-      <span
+    <div v-else class="mt-auto">
+      <div class="text-3xl font-extrabold text-grey-900 tabular-nums">{{ formatted }}</div>
+      <div
         v-if="showComparison && delta"
-        class="mb-0.5 inline-flex items-center gap-0.5 rounded-pill px-1.5 py-0.5 text-xs font-semibold"
+        class="mt-1 text-sm font-medium"
         :class="{
-          'bg-leaf-100 text-leaf-700': delta.tone === 'good',
-          'bg-error-bg text-error-500': delta.tone === 'bad',
-          'bg-grey-200 text-grey-600': delta.tone === 'flat',
+          'text-leaf-600': delta.tone === 'good',
+          'text-error-500': delta.tone === 'bad',
+          'text-grey-600': delta.tone === 'flat',
         }"
       >
-        <Icon v-if="delta.up" name="ChevronUp" :size="12" />
-        <Icon v-else-if="delta.down" name="ChevronDown" :size="12" />
-        {{ delta.label }}
-      </span>
+        {{ delta.arrow }} {{ delta.pct }} vs {{ periodLabel }}
+      </div>
     </div>
   </article>
 </template>

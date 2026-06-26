@@ -37,7 +37,7 @@ function mulberry32(seed: number): () => number {
 const tz = getLocalTimeZone()
 
 /** Days covered by the current date range (defaults to 7). */
-function rangeDays(start?: DateValue, end?: DateValue): number {
+export function rangeDays(start?: DateValue, end?: DateValue): number {
   if (!start || !end) return 7
   const ms = end.toDate(tz).getTime() - start.toDate(tz).getTime()
   return Math.max(1, Math.round(ms / 86_400_000) + 1)
