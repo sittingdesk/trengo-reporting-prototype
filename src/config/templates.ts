@@ -21,11 +21,23 @@ export interface WidgetPlaceholder {
   kind: WidgetKind
 }
 
+/** A real widget bound to a metric in the registry (renders a MetricBox). */
+export interface MetricWidget {
+  metricId: string
+}
+
+/** A template widget is either a (mock) placeholder or a real metric widget. */
+export type Widget = WidgetPlaceholder | MetricWidget
+
+export function isMetricWidget(w: Widget): w is MetricWidget {
+  return 'metricId' in w
+}
+
 export interface Template {
   id: string
   name: string
   description: string
-  widgets: WidgetPlaceholder[]
+  widgets: Widget[]
   /** Surface this template first + show a "Recommended" badge in the gallery. */
   recommended?: boolean
 }
@@ -87,7 +99,18 @@ export const TEMPLATES: Template[] = [
     name: 'Overview',
     description: 'At-a-glance health and KPIs.',
     recommended: true,
-    widgets: [],
+    widgets: [
+      { metricId: 'open_conversations' },
+      { metricId: 'assigned_conversations' },
+      { metricId: 'first_response_time' },
+      { metricId: 'resolution_time' },
+      { metricId: 'avg_csat' },
+      { metricId: 'win_rate' },
+      { metricId: 'conversations_by_hour' },
+      { metricId: 'avg_deal_size' },
+      { metricId: 'pipeline_value' },
+      { metricId: 'calls_volume' },
+    ],
   },
   {
     id: 'understand',

@@ -8,9 +8,11 @@
 import { RouterLink, useRouter } from 'vue-router'
 import Icon from '@/components/Icon.vue'
 import { useWorkspace, type Scenario } from '@/composables/useWorkspace'
+import { useSettings } from '@/composables/useSettings'
 
 const router = useRouter()
 const { tabs, scenario, openGallery, removeTab, setScenario } = useWorkspace()
+const { showComparison, toggleComparison } = useSettings()
 
 const scenarios: { id: Scenario; label: string }[] = [
   { id: 'existing', label: 'Existing customer' },
@@ -68,24 +70,43 @@ function switchScenario(id: Scenario) {
       </button>
     </nav>
 
-    <!-- Prototype-only scenario switcher -->
-    <div class="border-t border-grey-300 p-3">
-      <div class="mb-1.5 text-xs font-medium text-grey-600">Prototype scenario</div>
-      <div class="flex gap-1 rounded-base bg-grey-200 p-0.5">
-        <button
-          v-for="s in scenarios"
-          :key="s.id"
-          class="flex-1 rounded-sm px-2 py-1 text-xs font-semibold transition-colors"
-          :class="
-            scenario === s.id
-              ? 'bg-white text-grey-900 shadow-100'
-              : 'text-grey-600 hover:text-grey-900'
-          "
-          @click="switchScenario(s.id)"
-        >
-          {{ s.label }}
-        </button>
+    <!-- Prototype-only controls -->
+    <div class="space-y-3 border-t border-grey-300 p-3">
+      <div>
+        <div class="mb-1.5 text-xs font-medium text-grey-600">Prototype scenario</div>
+        <div class="flex gap-1 rounded-base bg-grey-200 p-0.5">
+          <button
+            v-for="s in scenarios"
+            :key="s.id"
+            class="flex-1 rounded-sm px-2 py-1 text-xs font-semibold transition-colors"
+            :class="
+              scenario === s.id
+                ? 'bg-white text-grey-900 shadow-100'
+                : 'text-grey-600 hover:text-grey-900'
+            "
+            @click="switchScenario(s.id)"
+          >
+            {{ s.label }}
+          </button>
+        </div>
       </div>
+
+      <!-- Comparison toggle (shows period-over-period deltas on cards) -->
+      <button
+        class="flex w-full items-center justify-between rounded-base px-1 text-xs font-medium text-grey-600"
+        @click="toggleComparison()"
+      >
+        <span>Comparison</span>
+        <span
+          class="relative h-4 w-7 rounded-pill transition-colors"
+          :class="showComparison ? 'bg-leaf-500' : 'bg-grey-300'"
+        >
+          <span
+            class="absolute top-0.5 size-3 rounded-circle bg-white transition-all"
+            :class="showComparison ? 'left-3.5' : 'left-0.5'"
+          />
+        </span>
+      </button>
     </div>
   </aside>
 </template>
