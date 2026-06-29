@@ -10,8 +10,9 @@ import { CHANNELS, TEAMS } from '@/data/filters'
 export interface MetricSample {
   value: number
   previous: number // comparable previous-period value (for the delta toggle)
-  series?: number[] // hourly buckets for histograms (length 24)
-  labels?: string[]
+  series?: number[] // hourly buckets for histograms — "Today" (length 24)
+  average?: number[] // average per hour across the period (length 24)
+  labels?: string[] // hour labels "00:00".."23:00"
 }
 
 // --- tiny seeded RNG (mulberry32) + string hash ---
@@ -84,19 +85,23 @@ export function metricValue(def: MetricDef, signature: string): MetricSample {
   const tmFactor = subsetFactor(tm === 'all' ? 0 : tm.split(',').length, TEAMS.length)
   const base = def.base ?? 0
 
-  // Histograms: 24 hourly buckets.
+  // Histograms: 24 hourly buckets — "Today" plus a lower "Average" curve.
   if (def.resultType === 'histogram') {
     const series: number[] = []
+    const average: number[] = []
     const labels: string[] = []
     let total = 0
     for (let h = 0; h < 24; h++) {
-      const v = Math.max(0, Math.round(base * hourWeight(h) * chFactor * tmFactor * jitter(rng, 0.25)))
-      series.push(v)
-      labels.push(String(h))
-      total += v
+      const shape = base * hourWeight(h) * chFactor * tmFactor
+      const today = Math.max(0, Math.round(shape * jitter(rng, 0.25)))
+      const avg = Math.max(0, Math.round(shape * 0.55 * jitter(rng, 0.12)))
+      series.push(today)
+      average.push(avg)
+      labels.push(`${String(h).padStart(2, '0')}:00`)
+      total += today
     }
     const prevTotal = total * jitter(rng, 0.2)
-    return { value: total, previous: prevTotal, series, labels }
+    return { value: total, previous: prevTotal, series, average, labels }
   }
 
   // Percentages / rates: bounded, not scaled by volume.

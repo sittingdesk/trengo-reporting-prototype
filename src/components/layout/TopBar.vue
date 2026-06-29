@@ -54,12 +54,15 @@ const subtitle = computed(() => template.value?.description ?? '')
         @clear="clearTeams"
       />
 
-      <div class="mx-1 h-6 w-px bg-grey-300" aria-hidden="true" />
+      <!-- "Manage widgets" hidden for now (re-enable by removing v-if="false"). -->
+      <template v-if="false">
+        <div class="mx-1 h-6 w-px bg-grey-300" aria-hidden="true" />
 
-      <Button variant="secondary" size="sm">
-        <Icon name="Grid" :size="16" />
-        Manage widgets
-      </Button>
+        <Button variant="secondary" size="sm">
+          <Icon name="Grid" :size="16" />
+          Manage widgets
+        </Button>
+      </template>
     </div>
   </header>
 </template>

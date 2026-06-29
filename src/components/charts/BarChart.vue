@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // BarChart — a thin Chart.js bar-chart wrapper (uses the shared registration in
 // src/lib/chart.ts). Reads colours from the CSS design tokens so it stays on-brand.
+// Supports an optional second "Average" series drawn beside the primary one.
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Chart } from '@/lib/chart'
 
@@ -8,9 +9,13 @@ const props = withDefaults(
   defineProps<{
     labels: (string | number)[]
     data: number[]
+    average?: number[]
+    seriesLabel?: string
+    averageLabel?: string
+    legend?: boolean
     height?: number
   }>(),
-  { height: 200 },
+  { height: 200, seriesLabel: 'Today', averageLabel: 'Average', legend: true },
 )
 
 const canvas = ref<HTMLCanvasElement | null>(null)
@@ -22,26 +27,55 @@ function token(name: string, fallback: string): string {
   return v || fallback
 }
 
+function datasets() {
+  const leaf = token('--color-leaf-400', '#49b2a1')
+  const grey = token('--color-grey-300', '#e1e3e5')
+  const sets: any[] = [
+    { label: props.seriesLabel, data: props.data, backgroundColor: leaf, borderRadius: 3, maxBarThickness: 14 },
+  ]
+  if (props.average) {
+    sets.push({
+      label: props.averageLabel,
+      data: props.average,
+      backgroundColor: grey,
+      borderRadius: 3,
+      maxBarThickness: 14,
+    })
+  }
+  return sets
+}
+
 function build() {
   if (!canvas.value) return
-  const leaf = token('--color-leaf-400', '#49b2a1')
   const grid = token('--color-grey-200', '#f4f5f6')
   const axis = token('--color-grey-600', '#70767b')
+  const legendText = token('--color-grey-700', '#4d5256')
 
   chart = new Chart(canvas.value, {
     type: 'bar',
-    data: {
-      labels: props.labels,
-      datasets: [{ data: props.data, backgroundColor: leaf, borderRadius: 3, maxBarThickness: 18 }],
-    },
+    data: { labels: props.labels, datasets: datasets() },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { intersect: false, mode: 'index' } },
+      plugins: {
+        legend: {
+          display: props.legend && !!props.average,
+          position: 'top',
+          align: 'end',
+          labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 6, boxHeight: 6, color: legendText, font: { size: 11 } },
+        },
+        tooltip: {
+          intersect: false,
+          mode: 'index',
+          usePointStyle: true,
+          boxPadding: 4,
+          padding: 10,
+        },
+      },
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: axis, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+          ticks: { color: axis, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 24 },
         },
         y: {
           beginAtZero: true,
@@ -59,11 +93,11 @@ onBeforeUnmount(() => chart?.destroy())
 
 // Re-render when the data changes (e.g. filters update the series).
 watch(
-  () => [props.labels, props.data],
+  () => [props.labels, props.data, props.average],
   () => {
     if (!chart) return
     chart.data.labels = props.labels
-    chart.data.datasets[0].data = props.data
+    chart.data.datasets = datasets()
     chart.update()
   },
   { deep: true },

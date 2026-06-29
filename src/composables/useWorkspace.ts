@@ -14,6 +14,7 @@ import {
   LEGACY_REPORT_TEMPLATE_IDS,
   type Template,
 } from '@/config/templates'
+import { getIteration } from '@/config/iterations'
 
 /** A tab = a dashboard the user created from a template. */
 export interface Tab {
@@ -26,13 +27,22 @@ export interface Tab {
 export type Scenario = 'existing' | 'new'
 
 const SCENARIO_KEY = 'trengo-scenario-v1'
+const ITERATION_KEY = 'trengo-iteration-v1'
 
 function loadScenario(): Scenario {
   return localStorage.getItem(SCENARIO_KEY) === 'new' ? 'new' : 'existing'
 }
 
+function loadIteration(): string {
+  const id = localStorage.getItem(ITERATION_KEY)
+  return id && getIteration(id) ? id : 'full'
+}
+
 const state = reactive({
   scenario: loadScenario() as Scenario,
+  // Prototype "iteration" (feature-flag set) — hides pages / new-dashboard
+  // triggers to demo rollout states. Persisted like the scenario.
+  iterationId: loadIteration(),
   tabs: [] as Tab[],
   // Existing customers see a one-time welcome step (choose new vs legacy) before
   // any tabs are seeded. New customers skip it. Not persisted, so the demo
@@ -66,7 +76,10 @@ function applyScenario(scenario: Scenario) {
   }
 }
 
-// Initialise from the persisted scenario.
+// Iterations that lock the scenario always show the seeded ("filled") dashboard.
+if (getIteration(state.iterationId)?.allowScenarioToggle === false) state.scenario = 'new'
+
+// Initialise from the (possibly forced) scenario.
 applyScenario(state.scenario)
 
 /** Ensure a unique tab name ("Voice", "Voice 2", …). */
@@ -79,8 +92,16 @@ function uniqueName(base: string): string {
 }
 
 export function useWorkspace() {
-  const tabs = computed(() => state.tabs)
+  // Tabs visible in the current iteration (hidden pages filtered out).
+  const tabs = computed(() => {
+    const hidden = getIteration(state.iterationId)?.hiddenTemplateIds ?? []
+    return hidden.length ? state.tabs.filter((t) => !hidden.includes(t.templateId)) : state.tabs
+  })
   const scenario = computed(() => state.scenario)
+  const iterationId = computed(() => state.iterationId)
+  const allowNewDashboard = computed(() => getIteration(state.iterationId)?.allowNewDashboard ?? true)
+  const allowRemoveDashboard = computed(() => getIteration(state.iterationId)?.allowRemoveDashboard ?? true)
+  const allowScenarioToggle = computed(() => getIteration(state.iterationId)?.allowScenarioToggle ?? true)
   const needsChoice = computed(() => state.needsChoice)
   const galleryOpen = computed(() => state.galleryOpen)
 
@@ -120,6 +141,17 @@ export function useWorkspace() {
     applyScenario(next)
   }
 
+  /** Switch prototype iteration (feature-flag set) — persists. */
+  function setIteration(id: string) {
+    state.iterationId = id
+    localStorage.setItem(ITERATION_KEY, id)
+    // Iterations that lock the scenario force the seeded ("filled") dashboard.
+    if (getIteration(id)?.allowScenarioToggle === false && state.scenario !== 'new') {
+      state.scenario = 'new'
+      applyScenario('new')
+    }
+  }
+
   /**
    * Resolve the existing-customer welcome step.
    *  - 'new'   → seed the question-led templates
@@ -142,6 +174,10 @@ export function useWorkspace() {
   return {
     tabs,
     scenario,
+    iterationId,
+    allowNewDashboard,
+    allowRemoveDashboard,
+    allowScenarioToggle,
     needsChoice,
     galleryOpen,
     getTab,
@@ -149,6 +185,7 @@ export function useWorkspace() {
     createFromTemplate,
     removeTab,
     setScenario,
+    setIteration,
     chooseStart,
     openGallery,
     closeGallery,

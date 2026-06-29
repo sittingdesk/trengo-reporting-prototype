@@ -14,6 +14,7 @@ import {
   LineElement,
   BarElement,
   Tooltip,
+  Legend,
   Filler,
 } from 'chart.js'
 
@@ -26,6 +27,7 @@ Chart.register(
   LineElement,
   BarElement,
   Tooltip,
+  Legend,
   Filler,
 )
 

@@ -9,9 +9,21 @@ import { RouterLink, useRouter } from 'vue-router'
 import Icon from '@/components/Icon.vue'
 import { useWorkspace, type Scenario } from '@/composables/useWorkspace'
 import { useSettings } from '@/composables/useSettings'
+import { ITERATIONS } from '@/config/iterations'
 
 const router = useRouter()
-const { tabs, scenario, openGallery, removeTab, setScenario } = useWorkspace()
+const {
+  tabs,
+  scenario,
+  iterationId,
+  allowNewDashboard,
+  allowRemoveDashboard,
+  allowScenarioToggle,
+  openGallery,
+  removeTab,
+  setScenario,
+  setIteration,
+} = useWorkspace()
 const { showComparison, toggleComparison } = useSettings()
 
 const scenarios: { id: Scenario; label: string }[] = [
@@ -19,11 +31,19 @@ const scenarios: { id: Scenario; label: string }[] = [
   { id: 'new', label: 'New customer' },
 ]
 
-// Switch the demo scenario, then land somewhere sensible: the first seeded tab
-// (new customer → Overview) or the welcome step (existing customer).
+// After changing scenario/iteration, land on the first visible tab (or welcome).
+function goToFirstTab() {
+  router.push(tabs.value.length ? `/d/${tabs.value[0].id}` : '/welcome')
+}
+
 function switchScenario(id: Scenario) {
   setScenario(id)
-  router.push(tabs.value.length ? `/d/${tabs.value[0].id}` : '/welcome')
+  goToFirstTab()
+}
+
+function changeIteration(id: string) {
+  setIteration(id)
+  goToFirstTab()
 }
 </script>
 
@@ -33,6 +53,7 @@ function switchScenario(id: Scenario) {
     <div class="flex items-center justify-between px-4 pb-2 pt-5">
       <h2 class="text-lg font-bold text-grey-900">Dashboards</h2>
       <button
+        v-if="allowNewDashboard"
         class="flex size-7 items-center justify-center rounded-base text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900"
         title="New dashboard"
         @click="openGallery()"
@@ -53,6 +74,7 @@ function switchScenario(id: Scenario) {
         <span class="flex-1 truncate">{{ tab.name }}</span>
         <!-- Remove on hover -->
         <button
+          v-if="allowRemoveDashboard"
           class="hidden size-5 items-center justify-center rounded-sm text-grey-500 hover:bg-grey-300 hover:text-grey-900 group-hover:flex"
           title="Remove dashboard"
           @click.prevent.stop="removeTab(tab.id)"
@@ -63,6 +85,7 @@ function switchScenario(id: Scenario) {
 
       <!-- Add another -->
       <button
+        v-if="allowNewDashboard"
         class="mt-1 flex items-center gap-2 rounded-base px-2.5 py-2 text-sm font-medium text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900"
         @click="openGallery()"
       >
@@ -72,7 +95,19 @@ function switchScenario(id: Scenario) {
 
     <!-- Prototype-only controls -->
     <div class="space-y-3 border-t border-grey-300 p-3">
+      <!-- Iteration (feature-flag set) -->
       <div>
+        <div class="mb-1.5 text-xs font-medium text-grey-600">Iteration</div>
+        <select
+          class="w-full truncate rounded-base border border-grey-300 bg-white px-2 py-1.5 text-xs font-medium text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          :value="iterationId"
+          @change="changeIteration(($event.target as HTMLSelectElement).value)"
+        >
+          <option v-for="it in ITERATIONS" :key="it.id" :value="it.id">{{ it.label }}</option>
+        </select>
+      </div>
+
+      <div v-if="allowScenarioToggle">
         <div class="mb-1.5 text-xs font-medium text-grey-600">Prototype scenario</div>
         <div class="flex gap-1 rounded-base bg-grey-200 p-0.5">
           <button

@@ -7,7 +7,7 @@
    Do not hardcode hex/px in components — reference these tokens via utilities.
    ────────────────────────────────────────────────────────────────────────── */
 @theme {
-  /* Font — design.md §2. NOTE: Inter is not bundled; falls back to system. */
+  /* Font — design.md §2. Inter is self-hosted via @fontsource (see main.ts). */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* Type scale — design.md §2 (size / line-height). Weights via font-* utils. */

@@ -37,6 +37,14 @@ export interface MetricDef {
   lowerIsBetter?: boolean
   /** Shown as a tooltip — definition caveats / open questions. */
   caveat?: string
+  /**
+   * How a `pending` metric presents:
+   *  - 'soon'    → grayed-out card + "Available soon" (default)
+   *  - 'feature' → active card with a `pendingMessage` helper (e.g. feature-gated)
+   */
+  pendingVariant?: 'soon' | 'feature'
+  /** Helper line for `pendingVariant: 'feature'`. */
+  pendingMessage?: string
 }
 
 export const METRICS: MetricDef[] = [
@@ -48,6 +56,7 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'volume',
     base: 320,
+    caveat: 'Conversations currently open (not yet resolved).',
   },
   {
     id: 'assigned_conversations',
@@ -57,6 +66,7 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'volume',
     base: 245,
+    caveat: 'Open conversations assigned to an agent.',
   },
   {
     id: 'first_response_time',
@@ -110,7 +120,7 @@ export const METRICS: MetricDef[] = [
     base: 60,
     caveat: 'Volume of conversations created, bucketed by hour of day.',
   },
-  // --- Needs definition / data not confirmed → empty state ---
+  // --- Pending: not yet available (different reasons → different presentation) ---
   {
     id: 'avg_deal_size',
     label: 'Average deal size',
@@ -118,7 +128,9 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'pending',
     category: 'sales',
-    caveat: 'Defined in the registry, but live data availability is not yet confirmed.',
+    caveat: 'Average value of won deals, tracked with the Boards feature.',
+    pendingVariant: 'feature',
+    pendingMessage: 'Works with our Boards feature',
   },
   {
     id: 'pipeline_value',
