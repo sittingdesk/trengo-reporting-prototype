@@ -88,6 +88,18 @@ function toggleId(list: string[], id: string): string[] {
   return list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
 }
 
+// Comparison phrasing per preset (the delta's "vs …" label).
+const COMPARISON_LABEL: Record<string, string> = {
+  today: 'vs yesterday',
+  yesterday: 'vs prev. day',
+  last7: 'vs prev. 7 days',
+  last30: 'vs prev. 30 days',
+  month: 'vs last month',
+  lastMonth: 'vs prev. month',
+  last3months: 'vs prev. 3 months',
+  lastYear: 'vs prev. year',
+}
+
 export function useFilters() {
   const channelIds = computed(() => state.channelIds)
   const teamIds = computed(() => state.teamIds)
@@ -97,6 +109,18 @@ export function useFilters() {
       ? (DATE_PRESETS.find((p) => p.id === presetId.value)?.label ?? formatRange(dateRange.value))
       : formatRange(dateRange.value),
   )
+
+  // Delta comparison label — preset phrasing, or a same-length window for a custom range.
+  const comparisonLabel = computed(() => {
+    if (presetId.value && COMPARISON_LABEL[presetId.value]) return COMPARISON_LABEL[presetId.value]
+    const { start, end } = dateRange.value
+    if (!start || !end) return 'vs prev. period'
+    const n = Math.max(
+      1,
+      Math.round((end.toDate(tz).getTime() - start.toDate(tz).getTime()) / 86_400_000) + 1,
+    )
+    return `vs prev. ${n} ${n === 1 ? 'day' : 'days'}`
+  })
 
   const toggleChannel = (id: string) => (state.channelIds = toggleId(state.channelIds, id))
   const toggleTeam = (id: string) => (state.teamIds = toggleId(state.teamIds, id))
@@ -122,6 +146,7 @@ export function useFilters() {
     dateRange,
     presetId,
     dateRangeLabel,
+    comparisonLabel,
     toggleChannel,
     toggleTeam,
     clearChannels,

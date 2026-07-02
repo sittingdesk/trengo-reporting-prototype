@@ -51,7 +51,7 @@ function changeIteration(id: string) {
   <aside class="flex w-60 shrink-0 flex-col border-r border-grey-300 bg-grey-100">
     <!-- Heading + create -->
     <div class="flex items-center justify-between px-4 pb-2 pt-5">
-      <h2 class="text-lg font-bold text-grey-900">Dashboards</h2>
+      <h2 class="text-lg font-bold text-grey-900">Analytics</h2>
       <button
         v-if="allowNewDashboard"
         class="flex size-7 items-center justify-center rounded-base text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900"

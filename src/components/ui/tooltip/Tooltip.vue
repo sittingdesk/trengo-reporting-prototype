@@ -23,10 +23,10 @@ defineProps<{ text?: string }>()
       <TooltipPortal>
         <TooltipContent
           :side-offset="6"
-          class="z-50 max-w-xs rounded-base bg-grey-900 px-2.5 py-1.5 text-xs font-medium leading-relaxed text-white shadow-300 data-[state=delayed-open]:animate-in data-[state=closed]:animate-out"
+          class="z-50 max-w-xs rounded-base bg-grey-800 px-2.5 py-1.5 text-xs font-medium leading-relaxed text-white shadow-300 data-[state=delayed-open]:animate-in data-[state=closed]:animate-out"
         >
           {{ text }}
-          <TooltipArrow class="fill-grey-900" :width="10" :height="5" />
+          <TooltipArrow class="fill-grey-800" :width="10" :height="5" />
         </TooltipContent>
       </TooltipPortal>
     </TooltipRoot>

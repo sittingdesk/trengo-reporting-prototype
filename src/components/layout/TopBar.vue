@@ -23,7 +23,7 @@ const tabId = computed(() => (route.name === 'tab' ? String(route.params.tabId) 
 const tab = computed(() => (tabId.value ? getTab(tabId.value) : undefined))
 const template = computed(() => (tabId.value ? tabTemplate(tabId.value) : undefined))
 
-const title = computed(() => tab.value?.name ?? 'Dashboards')
+const title = computed(() => tab.value?.name ?? 'Analytics')
 const subtitle = computed(() => template.value?.description ?? '')
 </script>
 

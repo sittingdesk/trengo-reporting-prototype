@@ -8,8 +8,10 @@ import { Chart } from '@/lib/chart'
 const props = withDefaults(
   defineProps<{
     labels: (string | number)[]
-    data: number[]
+    data?: number[]
     average?: number[]
+    // Multi-series grouped bars (overrides data/average when provided).
+    series?: { name: string; tint: 'leaf' | 'sky'; data: number[] }[]
     seriesLabel?: string
     averageLabel?: string
     legend?: boolean
@@ -28,6 +30,21 @@ function token(name: string, fallback: string): string {
 }
 
 function datasets() {
+  // Multi-series grouped bars (e.g. Created vs Closed).
+  if (props.series) {
+    const colors: Record<'leaf' | 'sky', string> = {
+      leaf: token('--color-leaf-500', '#249888'),
+      sky: token('--color-sky-600', '#4fa1c8'),
+    }
+    return props.series.map((s) => ({
+      label: s.name,
+      data: s.data,
+      backgroundColor: colors[s.tint],
+      borderRadius: 3,
+      maxBarThickness: 10,
+    }))
+  }
+
   const leaf = token('--color-leaf-400', '#49b2a1')
   const grey = token('--color-grey-300', '#e1e3e5')
   const sets: any[] = [
@@ -93,7 +110,7 @@ onBeforeUnmount(() => chart?.destroy())
 
 // Re-render when the data changes (e.g. filters update the series).
 watch(
-  () => [props.labels, props.data, props.average],
+  () => [props.labels, props.data, props.average, props.series],
   () => {
     if (!chart) return
     chart.data.labels = props.labels

@@ -1,46 +1,79 @@
 <script setup lang="ts">
 // MetricBox — the one reusable dashboard unit (TECH_FOUNDATION §3), styled to the
-// Figma metric card (node 6873:52244): label + filled info icon, a top-right
-// trend delta (arrow coloured, % neutral grey), and a 40px value.
-// States: value · histogram · empty/pending · restricted. The delta only shows
-// when the prototype "Comparison" toggle is on (§8); its colour respects the
-// metric's direction (lower-is-better metrics invert).
-import { computed } from 'vue'
+// Figma metric-card states (node 6887:75704).
+// States: value · no-data · loading · feature (create a board) · in-development ·
+// histogram · time_series · table · restricted.
+// Layout: label + top-right info icon, a value/body slot, and a bottom slot
+// (delta / button / badge) pinned via justify-between.
+import { computed, ref, watch } from 'vue'
 import Icon from '@/components/Icon.vue'
 import BarChart from '@/components/charts/BarChart.vue'
+import LineChart from '@/components/charts/LineChart.vue'
+import DataTable from '@/components/dashboard/DataTable.vue'
+import MetricSkeleton from '@/components/dashboard/MetricSkeleton.vue'
 import { getMetric } from '@/data/metrics'
 import { formatValue } from '@/lib/format'
-import { metricValue, filterSignature, rangeDays } from '@/lib/mock'
+import { metricValue, filterSignature } from '@/lib/mock'
 import { Tooltip } from '@/components/ui/tooltip'
-import { Badge } from '@/components/ui/badge'
+import { canExportWidget, exportWidgetCSV } from '@/lib/csvExport'
 import { useFilters } from '@/composables/useFilters'
 import { useSettings } from '@/composables/useSettings'
 
 const props = defineProps<{ metricId: string }>()
 
-const { dateRange, channelIds, teamIds } = useFilters()
+const { dateRange, channelIds, teamIds, comparisonLabel, dateRangeLabel } = useFilters()
 const { showComparison } = useSettings()
 
 const metric = computed(() => getMetric(props.metricId))
 
+const signature = computed(() => filterSignature(dateRange.value, channelIds.value, teamIds.value))
 const sample = computed(() => {
   const m = metric.value
-  if (!m) return null
-  const sig = filterSignature(dateRange.value, channelIds.value, teamIds.value)
-  return metricValue(m, sig)
+  return m ? metricValue(m, signature.value, dateRange.value) : null
 })
+
+// Brief simulated load on mount + whenever the filter signature changes — shows
+// the loading skeleton (prototype only; real widgets fetch on filter change, §4).
+const loading = ref(true)
+let timer: ReturnType<typeof setTimeout> | undefined
+watch(
+  signature,
+  () => {
+    loading.value = true
+    clearTimeout(timer)
+    timer = setTimeout(() => (loading.value = false), 350)
+  },
+  { immediate: true },
+)
 
 const formatted = computed(() =>
   metric.value && sample.value ? formatValue(sample.value.value, metric.value.unit) : '—',
 )
 
-// "vs prior N days" — the comparison window matches the current date range.
-const periodLabel = computed(() => {
-  const d = rangeDays(dateRange.value.start, dateRange.value.end)
-  return `vs prior ${d} ${d === 1 ? 'day' : 'days'}`
+// Per-widget CSV export (chart/table widgets only).
+const exportable = computed(() => (metric.value ? canExportWidget(metric.value) : false))
+function onExport() {
+  if (!metric.value || !sample.value) return
+  exportWidgetCSV(metric.value, sample.value, {
+    channels: channelIds.value.join('+') || 'all',
+    teams: teamIds.value.join('+') || 'all',
+    rangeLabel: dateRangeLabel.value,
+  })
+}
+
+// "No data" when a ready metric truly resolves to zero for the current filters.
+// (Exact zero — never rounds a small percentage/duration down into an empty state.)
+const noData = computed(() => {
+  const m = metric.value
+  const s = sample.value
+  if (!m || !s || m.status !== 'ready') return false
+  if (m.resultType === 'value' || m.resultType === 'histogram' || m.resultType === 'time_series') {
+    return s.value === 0
+  }
+  return false
 })
 
-// Delta (only meaningful for ready value metrics, when toggled on).
+// Delta — direction-aware (lower-is-better metrics invert the colour).
 const delta = computed(() => {
   const m = metric.value
   const s = sample.value
@@ -54,44 +87,123 @@ const delta = computed(() => {
 })
 
 const showDelta = computed(
-  () => metric.value?.resultType === 'value' && metric.value?.status === 'ready' && showComparison.value && !!delta.value,
+  () =>
+    metric.value?.resultType === 'value' &&
+    metric.value?.status === 'ready' &&
+    !noData.value &&
+    showComparison.value &&
+    !!delta.value,
 )
 
-// Pending presentation: 'feature' = active card with a helper line; otherwise
-// 'soon' = grayed-out placeholder.
-const isFeaturePending = computed(
+const isFeature = computed(
   () => metric.value?.status === 'pending' && metric.value?.pendingVariant === 'feature',
 )
-const isSoon = computed(
-  () => metric.value?.status === 'pending' && metric.value?.pendingVariant !== 'feature',
+const isInDevelopment = computed(
+  () => metric.value?.status === 'pending' && metric.value?.pendingVariant === 'in-development',
 )
+const isChart = computed(
+  () => metric.value?.resultType === 'histogram' || metric.value?.resultType === 'time_series',
+)
+const skeletonVariant = computed<'value' | 'graph'>(() => (isChart.value ? 'graph' : 'value'))
 </script>
 
 <template>
   <article
     v-if="metric"
-    class="flex min-h-[112px] flex-col gap-3 rounded-lg border p-5"
-    :class="isSoon ? 'border-grey-200 bg-grey-100' : 'border-grey-300 bg-white'"
+    class="flex min-h-[152px] flex-col justify-between rounded-lg border border-grey-300 bg-white p-5"
   >
-    <!-- Header: label + info icon (hover for description) · delta top-right -->
-    <header class="flex items-start justify-between gap-2">
-      <div class="flex items-center gap-1">
-        <h3 class="text-sm font-medium" :class="isSoon ? 'text-grey-400' : 'text-grey-600'">{{ metric.label }}</h3>
-        <Tooltip :text="metric.caveat">
-          <span
-            class="flex shrink-0 cursor-default items-center transition-colors hover:text-grey-600"
-            :class="isSoon ? 'text-grey-300' : 'text-grey-400'"
-          >
-            <Icon name="Info" :size="14" />
-          </span>
-        </Tooltip>
+    <!-- Top group: header + body stay connected (12px), grows to fill -->
+    <div class="flex min-h-0 flex-1 flex-col gap-3">
+    <!-- Header: label + (histogram legend) + top-right info icon -->
+    <header class="flex items-start gap-2">
+      <h3 class="min-w-0 flex-1 text-sm font-medium text-grey-600">{{ metric.label }}</h3>
+      <div
+        v-if="metric.resultType === 'histogram'"
+        class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
+      >
+        <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-leaf-400" /> Today</span>
+        <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-grey-300" /> Average</span>
+      </div>
+      <div
+        v-else-if="metric.resultType === 'time_series' && sample?.lines"
+        class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
+      >
+        <span v-for="l in sample.lines" :key="l.name" class="flex items-center gap-1.5">
+          <span class="size-2 rounded-circle" :class="l.tint === 'leaf' ? 'bg-leaf-500' : 'bg-sky-600'" /> {{ l.name }}
+        </span>
+      </div>
+      <button
+        v-if="exportable && sample && !loading"
+        type="button"
+        class="flex shrink-0 items-center rounded-sm p-0.5 text-grey-400 transition-colors hover:text-grey-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Download CSV"
+        title="Download CSV"
+        @click="onExport"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v12" /><path d="M7 12l5 5 5-5" /><path d="M5 21h14" />
+        </svg>
+      </button>
+      <Tooltip :text="metric.caveat">
+        <span class="flex shrink-0 cursor-default items-center text-grey-400 transition-colors hover:text-grey-600">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="8" fill="currentColor" />
+            <circle cx="8" cy="4.6" r="1.1" fill="#fff" />
+            <rect x="6.9" y="6.7" width="2.2" height="5" rx="1.1" fill="#fff" />
+          </svg>
+        </span>
+      </Tooltip>
+    </header>
+
+      <!-- Body (per state) — sits 4px under the header -->
+      <MetricSkeleton v-if="loading" :variant="skeletonVariant" />
+
+      <!-- Restricted -->
+      <div v-else-if="metric.status === 'restricted'" class="flex flex-1 flex-col items-center justify-center gap-1 text-center">
+        <Icon name="Lock" :size="18" class="text-grey-400" />
+        <span class="text-xs text-grey-600">You don't have access</span>
       </div>
 
-      <div
-        v-if="showDelta && delta"
-        class="flex shrink-0 items-center gap-1"
-        :title="periodLabel"
-      >
+      <!-- Pending: feature-gated → helper line (button is in the bottom slot) -->
+      <div v-else-if="isFeature" class="text-lg font-medium text-grey-800">{{ metric.pendingMessage }}</div>
+
+      <!-- Pending: in development → dash (pill is in the bottom slot) -->
+      <div v-else-if="isInDevelopment" class="text-[40px] font-semibold leading-none text-grey-800 tabular-nums">–</div>
+
+      <!-- No data for the current filters -->
+      <p v-else-if="noData" class="text-lg font-medium text-grey-800">No data for this period</p>
+
+      <!-- Histogram -->
+      <div v-else-if="metric.resultType === 'histogram'" class="flex flex-1 flex-col">
+        <BarChart
+          v-if="sample?.series && sample?.labels"
+          :labels="sample.labels"
+          :data="sample.series"
+          :average="sample.average"
+          :legend="false"
+          :height="200"
+        />
+      </div>
+
+      <!-- Time series (line) -->
+      <div v-else-if="metric.resultType === 'time_series'" class="flex flex-1 flex-col">
+        <LineChart v-if="sample?.lines && sample?.labels" :labels="sample.labels" :series="sample.lines" :legend="false" :height="220" />
+      </div>
+
+      <!-- Table -->
+      <div v-else-if="metric.resultType === 'table'" class="flex flex-1 flex-col">
+        <DataTable v-if="sample?.table" :columns="sample.table.columns" :rows="sample.table.rows" :initial-rows="sample.table.initialRows" />
+      </div>
+
+      <!-- Value (default) -->
+      <div v-else class="text-[40px] font-semibold leading-[44px] tracking-[-0.8px] text-grey-800 tabular-nums">
+        {{ formatted }}
+      </div>
+    </div>
+
+    <!-- Bottom slot: pinned to the card bottom (delta / button / badge) -->
+    <template v-if="!loading">
+      <div v-if="showDelta && delta" class="flex items-center gap-1">
         <Icon
           v-if="delta.up || delta.down"
           :name="delta.up ? 'TrendUp' : 'TrendDown'"
@@ -102,54 +214,30 @@ const isSoon = computed(
             'text-grey-600': delta.tone === 'flat',
           }"
         />
-        <span class="text-sm font-medium text-grey-700">{{ delta.pct }}</span>
+        <span
+          class="text-xs font-semibold"
+          :class="{
+            'text-leaf-500': delta.tone === 'good',
+            'text-error-500': delta.tone === 'bad',
+            'text-grey-600': delta.tone === 'flat',
+          }"
+        >{{ delta.pct }}</span>
+        <span class="text-xs font-semibold text-grey-600">{{ comparisonLabel }}</span>
       </div>
 
-      <!-- Histogram legend, aligned with the title row -->
-      <div
-        v-else-if="metric.resultType === 'histogram'"
-        class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
+      <button
+        v-else-if="isFeature"
+        type="button"
+        class="inline-flex items-center gap-1 self-start rounded-pill border border-grey-400 bg-white px-3 py-1.5 text-sm font-semibold text-grey-900 transition-colors hover:bg-grey-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-leaf-400" /> Today</span>
-        <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-grey-300" /> Average</span>
-      </div>
-    </header>
+        Create a board
+        <Icon name="ArrowRight" :size="18" />
+      </button>
 
-    <!-- Restricted -->
-    <div v-if="metric.status === 'restricted'" class="flex flex-1 flex-col items-center justify-center gap-1 text-center">
-      <Icon name="Lock" :size="18" class="text-grey-400" />
-      <span class="text-xs text-grey-600">You don't have access</span>
-    </div>
-
-    <!-- Pending: feature-gated (e.g. Boards) — active card + helper at the bottom -->
-    <div v-else-if="isFeaturePending" class="flex flex-1 flex-col">
-      <div class="text-[40px] font-semibold leading-none text-grey-300 tabular-nums">—</div>
-      <div class="mt-auto inline-flex items-center gap-1.5 text-xs text-grey-600">
-        <Icon name="ChartColumn" :size="14" class="text-grey-400" />
-        {{ metric.pendingMessage }}
-      </div>
-    </div>
-
-    <!-- Pending: available soon — grayed-out placeholder -->
-    <div v-else-if="metric.status === 'pending'" class="flex flex-1 items-start">
-      <Badge variant="muted">Available soon</Badge>
-    </div>
-
-    <!-- Histogram -->
-    <div v-else-if="metric.resultType === 'histogram'" class="flex flex-1 flex-col">
-      <BarChart
-        v-if="sample?.series && sample?.labels"
-        :labels="sample.labels"
-        :data="sample.series"
-        :average="sample.average"
-        :legend="false"
-        :height="200"
-      />
-    </div>
-
-    <!-- Value (default) -->
-    <div v-else class="text-[40px] font-semibold leading-none text-grey-800 tabular-nums">
-      {{ formatted }}
-    </div>
+      <span
+        v-else-if="isInDevelopment"
+        class="self-start rounded-pill bg-grey-300 px-2 py-0.5 text-xs font-semibold text-grey-700"
+      >In development</span>
+    </template>
   </article>
 </template>

@@ -40,12 +40,14 @@ const KIND_LABEL: Record<WidgetKind, string> = {
   tbd: 'TBD',
 }
 
-// Wide widgets span two columns. Metric widgets use their result type; placeholders use kind.
+// Wide widgets span more columns. Metric widgets use their result type; placeholders use kind.
 const WIDE_KINDS: WidgetKind[] = ['trend', 'histogram', 'table']
 function spanClass(widget: Widget) {
   if (isMetricWidget(widget)) {
     const rt = getMetric(widget.metricId)?.resultType
-    return rt === 'histogram' || rt === 'time_series' ? 'lg:col-span-2' : ''
+    if (rt === 'histogram') return 'lg:col-span-2'
+    if (rt === 'time_series' || rt === 'table') return 'sm:col-span-2 lg:col-span-3'
+    return ''
   }
   return WIDE_KINDS.includes(widget.kind) ? 'lg:col-span-2' : ''
 }

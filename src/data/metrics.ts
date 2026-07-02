@@ -17,7 +17,7 @@ export type Unit =
   | 'currency'
 
 /** What kind of result the metric returns (§4). */
-export type ResultType = 'value' | 'histogram' | 'time_series'
+export type ResultType = 'value' | 'histogram' | 'time_series' | 'table'
 
 /** ready = show a value; pending = definition/data not confirmed; restricted = gated. */
 export type MetricStatus = 'ready' | 'pending' | 'restricted'
@@ -39,10 +39,10 @@ export interface MetricDef {
   caveat?: string
   /**
    * How a `pending` metric presents:
-   *  - 'soon'    → grayed-out card + "Available soon" (default)
-   *  - 'feature' → active card with a `pendingMessage` helper (e.g. feature-gated)
+   *  - 'feature'        → "Create a board to see …" helper + a Create-a-board button
+   *  - 'in-development' → "–" value + an "In development" pill
    */
-  pendingVariant?: 'soon' | 'feature'
+  pendingVariant?: 'feature' | 'in-development'
   /** Helper line for `pendingVariant: 'feature'`. */
   pendingMessage?: string
 }
@@ -120,6 +120,46 @@ export const METRICS: MetricDef[] = [
     base: 60,
     caveat: 'Volume of conversations created, bucketed by hour of day.',
   },
+  // --- Operate page ---
+  {
+    id: 'call_wait_time',
+    label: 'Call wait time',
+    unit: 'seconds',
+    resultType: 'value',
+    status: 'ready',
+    category: 'voice',
+    base: 42, // ~42s
+    lowerIsBetter: true,
+    caveat: 'Average time callers wait before an agent answers.',
+  },
+  {
+    id: 'created_vs_closed',
+    label: 'Created vs closed',
+    unit: 'count',
+    resultType: 'time_series',
+    status: 'ready',
+    category: 'volume',
+    base: 500, // tickets created per day
+    caveat: 'Conversations created vs closed over the selected period.',
+  },
+  {
+    id: 'workload_by_agent',
+    label: 'Workload by agent',
+    unit: 'count',
+    resultType: 'table',
+    status: 'ready',
+    category: 'efficiency',
+    caveat: 'Open, closed and average response time per agent.',
+  },
+  {
+    id: 'performance_by_channel',
+    label: 'Performance by channel',
+    unit: 'count',
+    resultType: 'table',
+    status: 'ready',
+    category: 'efficiency',
+    caveat: 'Volume, first response time and CSAT per channel.',
+  },
   // --- Pending: not yet available (different reasons → different presentation) ---
   {
     id: 'avg_deal_size',
@@ -128,9 +168,9 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'pending',
     category: 'sales',
-    caveat: 'Average value of won deals, tracked with the Boards feature.',
+    caveat: 'Average value of won deals.',
     pendingVariant: 'feature',
-    pendingMessage: 'Works with our Boards feature',
+    pendingMessage: 'Create a board to see deal metrics',
   },
   {
     id: 'pipeline_value',
@@ -139,7 +179,9 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'pending',
     category: 'sales',
-    caveat: 'Calculation is still being decided — which deal stages count as pipeline is TBD.',
+    caveat: 'Total value of deals currently in the Boards pipeline.',
+    pendingVariant: 'feature',
+    pendingMessage: 'Create a board to see pipeline value',
   },
   {
     id: 'calls_volume',
@@ -149,6 +191,7 @@ export const METRICS: MetricDef[] = [
     status: 'pending',
     category: 'voice',
     caveat: 'Total/missed volume rule (the date-window definition) is still TBD.',
+    pendingVariant: 'in-development',
   },
 ]
 

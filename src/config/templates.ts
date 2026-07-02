@@ -124,7 +124,14 @@ export const TEMPLATES: Template[] = [
     name: 'Operate',
     description: 'Live operational performance.',
     recommended: true,
-    widgets: [],
+    widgets: [
+      { metricId: 'first_response_time' },
+      { metricId: 'resolution_time' },
+      { metricId: 'call_wait_time' },
+      { metricId: 'created_vs_closed' },
+      { metricId: 'workload_by_agent' },
+      { metricId: 'performance_by_channel' },
+    ],
   },
   {
     id: 'improve',
