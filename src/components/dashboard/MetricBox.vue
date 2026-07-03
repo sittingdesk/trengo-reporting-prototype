@@ -1,17 +1,20 @@
 <script setup lang="ts">
-// MetricBox — the one reusable dashboard unit (TECH_FOUNDATION §3), styled to the
-// Figma metric-card states (node 6887:75704).
-// States: value · no-data · loading · feature (create a board) · in-development ·
-// histogram · time_series · table · restricted.
-// Layout: label + top-right info icon, a value/body slot, and a bottom slot
-// (delta / button / badge) pinned via justify-between.
+// MetricBox — the one reusable dashboard unit (TECH_FOUNDATION §3).
+// Data states: value · histogram · time_series · table · loading · restricted,
+// plus the config-driven EMPTY-STATE SYSTEM (src/data/emptyStates.ts):
+// empty / adoption / definition / development — rendered by MetricEmptyState.
+// Resolution order: definition/development (config) → adoption → value → empty.
+// definition/development get a DASHED card; the delta row only exists in the
+// value state (fully hidden otherwise, no reserved space).
 import { computed, ref, watch } from 'vue'
 import Icon from '@/components/Icon.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 import LineChart from '@/components/charts/LineChart.vue'
 import DataTable from '@/components/dashboard/DataTable.vue'
 import MetricSkeleton from '@/components/dashboard/MetricSkeleton.vue'
+import MetricEmptyState from '@/components/dashboard/MetricEmptyState.vue'
 import { getMetric } from '@/data/metrics'
+import { resolveEmptyState } from '@/data/emptyStates'
 import { formatValue } from '@/lib/format'
 import { metricValue, filterSignature } from '@/lib/mock'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -22,7 +25,7 @@ import { useSettings } from '@/composables/useSettings'
 const props = defineProps<{ metricId: string }>()
 
 const { dateRange, channelIds, teamIds, comparisonLabel, dateRangeLabel } = useFilters()
-const { showComparison } = useSettings()
+const { showComparison, showEmptyData } = useSettings()
 
 const metric = computed(() => getMetric(props.metricId))
 
@@ -46,9 +49,15 @@ watch(
   { immediate: true },
 )
 
-const formatted = computed(() =>
-  metric.value && sample.value ? formatValue(sample.value.value, metric.value.unit) : '—',
-)
+const formatted = computed(() => {
+  const m = metric.value
+  if (!m || !sample.value) return '—'
+  // "No events" demo: counts render a true 0 (zero is a value, not an empty state).
+  if (showEmptyData.value && m.resultType === 'value' && m.unit === 'count') {
+    return formatValue(0, m.unit)
+  }
+  return formatValue(sample.value.value, m.unit)
+})
 
 // Per-widget CSV export (chart/table widgets only).
 const exportable = computed(() => (metric.value ? canExportWidget(metric.value) : false))
@@ -61,17 +70,30 @@ function onExport() {
   })
 }
 
-// "No data" when a ready metric truly resolves to zero for the current filters.
-// (Exact zero — never rounds a small percentage/duration down into an empty state.)
-const noData = computed(() => {
+// Resolution order (empty-states spec): ① definition/development from config
+// (data irrelevant) → ② adoption → ③ has events → value → ④ empty.
+// Counts are the exception in ③/④: a true 0 on a count renders as the VALUE 0,
+// never the empty state. Exact zero only (never rounds a small rate/duration down).
+type CardState = 'value' | 'empty' | 'adoption' | 'definition' | 'development'
+const resolvedState = computed<CardState>(() => {
   const m = metric.value
-  const s = sample.value
-  if (!m || !s || m.status !== 'ready') return false
-  if (m.resultType === 'value' || m.resultType === 'histogram' || m.resultType === 'time_series') {
-    return s.value === 0
+  if (!m || m.status !== 'ready') return 'value' // restricted renders its own branch
+  const cfg = resolveEmptyState(m.id)
+  if (cfg.state === 'definition' || cfg.state === 'development' || cfg.state === 'adoption') {
+    return cfg.state
   }
-  return false
+  const isCount = m.resultType === 'value' && m.unit === 'count'
+  const noEvents =
+    showEmptyData.value ||
+    ((m.resultType === 'value' || m.resultType === 'histogram' || m.resultType === 'time_series') &&
+      sample.value?.value === 0)
+  return noEvents && !isCount ? 'empty' : 'value'
 })
+
+// Dashed card chrome for the two "not finished" states.
+const dashedCard = computed(
+  () => resolvedState.value === 'definition' || resolvedState.value === 'development',
+)
 
 // Delta — direction-aware (lower-is-better metrics invert the colour).
 const delta = computed(() => {
@@ -86,21 +108,18 @@ const delta = computed(() => {
   return { pct: `${Math.abs(pct).toFixed(1)}%`, up, down, tone: good ? 'good' : bad ? 'bad' : 'flat' }
 })
 
+// Delta row exists ONLY in the value state (fully hidden in every empty state),
+// and not during the "no events" demo (no events → nothing to compare).
 const showDelta = computed(
   () =>
     metric.value?.resultType === 'value' &&
     metric.value?.status === 'ready' &&
-    !noData.value &&
+    resolvedState.value === 'value' &&
+    !showEmptyData.value &&
     showComparison.value &&
     !!delta.value,
 )
 
-const isFeature = computed(
-  () => metric.value?.status === 'pending' && metric.value?.pendingVariant === 'feature',
-)
-const isInDevelopment = computed(
-  () => metric.value?.status === 'pending' && metric.value?.pendingVariant === 'in-development',
-)
 const isChart = computed(
   () => metric.value?.resultType === 'histogram' || metric.value?.resultType === 'time_series',
 )
@@ -110,7 +129,8 @@ const skeletonVariant = computed<'value' | 'graph'>(() => (isChart.value ? 'grap
 <template>
   <article
     v-if="metric"
-    class="flex min-h-[152px] flex-col justify-between rounded-lg border border-grey-300 bg-white p-5"
+    class="flex min-h-[152px] flex-col justify-between rounded-lg border border-grey-300 p-5"
+    :class="dashedCard && !loading ? 'border-dashed bg-transparent' : 'bg-white'"
   >
     <!-- Top group: header + body stay connected (12px), grows to fill -->
     <div class="flex min-h-0 flex-1 flex-col gap-3">
@@ -118,14 +138,14 @@ const skeletonVariant = computed<'value' | 'graph'>(() => (isChart.value ? 'grap
     <header class="flex items-start gap-2">
       <h3 class="min-w-0 flex-1 text-sm font-medium text-grey-600">{{ metric.label }}</h3>
       <div
-        v-if="metric.resultType === 'histogram'"
+        v-if="metric.resultType === 'histogram' && resolvedState === 'value'"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-leaf-400" /> Today</span>
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-grey-300" /> Average</span>
       </div>
       <div
-        v-else-if="metric.resultType === 'time_series' && sample?.lines"
+        v-else-if="metric.resultType === 'time_series' && resolvedState === 'value' && sample?.lines"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span v-for="l in sample.lines" :key="l.name" class="flex items-center gap-1.5">
@@ -133,7 +153,7 @@ const skeletonVariant = computed<'value' | 'graph'>(() => (isChart.value ? 'grap
         </span>
       </div>
       <button
-        v-if="exportable && sample && !loading"
+        v-if="exportable && sample && !loading && resolvedState === 'value'"
         type="button"
         class="flex shrink-0 items-center rounded-sm p-0.5 text-grey-400 transition-colors hover:text-grey-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Download CSV"
@@ -164,14 +184,8 @@ const skeletonVariant = computed<'value' | 'graph'>(() => (isChart.value ? 'grap
         <span class="text-xs text-grey-600">You don't have access</span>
       </div>
 
-      <!-- Pending: feature-gated → helper line (button is in the bottom slot) -->
-      <div v-else-if="isFeature" class="text-lg font-medium text-grey-800">{{ metric.pendingMessage }}</div>
-
-      <!-- Pending: in development → dash (pill is in the bottom slot) -->
-      <div v-else-if="isInDevelopment" class="text-[40px] font-semibold leading-none text-grey-800 tabular-nums">–</div>
-
-      <!-- No data for the current filters -->
-      <p v-else-if="noData" class="text-lg font-medium text-grey-800">No data for this period</p>
+      <!-- Empty-state system: empty / adoption / definition / development -->
+      <MetricEmptyState v-else-if="resolvedState !== 'value'" :metric-id="metric.id" />
 
       <!-- Histogram -->
       <div v-else-if="metric.resultType === 'histogram'" class="flex flex-1 flex-col">
@@ -201,43 +215,27 @@ const skeletonVariant = computed<'value' | 'graph'>(() => (isChart.value ? 'grap
       </div>
     </div>
 
-    <!-- Bottom slot: pinned to the card bottom (delta / button / badge) -->
-    <template v-if="!loading">
-      <div v-if="showDelta && delta" class="flex items-center gap-1">
-        <Icon
-          v-if="delta.up || delta.down"
-          :name="delta.up ? 'TrendUp' : 'TrendDown'"
-          :size="20"
-          :class="{
-            'text-leaf-500': delta.tone === 'good',
-            'text-error-500': delta.tone === 'bad',
-            'text-grey-600': delta.tone === 'flat',
-          }"
-        />
-        <span
-          class="text-xs font-semibold"
-          :class="{
-            'text-leaf-500': delta.tone === 'good',
-            'text-error-500': delta.tone === 'bad',
-            'text-grey-600': delta.tone === 'flat',
-          }"
-        >{{ delta.pct }}</span>
-        <span class="text-xs font-semibold text-grey-600">{{ comparisonLabel }}</span>
-      </div>
-
-      <button
-        v-else-if="isFeature"
-        type="button"
-        class="inline-flex items-center gap-1 self-start rounded-pill border border-grey-400 bg-white px-3 py-1.5 text-sm font-semibold text-grey-900 transition-colors hover:bg-grey-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        Create a board
-        <Icon name="ArrowRight" :size="18" />
-      </button>
-
+    <!-- Bottom slot: delta only, and only in the value state (never reserved space) -->
+    <div v-if="!loading && showDelta && delta" class="flex items-center gap-1">
+      <Icon
+        v-if="delta.up || delta.down"
+        :name="delta.up ? 'TrendUp' : 'TrendDown'"
+        :size="20"
+        :class="{
+          'text-leaf-500': delta.tone === 'good',
+          'text-error-500': delta.tone === 'bad',
+          'text-grey-600': delta.tone === 'flat',
+        }"
+      />
       <span
-        v-else-if="isInDevelopment"
-        class="self-start rounded-pill bg-grey-300 px-2 py-0.5 text-xs font-semibold text-grey-700"
-      >In development</span>
-    </template>
+        class="text-xs font-semibold"
+        :class="{
+          'text-leaf-500': delta.tone === 'good',
+          'text-error-500': delta.tone === 'bad',
+          'text-grey-600': delta.tone === 'flat',
+        }"
+      >{{ delta.pct }}</span>
+      <span class="text-xs font-semibold text-grey-600">{{ comparisonLabel }}</span>
+    </div>
   </article>
 </template>

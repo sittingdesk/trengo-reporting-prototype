@@ -11,6 +11,8 @@ export default defineConfig({
   // Relative base so the single-file build works from file:// and from a
   // GitHub Pages project subpath alike.
   base: './',
+  // Honour an assigned port (e.g. the preview harness sets PORT when 5173 is taken).
+  server: { port: Number(process.env.PORT) || 5173 },
   plugins: [vue(), tailwindcss(), viteSingleFile()],
   resolve: {
     alias: {

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // App.vue — the overall shell that frames every page.
 // Layout, left to right:
-//   [ AppSidebar (icon rail) ][ TabsSidebar (dashboards) ][ TopBar + content ]
+//   [ RailSidebar (icon rail) ][ TabsSidebar (dashboards) ][ TopBar + content ]
 // The content region swaps per route via <router-view>. The TemplateGallery
 // dialog is mounted here at app level so it can open from anywhere.
-import AppSidebar from '@/components/layout/AppSidebar.vue'
+// RailSidebar is the portable copy-paste component (see components/rail/README.md).
+import { RailSidebar } from '@/components/rail'
 import TabsSidebar from '@/components/layout/TabsSidebar.vue'
 import TopBar from '@/components/layout/TopBar.vue'
 import TemplateGallery from '@/components/dashboard/TemplateGallery.vue'
@@ -13,7 +14,7 @@ import TemplateGallery from '@/components/dashboard/TemplateGallery.vue'
 <template>
   <div class="flex h-full w-full overflow-hidden">
     <!-- Two left sidebars -->
-    <AppSidebar />
+    <RailSidebar active="reports" />
     <TabsSidebar />
 
     <!-- Top bar + scrollable content -->

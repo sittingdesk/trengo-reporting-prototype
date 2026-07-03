@@ -24,7 +24,7 @@ const {
   setScenario,
   setIteration,
 } = useWorkspace()
-const { showComparison, toggleComparison } = useSettings()
+const { showComparison, toggleComparison, showEmptyData, toggleEmptyData } = useSettings()
 
 const scenarios: { id: Scenario; label: string }[] = [
   { id: 'existing', label: 'Existing customer' },
@@ -139,6 +139,23 @@ function changeIteration(id: string) {
           <span
             class="absolute top-0.5 size-3 rounded-circle bg-white transition-all"
             :class="showComparison ? 'left-3.5' : 'left-0.5'"
+          />
+        </span>
+      </button>
+
+      <!-- Empty-data toggle (simulates "no events in range" to demo empty states) -->
+      <button
+        class="flex w-full items-center justify-between rounded-base px-1 text-xs font-medium text-grey-600"
+        @click="toggleEmptyData()"
+      >
+        <span>Empty data</span>
+        <span
+          class="relative h-4 w-7 rounded-pill transition-colors"
+          :class="showEmptyData ? 'bg-leaf-500' : 'bg-grey-300'"
+        >
+          <span
+            class="absolute top-0.5 size-3 rounded-circle bg-white transition-all"
+            :class="showEmptyData ? 'left-3.5' : 'left-0.5'"
           />
         </span>
       </button>

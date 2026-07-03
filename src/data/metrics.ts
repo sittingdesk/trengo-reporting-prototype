@@ -3,8 +3,8 @@
 // grain/category, caveats) so the UI is built the way the real one will be.
 //
 // ⚠️ Mock: values are generated client-side (see src/lib/mock.ts). "In the
-// registry ≠ queryable" (§5) — metrics whose live data/definition isn't confirmed
-// are marked `status: 'pending'` and render the empty/unavailable state.
+// registry ≠ queryable" (§5) — how a metric presents when it can't show a value
+// (empty / adoption / definition / development) lives in src/data/emptyStates.ts.
 
 /** Controlled vocab from §6. */
 export type Unit =
@@ -19,8 +19,8 @@ export type Unit =
 /** What kind of result the metric returns (§4). */
 export type ResultType = 'value' | 'histogram' | 'time_series' | 'table'
 
-/** ready = show a value; pending = definition/data not confirmed; restricted = gated. */
-export type MetricStatus = 'ready' | 'pending' | 'restricted'
+/** ready = show a value; restricted = gated by permissions. */
+export type MetricStatus = 'ready' | 'restricted'
 
 export type Category = 'volume' | 'efficiency' | 'quality' | 'sales' | 'voice'
 
@@ -37,14 +37,6 @@ export interface MetricDef {
   lowerIsBetter?: boolean
   /** Shown as a tooltip — definition caveats / open questions. */
   caveat?: string
-  /**
-   * How a `pending` metric presents:
-   *  - 'feature'        → "Create a board to see …" helper + a Create-a-board button
-   *  - 'in-development' → "–" value + an "In development" pill
-   */
-  pendingVariant?: 'feature' | 'in-development'
-  /** Helper line for `pendingVariant: 'feature'`. */
-  pendingMessage?: string
 }
 
 export const METRICS: MetricDef[] = [
@@ -160,38 +152,33 @@ export const METRICS: MetricDef[] = [
     category: 'efficiency',
     caveat: 'Volume, first response time and CSAT per channel.',
   },
-  // --- Pending: not yet available (different reasons → different presentation) ---
+  // --- Not yet showing a value — presentation comes from src/data/emptyStates.ts ---
   {
     id: 'avg_deal_size',
     label: 'Average deal size',
     unit: 'currency',
     resultType: 'value',
-    status: 'pending',
+    status: 'ready',
     category: 'sales',
     caveat: 'Average value of won deals.',
-    pendingVariant: 'feature',
-    pendingMessage: 'Create a board to see deal metrics',
   },
   {
     id: 'pipeline_value',
     label: 'Pipeline value',
     unit: 'currency',
     resultType: 'value',
-    status: 'pending',
+    status: 'ready',
     category: 'sales',
     caveat: 'Total value of deals currently in the Boards pipeline.',
-    pendingVariant: 'feature',
-    pendingMessage: 'Create a board to see pipeline value',
   },
   {
     id: 'calls_volume',
     label: 'Calls',
     unit: 'count',
     resultType: 'value',
-    status: 'pending',
+    status: 'ready',
     category: 'voice',
     caveat: 'Total/missed volume rule (the date-window definition) is still TBD.',
-    pendingVariant: 'in-development',
   },
 ]
 
