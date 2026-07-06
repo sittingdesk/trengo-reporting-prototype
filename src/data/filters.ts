@@ -9,15 +9,8 @@ export interface FilterOption {
   label: string
 }
 
-/** Communication channels a conversation can come through. */
-export const CHANNELS: FilterOption[] = [
-  { id: 'whatsapp', label: 'WhatsApp' },
-  { id: 'email', label: 'Email' },
-  { id: 'livechat', label: 'Live chat' },
-  { id: 'voice', label: 'Voice' },
-  { id: 'instagram', label: 'Instagram' },
-  { id: 'sms', label: 'SMS' },
-]
+// Channels now live in src/data/channelData.ts (the two-panel ChannelFilter's
+// category → instance catalog). Teams stay a flat list here.
 
 /** Teams that handle conversations. */
 export const TEAMS: FilterOption[] = [

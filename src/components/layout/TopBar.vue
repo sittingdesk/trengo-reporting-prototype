@@ -10,14 +10,15 @@ import { useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import Icon from '@/components/Icon.vue'
 import DateRangeFilter from '@/components/layout/filters/DateRangeFilter.vue'
+import ChannelFilter from '@/components/layout/filters/ChannelFilter.vue'
 import SelectFilter from '@/components/layout/filters/SelectFilter.vue'
 import { useWorkspace } from '@/composables/useWorkspace'
 import { useFilters } from '@/composables/useFilters'
-import { CHANNELS, TEAMS } from '@/data/filters'
+import { TEAMS } from '@/data/filters'
 
 const route = useRoute()
 const { getTab, tabTemplate } = useWorkspace()
-const { channelIds, teamIds, toggleChannel, toggleTeam, clearChannels, clearTeams } = useFilters()
+const { teamIds, toggleTeam, clearTeams } = useFilters()
 
 const tabId = computed(() => (route.name === 'tab' ? String(route.params.tabId) : ''))
 const tab = computed(() => (tabId.value ? getTab(tabId.value) : undefined))
@@ -37,14 +38,7 @@ const subtitle = computed(() => template.value?.description ?? '')
     <!-- Global filters + dashboard action (only on a dashboard tab). -->
     <div v-if="tab" class="flex shrink-0 items-center gap-2">
       <DateRangeFilter />
-      <SelectFilter
-        label="Channel"
-        icon="Hashtag"
-        :options="CHANNELS"
-        :selected-ids="channelIds"
-        @toggle="toggleChannel"
-        @clear="clearChannels"
-      />
+      <ChannelFilter />
       <SelectFilter
         label="Team"
         icon="Users"

@@ -17,6 +17,7 @@ import {
   type DateValue,
 } from '@internationalized/date'
 import { DATE_PRESETS } from '@/data/filters'
+import { CHANNEL_INSTANCE_IDS } from '@/data/channelData'
 
 export interface DateRange {
   start: DateValue | undefined
@@ -67,7 +68,8 @@ function matchPreset(r: DateRange): string | null {
 }
 
 const state = reactive({
-  channelIds: [] as string[], // empty = all channels
+  // Channel selection = explicit instance ids; defaults to ALL (= no filter).
+  channelIds: [...CHANNEL_INSTANCE_IDS] as string[],
   teamIds: [] as string[], // empty = all teams
 })
 
@@ -122,9 +124,8 @@ export function useFilters() {
     return `vs prev. ${n} ${n === 1 ? 'day' : 'days'}`
   })
 
-  const toggleChannel = (id: string) => (state.channelIds = toggleId(state.channelIds, id))
+  const setChannels = (ids: string[]) => (state.channelIds = ids)
   const toggleTeam = (id: string) => (state.teamIds = toggleId(state.teamIds, id))
-  const clearChannels = () => (state.channelIds = [])
   const clearTeams = () => (state.teamIds = [])
 
   /** Pick a named preset (highlights it + jumps the calendar to its range). */
@@ -147,9 +148,8 @@ export function useFilters() {
     presetId,
     dateRangeLabel,
     comparisonLabel,
-    toggleChannel,
+    setChannels,
     toggleTeam,
-    clearChannels,
     clearTeams,
     setPreset,
     setRange,

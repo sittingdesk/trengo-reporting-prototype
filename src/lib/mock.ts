@@ -5,7 +5,8 @@
 // so values don't flicker on re-render. Nothing here touches real data.
 import { getLocalTimeZone, startOfMonth, type DateValue } from '@internationalized/date'
 import type { MetricDef } from '@/data/metrics'
-import { CHANNELS, TEAMS } from '@/data/filters'
+import { TEAMS } from '@/data/filters'
+import { CHANNEL_INSTANCE_IDS } from '@/data/channelData'
 import { fmtCount, fmtDuration } from '@/lib/format'
 
 export interface TableColumn {
@@ -114,7 +115,9 @@ export function filterSignature(
   teamIds: string[],
 ): string {
   const days = rangeDays(dateRange.start, dateRange.end)
-  const ch = [...channelIds].sort().join(',') || 'all'
+  // Channel: all instances (or none) selected → 'all' (no filter); else the ids.
+  const allChannels = channelIds.length === 0 || channelIds.length === CHANNEL_INSTANCE_IDS.length
+  const ch = allChannels ? 'all' : [...channelIds].sort().join(',')
   const tm = [...teamIds].sort().join(',') || 'all'
   return `${days}|${ch}|${tm}`
 }
@@ -148,7 +151,7 @@ export function metricValue(
   const [daysStr, ch, tm] = signature.split('|')
   const days = Number(daysStr) || 7
 
-  const chFactor = subsetFactor(ch === 'all' ? 0 : ch.split(',').length, CHANNELS.length)
+  const chFactor = subsetFactor(ch === 'all' ? 0 : ch.split(',').length, CHANNEL_INSTANCE_IDS.length)
   const tmFactor = subsetFactor(tm === 'all' ? 0 : tm.split(',').length, TEAMS.length)
   const base = def.base ?? 0
 
