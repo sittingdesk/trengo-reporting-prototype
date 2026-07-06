@@ -248,15 +248,21 @@ function tableData(
     return {
       columns: [
         { key: 'agent', label: 'Agent', align: 'left' },
-        { key: 'open', label: 'Open', align: 'right' },
-        { key: 'closed', label: 'Closed', align: 'right' },
-        { key: 'response', label: 'Avg. response', align: 'right' },
+        { key: 'assigned', label: 'Assigned tickets', align: 'left' },
+        { key: 'firstResponse', label: 'First response time', align: 'left' },
+        { key: 'resolution', label: 'Total resolution time', align: 'left' },
+        { key: 'closed', label: 'Closed tickets', align: 'left' },
+        { key: 'messages', label: 'Messages sent', align: 'left' },
+        { key: 'comments', label: 'Internal comments', align: 'left' },
       ],
       rows: AGENTS.map((agent) => ({
         agent,
-        open: fmtCount(Math.max(0, 40 * scale * jitter(rng, 0.4))),
+        assigned: fmtCount(Math.max(0, 45 * scale * jitter(rng, 0.4))),
+        firstResponse: fmtDuration(Math.max(15, 95 * jitter(rng, 0.5))),
+        resolution: fmtDuration(Math.max(600, 18000 * jitter(rng, 0.5))),
         closed: fmtCount(Math.max(0, 55 * scale * jitter(rng, 0.4))),
-        response: fmtDuration(Math.max(20, 110 * jitter(rng, 0.5))),
+        messages: fmtCount(Math.max(0, 220 * scale * jitter(rng, 0.45))),
+        comments: fmtCount(Math.max(0, 60 * scale * jitter(rng, 0.5))),
       })),
       initialRows: 4,
     }
@@ -269,7 +275,8 @@ function tableData(
       { key: 'resolution', label: 'Resolution time', align: 'left' },
       { key: 'firstResponse', label: 'First response time', align: 'left' },
       { key: 'sla', label: 'SLA compliance', align: 'left', badge: true },
-      { key: 'closed', label: 'Closed conversations', align: 'left' },
+      { key: 'closed', label: 'Closed tickets', align: 'left' },
+      { key: 'open', label: 'Open tickets', align: 'left' },
     ],
     rows: PERF_CHANNELS.map((channel) => ({
       channel,
@@ -277,6 +284,7 @@ function tableData(
       firstResponse: fmtDuration(Math.max(15, 95 * jitter(rng, 0.5))),
       sla: 'In development', // not a real metric yet
       closed: fmtCount(Math.max(0, 300 * scale * jitter(rng, 0.5))),
+      open: fmtCount(Math.max(0, 120 * scale * jitter(rng, 0.5))),
     })),
     initialRows: 4,
   }

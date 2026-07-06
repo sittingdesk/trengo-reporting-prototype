@@ -25,7 +25,7 @@ import { useSettings } from '@/composables/useSettings'
 const props = defineProps<{ metricId: string }>()
 
 const { dateRange, channelIds, teamIds, comparisonLabel, dateRangeLabel } = useFilters()
-const { showComparison, showEmptyData } = useSettings()
+const { showComparison, showEmptyData, forceLoading } = useSettings()
 
 const metric = computed(() => getMetric(props.metricId))
 
@@ -37,17 +37,19 @@ const sample = computed(() => {
 
 // Brief simulated load on mount + whenever the filter signature changes — shows
 // the loading skeleton (prototype only; real widgets fetch on filter change, §4).
-const loading = ref(true)
+// The "Loading" viewing mode (forceLoading) holds the skeleton so it's reviewable.
+const autoLoading = ref(true)
 let timer: ReturnType<typeof setTimeout> | undefined
 watch(
   signature,
   () => {
-    loading.value = true
+    autoLoading.value = true
     clearTimeout(timer)
-    timer = setTimeout(() => (loading.value = false), 350)
+    timer = setTimeout(() => (autoLoading.value = false), 350)
   },
   { immediate: true },
 )
+const loading = computed(() => forceLoading.value || autoLoading.value)
 
 const formatted = computed(() => {
   const m = metric.value
@@ -123,7 +125,12 @@ const showDelta = computed(
 const isChart = computed(
   () => metric.value?.resultType === 'histogram' || metric.value?.resultType === 'time_series',
 )
-const skeletonVariant = computed<'value' | 'graph'>(() => (isChart.value ? 'graph' : 'value'))
+const skeletonVariant = computed<'value' | 'graph' | 'line' | 'table'>(() => {
+  const rt = metric.value?.resultType
+  if (rt === 'table') return 'table'
+  if (rt === 'time_series') return 'line'
+  return isChart.value ? 'graph' : 'value'
+})
 </script>
 
 <template>
@@ -138,14 +145,14 @@ const skeletonVariant = computed<'value' | 'graph'>(() => (isChart.value ? 'grap
     <header class="flex items-start gap-2">
       <h3 class="min-w-0 flex-1 text-sm font-medium text-grey-600">{{ metric.label }}</h3>
       <div
-        v-if="metric.resultType === 'histogram' && resolvedState === 'value'"
+        v-if="metric.resultType === 'histogram' && resolvedState === 'value' && !loading"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-leaf-400" /> Today</span>
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-grey-300" /> Average</span>
       </div>
       <div
-        v-else-if="metric.resultType === 'time_series' && resolvedState === 'value' && sample?.lines"
+        v-else-if="metric.resultType === 'time_series' && resolvedState === 'value' && sample?.lines && !loading"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span v-for="l in sample.lines" :key="l.name" class="flex items-center gap-1.5">
@@ -164,7 +171,7 @@ const skeletonVariant = computed<'value' | 'graph'>(() => (isChart.value ? 'grap
           <path d="M12 3v12" /><path d="M7 12l5 5 5-5" /><path d="M5 21h14" />
         </svg>
       </button>
-      <Tooltip :text="metric.caveat">
+      <Tooltip v-if="!loading" :text="metric.caveat">
         <span class="flex shrink-0 cursor-default items-center text-grey-400 transition-colors hover:text-grey-600">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <circle cx="8" cy="8" r="8" fill="currentColor" />

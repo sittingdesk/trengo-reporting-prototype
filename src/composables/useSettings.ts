@@ -3,19 +3,35 @@
 // `showComparison` toggles the period-over-period delta (▲▼) on metric cards.
 // Per TECH_FOUNDATION §8 comparison is a later phase, so it's off by default and
 // surfaced only as a prototype switch for demos.
-// `showEmptyData` simulates "no events in the selected range" so the empty
-// states can be demoed on demand (counts still show a true 0 — zero is a value).
+// `dataState` is a demo VIEWING MODE that forces every card into one state so the
+// three data situations can be reviewed on demand:
+//   normal  — real (mock) data
+//   loading — hold the loading skeleton (otherwise it only flashes ~350ms)
+//   empty   — simulate "no events in range" (counts still show a true 0)
 import { ref, computed } from 'vue'
 
-const state = ref({ showComparison: false, showEmptyData: false })
+export type DataState = 'normal' | 'loading' | 'empty'
+
+const state = ref({ showComparison: false, dataState: 'normal' as DataState })
 
 export function useSettings() {
   const showComparison = computed(() => state.value.showComparison)
   const toggleComparison = () => (state.value.showComparison = !state.value.showComparison)
   const setComparison = (on: boolean) => (state.value.showComparison = on)
 
-  const showEmptyData = computed(() => state.value.showEmptyData)
-  const toggleEmptyData = () => (state.value.showEmptyData = !state.value.showEmptyData)
+  const dataState = computed(() => state.value.dataState)
+  const setDataState = (s: DataState) => (state.value.dataState = s)
+  // Derived flags the cards read (keeps MetricBox's call sites simple).
+  const showEmptyData = computed(() => state.value.dataState === 'empty')
+  const forceLoading = computed(() => state.value.dataState === 'loading')
 
-  return { showComparison, toggleComparison, setComparison, showEmptyData, toggleEmptyData }
+  return {
+    showComparison,
+    toggleComparison,
+    setComparison,
+    dataState,
+    setDataState,
+    showEmptyData,
+    forceLoading,
+  }
 }

@@ -8,7 +8,7 @@
 import { RouterLink, useRouter } from 'vue-router'
 import Icon from '@/components/Icon.vue'
 import { useWorkspace, type Scenario } from '@/composables/useWorkspace'
-import { useSettings } from '@/composables/useSettings'
+import { useSettings, type DataState } from '@/composables/useSettings'
 import { ITERATIONS } from '@/config/iterations'
 
 const router = useRouter()
@@ -24,11 +24,17 @@ const {
   setScenario,
   setIteration,
 } = useWorkspace()
-const { showComparison, toggleComparison, showEmptyData, toggleEmptyData } = useSettings()
+const { showComparison, toggleComparison, dataState, setDataState } = useSettings()
 
 const scenarios: { id: Scenario; label: string }[] = [
   { id: 'existing', label: 'Existing customer' },
   { id: 'new', label: 'New customer' },
+]
+
+const dataStates: { id: DataState; label: string }[] = [
+  { id: 'normal', label: 'Normal' },
+  { id: 'loading', label: 'Loading' },
+  { id: 'empty', label: 'Empty' },
 ]
 
 // After changing scenario/iteration, land on the first visible tab (or welcome).
@@ -143,22 +149,25 @@ function changeIteration(id: string) {
         </span>
       </button>
 
-      <!-- Empty-data toggle (simulates "no events in range" to demo empty states) -->
-      <button
-        class="flex w-full items-center justify-between rounded-base px-1 text-xs font-medium text-grey-600"
-        @click="toggleEmptyData()"
-      >
-        <span>Empty data</span>
-        <span
-          class="relative h-4 w-7 rounded-pill transition-colors"
-          :class="showEmptyData ? 'bg-leaf-500' : 'bg-grey-300'"
-        >
-          <span
-            class="absolute top-0.5 size-3 rounded-circle bg-white transition-all"
-            :class="showEmptyData ? 'left-3.5' : 'left-0.5'"
-          />
-        </span>
-      </button>
+      <!-- Data state (viewing mode): force every card into normal / loading / empty -->
+      <div>
+        <div class="mb-1.5 text-xs font-medium text-grey-600">Data state</div>
+        <div class="flex gap-1 rounded-base bg-grey-200 p-0.5">
+          <button
+            v-for="d in dataStates"
+            :key="d.id"
+            class="flex-1 rounded-sm px-2 py-1 text-xs font-semibold transition-colors"
+            :class="
+              dataState === d.id
+                ? 'bg-white text-grey-900 shadow-100'
+                : 'text-grey-600 hover:text-grey-900'
+            "
+            @click="setDataState(d.id)"
+          >
+            {{ d.label }}
+          </button>
+        </div>
+      </div>
     </div>
   </aside>
 </template>
