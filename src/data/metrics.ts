@@ -3,8 +3,8 @@
 // grain/category, caveats) so the UI is built the way the real one will be.
 //
 // ⚠️ Mock: values are generated client-side (see src/lib/mock.ts). "In the
-// registry ≠ queryable" (§5) — how a metric presents when it can't show a value
-// (empty / adoption / definition / development) lives in src/data/emptyStates.ts.
+// registry ≠ queryable" (§5) — how a metric presents when it has no value to show
+// (the neutral empty state) lives in src/data/emptyStates.ts.
 
 /** Controlled vocab from §6. */
 export type Unit =

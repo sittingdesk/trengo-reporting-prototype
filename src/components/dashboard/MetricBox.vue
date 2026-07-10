@@ -1,11 +1,9 @@
 <script setup lang="ts">
 // MetricBox — the one reusable dashboard unit (TECH_FOUNDATION §3).
 // Data states: value · histogram · time_series · table · loading · restricted,
-// plus the config-driven EMPTY-STATE SYSTEM (src/data/emptyStates.ts):
-// empty / adoption / definition / development — rendered by MetricEmptyState.
-// Resolution order: definition/development (config) → adoption → value → empty.
-// definition/development get a DASHED card; the delta row only exists in the
-// value state (fully hidden otherwise, no reserved space).
+// plus one neutral EMPTY state (src/data/emptyStates.ts) rendered by
+// MetricEmptyState when there are no events in range (or a metric has no data
+// source yet, via `always`). The delta row only exists in the value state.
 import { computed, ref, watch } from 'vue'
 import Icon from '@/components/Icon.vue'
 import BarChart from '@/components/charts/BarChart.vue'
@@ -72,18 +70,15 @@ function onExport() {
   })
 }
 
-// Resolution order (empty-states spec): ① definition/development from config
-// (data irrelevant) → ② adoption → ③ has events → value → ④ empty.
-// Counts are the exception in ③/④: a true 0 on a count renders as the VALUE 0,
-// never the empty state. Exact zero only (never rounds a small rate/duration down).
-type CardState = 'value' | 'empty' | 'adoption' | 'definition' | 'development'
+// One neutral empty state. `always` (no data source yet) forces empty regardless
+// of the mock value. Otherwise: empty when there are no events in range (or the
+// Empty viewing mode). Counts are the exception — a true 0 renders as the VALUE 0
+// (exact zero only), never the empty state, unless `always`.
+type CardState = 'value' | 'empty'
 const resolvedState = computed<CardState>(() => {
   const m = metric.value
   if (!m || m.status !== 'ready') return 'value' // restricted renders its own branch
-  const cfg = resolveEmptyState(m.id)
-  if (cfg.state === 'definition' || cfg.state === 'development' || cfg.state === 'adoption') {
-    return cfg.state
-  }
+  if (resolveEmptyState(m.id).always) return 'empty'
   const isCount = m.resultType === 'value' && m.unit === 'count'
   const noEvents =
     showEmptyData.value ||
@@ -91,11 +86,6 @@ const resolvedState = computed<CardState>(() => {
       sample.value?.value === 0)
   return noEvents && !isCount ? 'empty' : 'value'
 })
-
-// Dashed card chrome for the two "not finished" states.
-const dashedCard = computed(
-  () => resolvedState.value === 'definition' || resolvedState.value === 'development',
-)
 
 // Delta — direction-aware (lower-is-better metrics invert the colour).
 const delta = computed(() => {
@@ -136,8 +126,7 @@ const skeletonVariant = computed<'value' | 'graph' | 'line' | 'table'>(() => {
 <template>
   <article
     v-if="metric"
-    class="flex min-h-[152px] flex-col justify-between rounded-lg border border-grey-300 p-5"
-    :class="dashedCard && !loading ? 'border-dashed bg-transparent' : 'bg-white'"
+    class="flex min-h-[152px] flex-col justify-between rounded-lg border border-grey-300 bg-white p-5"
   >
     <!-- Top group: header + body stay connected (12px), grows to fill -->
     <div class="flex min-h-0 flex-1 flex-col gap-3">
@@ -191,7 +180,7 @@ const skeletonVariant = computed<'value' | 'graph' | 'line' | 'table'>(() => {
         <span class="text-xs text-grey-600">You don't have access</span>
       </div>
 
-      <!-- Empty-state system: empty / adoption / definition / development -->
+      <!-- Empty state (one neutral pattern for every metric) -->
       <MetricEmptyState v-else-if="resolvedState !== 'value'" :metric-id="metric.id" />
 
       <!-- Histogram -->

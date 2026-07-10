@@ -1,8 +1,7 @@
 <script setup lang="ts">
-// MetricEmptyState — the one renderer for all four empty situations
-// (empty / adoption / definition / development). Copy + icon come from the
-// config in src/data/emptyStates.ts; this component only lays them out:
-// centered icon, quiet title, one-line nudge, and (adoption only) a CTA.
+// MetricEmptyState — the one neutral empty state for every metric.
+// Copy + icon come from src/data/emptyStates.ts; this only lays them out:
+// centered icon chip, quiet title, one-line nudge.
 import { computed } from 'vue'
 import Icon from '@/components/Icon.vue'
 import { resolveEmptyState, COPY } from '@/data/emptyStates'
@@ -10,19 +9,6 @@ import { resolveEmptyState, COPY } from '@/data/emptyStates'
 const props = defineProps<{ metricId: string }>()
 
 const cfg = computed(() => resolveEmptyState(props.metricId))
-const copy = computed(() => {
-  const c = cfg.value
-  switch (c.state) {
-    case 'adoption':
-      return { title: COPY.adoption.title(c), subline: null, cta: COPY.adoption.cta(c) }
-    case 'definition':
-      return { title: COPY.definition.title(), subline: COPY.definition.subline(), cta: null }
-    case 'development':
-      return { title: COPY.development.title(), subline: COPY.development.subline(), cta: null }
-    default:
-      return { title: COPY.empty.title(c), subline: COPY.empty.subline(), cta: null }
-  }
-})
 </script>
 
 <template>
@@ -38,13 +24,8 @@ const copy = computed(() => {
     </span>
 
     <div class="flex flex-col items-center gap-1 pb-2">
-      <span class="text-xs font-semibold text-grey-800">{{ copy.title }}</span>
-      <span v-if="copy.subline" class="max-w-[180px] text-xs font-medium text-grey-600">{{ copy.subline }}</span>
-      <a
-        v-if="copy.cta"
-        :href="cfg.ctaHref ?? '#'"
-        class="mt-1 text-xs font-semibold text-leaf-600 hover:underline"
-      >{{ copy.cta }}</a>
+      <span class="text-xs font-semibold text-grey-800">{{ COPY.empty.title(cfg) }}</span>
+      <span class="max-w-[180px] text-xs font-medium text-grey-600">{{ COPY.empty.subline() }}</span>
     </div>
   </div>
 </template>
