@@ -7,11 +7,12 @@ import { Chart } from '@/lib/chart'
 const props = withDefaults(
   defineProps<{
     labels: (string | number)[]
-    series: { name: string; tint: 'leaf' | 'sky'; data: number[] }[]
+    series: { name: string; tint: 'leaf' | 'sky'; data: number[]; dashed?: boolean }[]
     legend?: boolean
+    legendPosition?: 'top' | 'bottom'
     height?: number
   }>(),
-  { height: 200, legend: true },
+  { height: 200, legend: true, legendPosition: 'top' },
 )
 
 const canvas = ref<HTMLCanvasElement | null>(null)
@@ -34,6 +35,7 @@ function datasets() {
     borderColor: colors[s.tint],
     backgroundColor: colors[s.tint],
     borderWidth: 2,
+    borderDash: s.dashed ? [6, 4] : [],
     tension: 0.35,
     pointRadius: 0,
     pointHoverRadius: 4,
@@ -56,9 +58,14 @@ function build() {
       plugins: {
         legend: {
           display: props.legend,
-          position: 'top',
-          align: 'end',
-          labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 6, boxHeight: 6, color: legendText, font: { size: 11 } },
+          position: props.legendPosition,
+          align: props.legendPosition === 'bottom' ? 'center' : 'end',
+          // Bottom legend draws line samples (usePointStyle:false) so a dashed
+          // series is distinguishable in the legend, not just by colour.
+          labels:
+            props.legendPosition === 'bottom'
+              ? { usePointStyle: false, boxWidth: 24, boxHeight: 0, color: legendText, font: { size: 11 } }
+              : { usePointStyle: true, pointStyle: 'circle', boxWidth: 6, boxHeight: 6, color: legendText, font: { size: 11 } },
         },
         tooltip: { usePointStyle: true, padding: 10 },
       },

@@ -8,6 +8,8 @@ import { computed, ref, watch } from 'vue'
 import Icon from '@/components/Icon.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 import LineChart from '@/components/charts/LineChart.vue'
+import FunnelChart from '@/components/charts/FunnelChart.vue'
+import DonutChart from '@/components/charts/DonutChart.vue'
 import DataTable from '@/components/dashboard/DataTable.vue'
 import MetricSkeleton from '@/components/dashboard/MetricSkeleton.vue'
 import MetricEmptyState from '@/components/dashboard/MetricEmptyState.vue'
@@ -80,18 +82,26 @@ const resolvedState = computed<CardState>(() => {
   if (!m || m.status !== 'ready') return 'value' // restricted renders its own branch
   if (resolveEmptyState(m.id).always) return 'empty'
   const isCount = m.resultType === 'value' && m.unit === 'count'
+  const chartTypes = ['value', 'histogram', 'time_series', 'breakdown', 'donut', 'funnel']
   const noEvents =
-    showEmptyData.value ||
-    ((m.resultType === 'value' || m.resultType === 'histogram' || m.resultType === 'time_series') &&
-      sample.value?.value === 0)
+    showEmptyData.value || (chartTypes.includes(m.resultType) && sample.value?.value === 0)
   return noEvents && !isCount ? 'empty' : 'value'
+})
+
+// A single-line "flow" time series (e.g. Conversations created) can show a delta;
+// the two-line Created-vs-closed comparison cannot (ambiguous), nor other charts.
+const deltaEligible = computed(() => {
+  const m = metric.value
+  if (!m) return false
+  if (m.resultType === 'value') return true
+  return m.resultType === 'time_series' && sample.value?.lines?.length === 1
 })
 
 // Delta — direction-aware (lower-is-better metrics invert the colour).
 const delta = computed(() => {
   const m = metric.value
   const s = sample.value
-  if (!m || !s || m.status !== 'ready' || m.resultType !== 'value') return null
+  if (!m || !s || m.status !== 'ready' || !deltaEligible.value) return null
   const pct = ((s.value - s.previous) / (s.previous || 1)) * 100
   const up = pct > 0.05
   const down = pct < -0.05
@@ -104,7 +114,7 @@ const delta = computed(() => {
 // and not during the "no events" demo (no events → nothing to compare).
 const showDelta = computed(
   () =>
-    metric.value?.resultType === 'value' &&
+    deltaEligible.value &&
     metric.value?.status === 'ready' &&
     resolvedState.value === 'value' &&
     !showEmptyData.value &&
@@ -112,15 +122,19 @@ const showDelta = computed(
     !!delta.value,
 )
 
-const isChart = computed(
-  () => metric.value?.resultType === 'histogram' || metric.value?.resultType === 'time_series',
-)
-const skeletonVariant = computed<'value' | 'graph' | 'line' | 'table'>(() => {
+const skeletonVariant = computed<'value' | 'graph' | 'line' | 'donut' | 'funnel' | 'table'>(() => {
   const rt = metric.value?.resultType
   if (rt === 'table') return 'table'
+  if (rt === 'funnel') return 'funnel'
+  if (rt === 'donut') return 'donut'
   if (rt === 'time_series') return 'line'
-  return isChart.value ? 'graph' : 'value'
+  if (rt === 'histogram' || rt === 'breakdown') return 'graph'
+  return 'value'
 })
+// Match the loading bar count to the real chart (24 by-hour, 4 channels, …).
+const skeletonBars = computed(() =>
+  skeletonVariant.value === 'graph' ? sample.value?.labels?.length : undefined,
+)
 </script>
 
 <template>
@@ -141,7 +155,7 @@ const skeletonVariant = computed<'value' | 'graph' | 'line' | 'table'>(() => {
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-grey-300" /> Average</span>
       </div>
       <div
-        v-else-if="metric.resultType === 'time_series' && resolvedState === 'value' && sample?.lines && !loading"
+        v-else-if="metric.resultType === 'time_series' && resolvedState === 'value' && sample?.lines && !sample?.legendBelow && !loading"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span v-for="l in sample.lines" :key="l.name" class="flex items-center gap-1.5">
@@ -172,7 +186,7 @@ const skeletonVariant = computed<'value' | 'graph' | 'line' | 'table'>(() => {
     </header>
 
       <!-- Body (per state) — sits 4px under the header -->
-      <MetricSkeleton v-if="loading" :variant="skeletonVariant" />
+      <MetricSkeleton v-if="loading" :variant="skeletonVariant" :bars="skeletonBars" />
 
       <!-- Restricted -->
       <div v-else-if="metric.status === 'restricted'" class="flex flex-1 flex-col items-center justify-center gap-1 text-center">
@@ -197,7 +211,36 @@ const skeletonVariant = computed<'value' | 'graph' | 'line' | 'table'>(() => {
 
       <!-- Time series (line) -->
       <div v-else-if="metric.resultType === 'time_series'" class="flex flex-1 flex-col">
-        <LineChart v-if="sample?.lines && sample?.labels" :labels="sample.labels" :series="sample.lines" :legend="false" :height="220" />
+        <LineChart
+          v-if="sample?.lines && sample?.labels"
+          :labels="sample.labels"
+          :series="sample.lines"
+          :legend="!!sample?.legendBelow"
+          legend-position="bottom"
+          :height="220"
+        />
+      </div>
+
+      <!-- Breakdown (bar chart: one bar per category, or two series over time) -->
+      <div v-else-if="metric.resultType === 'breakdown'" class="flex flex-1 flex-col">
+        <BarChart
+          v-if="sample?.labels && (sample?.series || sample?.lines)"
+          :labels="sample.labels"
+          :data="sample.series"
+          :series="sample.lines"
+          :legend="false"
+          :height="200"
+        />
+      </div>
+
+      <!-- Donut (share of a total across segments) -->
+      <div v-else-if="metric.resultType === 'donut'" class="flex flex-1 flex-col">
+        <DonutChart v-if="sample?.donut" :segments="sample.donut" center-label="contacts" :height="200" />
+      </div>
+
+      <!-- Funnel (counts per pipeline stage) -->
+      <div v-else-if="metric.resultType === 'funnel'" class="flex flex-1 flex-col">
+        <FunnelChart v-if="sample?.funnel" :rows="sample.funnel" />
       </div>
 
       <!-- Table -->

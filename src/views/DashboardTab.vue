@@ -40,14 +40,27 @@ const KIND_LABEL: Record<WidgetKind, string> = {
   tbd: 'TBD',
 }
 
+// Page grid: 2 or 3 columns per the template (default 3). Literal classes only.
+const columns = computed(() => template.value?.columns ?? 3)
+const gridClass = computed(() =>
+  columns.value === 2
+    ? 'grid grid-cols-1 gap-4 sm:grid-cols-2'
+    : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3',
+)
+
 // Wide widgets span more columns. Metric widgets use their result type; placeholders use kind.
 const WIDE_KINDS: WidgetKind[] = ['trend', 'histogram', 'table']
+// Types that always span the full page width.
+const FULL_TYPES = ['time_series', 'table', 'funnel']
 function spanClass(widget: Widget) {
   if (isMetricWidget(widget)) {
     const rt = getMetric(widget.metricId)?.resultType
-    if (rt === 'histogram') return 'lg:col-span-2'
-    if (rt === 'time_series' || rt === 'table') return 'sm:col-span-2 lg:col-span-3'
-    return ''
+    if (rt && FULL_TYPES.includes(rt)) {
+      return columns.value === 2 ? 'sm:col-span-2' : 'sm:col-span-2 lg:col-span-3'
+    }
+    // Histogram is wide only in the 3-col layout; half-width in the 2-col layout.
+    if (rt === 'histogram') return columns.value === 2 ? '' : 'lg:col-span-2'
+    return '' // value, breakdown → one column
   }
   return WIDE_KINDS.includes(widget.kind) ? 'lg:col-span-2' : ''
 }
@@ -73,7 +86,7 @@ function spanClass(widget: Widget) {
   </div>
 
   <div v-else-if="tab && template" class="px-8 py-6">
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div :class="gridClass">
       <template v-for="(widget, i) in template.widgets" :key="i">
         <!-- Real metric widget -->
         <MetricBox

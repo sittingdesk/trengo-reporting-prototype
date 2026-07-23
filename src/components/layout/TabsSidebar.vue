@@ -9,7 +9,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import Icon from '@/components/Icon.vue'
 import { useWorkspace, type Scenario } from '@/composables/useWorkspace'
 import { useSettings, type DataState } from '@/composables/useSettings'
-import { ITERATIONS } from '@/config/iterations'
+import { SELECTABLE_ITERATIONS } from '@/config/iterations'
 
 const router = useRouter()
 const {
@@ -109,7 +109,7 @@ function changeIteration(id: string) {
           :value="iterationId"
           @change="changeIteration(($event.target as HTMLSelectElement).value)"
         >
-          <option v-for="it in ITERATIONS" :key="it.id" :value="it.id">{{ it.label }}</option>
+          <option v-for="it in SELECTABLE_ITERATIONS" :key="it.id" :value="it.id">{{ it.label }}</option>
         </select>
       </div>
 

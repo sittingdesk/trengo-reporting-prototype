@@ -30,7 +30,17 @@ function token(name: string, fallback: string): string {
 }
 
 function datasets() {
-  // Multi-series grouped bars (e.g. Created vs Closed).
+  // Bar width comes from categoryPercentage × barPercentage (fraction of each
+  // column slot the bars fill, ~72% like the reference). maxBarThickness is a high
+  // cap so a few bars over a wide card still fill the column, not a tight clamp.
+  const bar = {
+    borderRadius: 2,
+    borderSkipped: 'bottom' as const, // round the top corners only
+    categoryPercentage: 0.8,
+    barPercentage: 0.9,
+  }
+
+  // Multi-series grouped bars (e.g. Created vs Closed) — slimmer so the pair fits.
   if (props.series) {
     const colors: Record<'leaf' | 'sky', string> = {
       leaf: token('--color-leaf-500', '#249888'),
@@ -40,24 +50,20 @@ function datasets() {
       label: s.name,
       data: s.data,
       backgroundColor: colors[s.tint],
-      borderRadius: 3,
-      maxBarThickness: 10,
+      maxBarThickness: 18,
+      ...bar,
     }))
   }
 
   const leaf = token('--color-leaf-400', '#49b2a1')
   const grey = token('--color-grey-300', '#e1e3e5')
+  // Single-series bars fill the column (high cap); grouped Today/Average stay slim.
+  const grouped = !!props.average
   const sets: any[] = [
-    { label: props.seriesLabel, data: props.data, backgroundColor: leaf, borderRadius: 3, maxBarThickness: 14 },
+    { label: props.seriesLabel, data: props.data, backgroundColor: leaf, maxBarThickness: grouped ? 18 : 72, ...bar },
   ]
   if (props.average) {
-    sets.push({
-      label: props.averageLabel,
-      data: props.average,
-      backgroundColor: grey,
-      borderRadius: 3,
-      maxBarThickness: 14,
-    })
+    sets.push({ label: props.averageLabel, data: props.average, backgroundColor: grey, maxBarThickness: 18, ...bar })
   }
   return sets
 }
@@ -91,14 +97,15 @@ function build() {
       },
       scales: {
         x: {
-          grid: { display: false },
+          // Faint vertical grid lines (like the production reference).
+          grid: { display: true, color: grid, drawTicks: false },
           ticks: { color: axis, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 24 },
         },
         y: {
           beginAtZero: true,
           grid: { color: grid },
           border: { display: false },
-          ticks: { color: axis, font: { size: 10 }, maxTicksLimit: 4 },
+          ticks: { color: axis, font: { size: 10 }, maxTicksLimit: 6 },
         },
       },
     },

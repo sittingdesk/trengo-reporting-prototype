@@ -30,6 +30,15 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   open_conversations: { noun: 'open conversations', icon: 'Inbox' },
   assigned_conversations: { noun: 'assigned conversations', icon: 'Inbox' },
 
+  // ---- Understand page ----
+  conversations_and_new_contacts: { noun: 'conversations', icon: 'Inbox' },
+  conversations_created: { noun: 'conversations', icon: 'Inbox' },
+  conversations_by_channel: { noun: 'conversations', icon: 'Inbox' },
+  new_contacts_by_channel: { noun: 'contacts', icon: 'Users' },
+  new_vs_returning: { noun: 'contacts', icon: 'Users' },
+  calls_by_hour: { noun: 'calls', icon: 'Phone' },
+  deal_stage_funnel: { noun: 'deals', icon: 'Target' },
+
   // ---- no data source yet → always the neutral empty state ----
   avg_deal_size: { noun: 'deals', icon: 'Target', always: true },
   pipeline_value: { noun: 'deals', icon: 'Target', always: true },

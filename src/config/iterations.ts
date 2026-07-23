@@ -12,6 +12,8 @@ export interface Iteration {
   allowRemoveDashboard: boolean
   /** Whether the prototype scenario (existing/new customer) can be toggled. */
   allowScenarioToggle: boolean
+  /** Temporarily hidden from the iteration picker (kept in code to unlock later). */
+  disabled?: boolean
 }
 
 export const ITERATIONS: Iteration[] = [
@@ -22,13 +24,14 @@ export const ITERATIONS: Iteration[] = [
     allowNewDashboard: true,
     allowRemoveDashboard: true,
     allowScenarioToggle: true,
+    disabled: true, // locked for now — unlock later
   },
   {
     id: 'internal-test',
     label: 'Internal Testing + Selective Test Group',
-    // A locked-down test build: only Overview & Operate, the seeded ("filled")
-    // dashboard only; no adding/removing pages, no scenario choice.
-    hiddenTemplateIds: ['understand', 'improve', 'automate'],
+    // A locked-down test build: Overview, Understand & Operate, the seeded
+    // ("filled") dashboards only; no adding/removing pages, no scenario choice.
+    hiddenTemplateIds: ['improve', 'automate'],
     allowNewDashboard: false,
     allowRemoveDashboard: false,
     allowScenarioToggle: false,
@@ -38,3 +41,9 @@ export const ITERATIONS: Iteration[] = [
 export function getIteration(id: string): Iteration | undefined {
   return ITERATIONS.find((i) => i.id === id)
 }
+
+/** Iterations offered in the picker (disabled ones are hidden but stay resolvable). */
+export const SELECTABLE_ITERATIONS = ITERATIONS.filter((i) => !i.disabled)
+
+/** Default iteration — first selectable one. */
+export const DEFAULT_ITERATION_ID = SELECTABLE_ITERATIONS[0]?.id ?? ITERATIONS[0].id

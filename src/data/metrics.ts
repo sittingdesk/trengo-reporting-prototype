@@ -17,7 +17,14 @@ export type Unit =
   | 'currency'
 
 /** What kind of result the metric returns (§4). */
-export type ResultType = 'value' | 'histogram' | 'time_series' | 'table'
+export type ResultType =
+  | 'value'
+  | 'histogram' // 24 hour-of-day buckets (Today + Average)
+  | 'time_series' // line chart over the selected range
+  | 'breakdown' // bar chart: one bar per category, or bucketed two-series bars
+  | 'donut' // doughnut chart (share of a total across a few segments)
+  | 'funnel' // horizontal funnel (counts per stage)
+  | 'table'
 
 /** ready = show a value; restricted = gated by permissions. */
 export type MetricStatus = 'ready' | 'restricted'
@@ -151,6 +158,78 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'efficiency',
     caveat: 'Volume, first response time and CSAT per channel.',
+  },
+  // --- Understand page ---
+  {
+    id: 'conversations_and_new_contacts',
+    label: 'Conversations & new contacts',
+    unit: 'count',
+    resultType: 'time_series',
+    status: 'ready',
+    category: 'volume',
+    base: 500,
+    caveat:
+      'Conversations created per day, alongside contacts messaging for the first time. A narrowing gap means growth is coming from new people; a widening gap means existing contacts are messaging more.',
+  },
+  {
+    id: 'conversations_created',
+    label: 'Conversations created',
+    unit: 'count',
+    resultType: 'time_series',
+    status: 'ready',
+    category: 'volume',
+    base: 500, // per day
+    caveat: 'Conversations created over the selected period.',
+  },
+  {
+    id: 'conversations_by_channel',
+    label: 'Conversations by entry channel',
+    unit: 'count',
+    resultType: 'breakdown',
+    status: 'ready',
+    category: 'volume',
+    base: 900, // per channel-ish, scaled by filters
+    caveat: 'Conversations created in the period, split by the channel they came in on.',
+  },
+  {
+    id: 'new_contacts_by_channel',
+    label: 'New contacts by entry channel',
+    unit: 'count',
+    resultType: 'breakdown',
+    status: 'ready',
+    category: 'volume',
+    base: 260,
+    caveat: 'Contacts created for the first time in the period, by entry channel.',
+  },
+  {
+    id: 'new_vs_returning',
+    label: 'New vs returning contacts',
+    unit: 'count',
+    resultType: 'donut',
+    status: 'ready',
+    category: 'volume',
+    base: 320,
+    caveat: 'Contacts in the period split into first-time (new) and returning.',
+  },
+  {
+    id: 'calls_by_hour',
+    label: 'Calls by hour',
+    unit: 'count',
+    resultType: 'histogram',
+    status: 'ready',
+    category: 'voice',
+    base: 25,
+    caveat: 'Volume of calls, bucketed by hour of day (UTC).',
+  },
+  {
+    id: 'deal_stage_funnel',
+    label: 'Deal stage funnel',
+    unit: 'count',
+    resultType: 'funnel',
+    status: 'ready',
+    category: 'sales',
+    base: 600,
+    caveat: 'Open deals by Boards pipeline stage in the period.',
   },
   // --- Not yet showing a value — presentation comes from src/data/emptyStates.ts ---
   {

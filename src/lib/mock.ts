@@ -6,7 +6,7 @@
 import { getLocalTimeZone, startOfMonth, type DateValue } from '@internationalized/date'
 import type { MetricDef } from '@/data/metrics'
 import { TEAMS } from '@/data/filters'
-import { CHANNEL_INSTANCE_IDS } from '@/data/channelData'
+import { CHANNEL_INSTANCE_IDS, CATALOG } from '@/data/channelData'
 import { fmtCount, fmtDuration } from '@/lib/format'
 
 export interface TableColumn {
@@ -27,8 +27,13 @@ export interface MetricSample {
   series?: number[] // hourly buckets for histograms — "Today" (length 24)
   average?: number[] // average per hour across the period (length 24)
   labels?: string[] // x-axis labels (hours for histogram, dates for time series)
-  lines?: { name: string; tint: 'leaf' | 'sky'; data: number[] }[] // time series
+  // time series / grouped bars. `dashed` renders the line dashed; `csvKey` overrides
+  // the CSV column header for that series.
+  lines?: { name: string; tint: 'leaf' | 'sky'; data: number[]; dashed?: boolean; csvKey?: string }[]
   table?: TableData
+  funnel?: { stage: string; count: number }[] // funnel stages (deal_stage_funnel)
+  donut?: { label: string; value: number }[] // doughnut segments (new_vs_returning)
+  legendBelow?: boolean // render the line-chart legend below the chart (not header)
 }
 
 /** Mock agent roster for the "Workload by agent" table. */
@@ -195,16 +200,70 @@ export function metricValue(
       created.push(c)
       closed.push(Math.max(0, Math.round(c * 0.9 * jitter(tsRng, 0.15))))
     }
+    // Conversations (solid) + New contacts (dashed) — legend below, totals subtitle.
+    if (def.id === 'conversations_and_new_contacts') {
+      const newc = created.map((c) => Math.max(0, Math.round(c * 0.3 * jitter(tsRng, 0.25))))
+      const convTotal = created.reduce((a, b) => a + b, 0)
+      const newTotal = newc.reduce((a, b) => a + b, 0)
+      return {
+        value: convTotal + newTotal, // empty only when BOTH series are zero
+        previous: (convTotal + newTotal) * jitter(rng, 0.2),
+        labels,
+        legendBelow: true,
+        lines: [
+          { name: 'Conversations', tint: 'leaf', data: created, csvKey: 'conversations_created' },
+          { name: 'New contacts', tint: 'sky', data: newc, dashed: true, csvKey: 'new_contacts' },
+        ],
+      }
+    }
     const total = created.reduce((a, b) => a + b, 0)
+    // Single-line "flow" metrics (e.g. Conversations created) vs the two-line
+    // Created-vs-closed comparison.
+    const lines =
+      def.id === 'created_vs_closed'
+        ? [
+            { name: 'Created', tint: 'leaf' as const, data: created },
+            { name: 'Closed', tint: 'sky' as const, data: closed },
+          ]
+        : [{ name: 'Conversations', tint: 'leaf' as const, data: created }]
+    return { value: total, previous: total * jitter(rng, 0.2), labels, lines }
+  }
+
+  // Breakdown bars: one bar per channel category (WhatsApp / Live chat / Email / Voice).
+  if (def.resultType === 'breakdown') {
+    const labels = CATALOG.map((c) => c.label)
+    const perChannel = (base * chFactor * tmFactor * Math.sqrt(days / 7)) / labels.length
+    const series = labels.map(() => Math.max(0, Math.round(perChannel * jitter(rng, 0.5))))
+    const total = series.reduce((a, b) => a + b, 0)
+    return { value: total, previous: total * jitter(rng, 0.2), labels, series }
+  }
+
+  // Donut: share of a total across a few segments (New vs Returning).
+  if (def.resultType === 'donut') {
+    const total = base * chFactor * tmFactor * Math.sqrt(days / 7)
+    const newC = Math.max(0, Math.round(total * 0.6 * jitter(rng, 0.15)))
+    const ret = Math.max(0, Math.round(total * 0.4 * jitter(rng, 0.15)))
     return {
-      value: total,
-      previous: total * jitter(rng, 0.2),
-      labels,
-      lines: [
-        { name: 'Created', tint: 'leaf', data: created },
-        { name: 'Closed', tint: 'sky', data: closed },
+      value: newC + ret,
+      previous: (newC + ret) * jitter(rng, 0.2),
+      donut: [
+        { label: 'New', value: newC },
+        { label: 'Returning', value: ret },
       ],
     }
+  }
+
+  // Funnel: counts per pipeline stage, descending.
+  if (def.resultType === 'funnel') {
+    const stages = ['New', 'Qualified', 'Proposal', 'Negotiation', 'Won']
+    const top = base * chFactor * tmFactor * Math.sqrt(days / 7)
+    const rates = [1, 0.62, 0.4, 0.26, 0.16] // stage-to-stage drop-off
+    const funnel = stages.map((stage, i) => ({
+      stage,
+      count: Math.max(0, Math.round(top * rates[i] * jitter(rng, 0.12))),
+    }))
+    const value = funnel.reduce((a, s) => a + s.count, 0)
+    return { value, previous: value * jitter(rng, 0.2), funnel }
   }
 
   // Tables: per-agent / per-channel rows (pre-formatted, filter-scaled).

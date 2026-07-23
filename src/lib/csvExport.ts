@@ -18,6 +18,9 @@ export function canExportWidget(metric: MetricDef): boolean {
     metric.status === 'ready' &&
     (metric.resultType === 'histogram' ||
       metric.resultType === 'time_series' ||
+      metric.resultType === 'breakdown' ||
+      metric.resultType === 'donut' ||
+      metric.resultType === 'funnel' ||
       metric.resultType === 'table')
   )
 }
@@ -65,19 +68,40 @@ function downloadCSV(filename: string, csv: string): void {
 /** Assemble rows from the widget's live sample, by result type. */
 function widgetRows(metric: MetricDef, sample: MetricSample): Row[] {
   if (metric.resultType === 'histogram' && sample.series) {
+    // Generic headers so the by-hour widget works for conversations, calls, etc.
     return sample.series.map((today, h) => ({
       hour_of_day_utc: h,
-      conversations_today: today,
-      avg_conversations_per_day: sample.average?.[h] ?? '',
+      count_today: today,
+      avg_per_day: sample.average?.[h] ?? '',
     }))
   }
 
   if (metric.resultType === 'time_series' && sample.lines && sample.labels) {
     return sample.labels.map((date, i) => {
       const row: Row = { date }
-      for (const line of sample.lines!) row[line.name.toLowerCase()] = line.data[i] ?? ''
+      for (const line of sample.lines!) row[line.csvKey ?? line.name.toLowerCase()] = line.data[i] ?? ''
       return row
     })
+  }
+
+  if (metric.resultType === 'breakdown' && sample.labels) {
+    // Two-series (over time) → one column per series; single-series → category,count.
+    if (sample.lines) {
+      return sample.labels.map((label, i) => {
+        const row: Row = { label }
+        for (const line of sample.lines!) row[line.name.toLowerCase()] = line.data[i] ?? ''
+        return row
+      })
+    }
+    return sample.labels.map((label, i) => ({ category: label, count: sample.series?.[i] ?? '' }))
+  }
+
+  if (metric.resultType === 'donut' && sample.donut) {
+    return sample.donut.map((s) => ({ segment: s.label, count: s.value }))
+  }
+
+  if (metric.resultType === 'funnel' && sample.funnel) {
+    return sample.funnel.map((s) => ({ stage: s.stage, count: s.count }))
   }
 
   if (metric.resultType === 'table' && sample.table) {

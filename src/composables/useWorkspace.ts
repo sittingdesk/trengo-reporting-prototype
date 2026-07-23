@@ -14,7 +14,7 @@ import {
   LEGACY_REPORT_TEMPLATE_IDS,
   type Template,
 } from '@/config/templates'
-import { getIteration } from '@/config/iterations'
+import { getIteration, DEFAULT_ITERATION_ID } from '@/config/iterations'
 
 /** A tab = a dashboard the user created from a template. */
 export interface Tab {
@@ -35,7 +35,8 @@ function loadScenario(): Scenario {
 
 function loadIteration(): string {
   const id = localStorage.getItem(ITERATION_KEY)
-  return id && getIteration(id) ? id : 'full'
+  // Ignore a persisted id that no longer resolves or is now disabled.
+  return id && getIteration(id) && !getIteration(id)?.disabled ? id : DEFAULT_ITERATION_ID
 }
 
 const state = reactive({
