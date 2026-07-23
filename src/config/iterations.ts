@@ -29,9 +29,9 @@ export const ITERATIONS: Iteration[] = [
   {
     id: 'internal-test',
     label: 'Internal Testing + Selective Test Group',
-    // A locked-down test build: Overview, Understand & Operate, the seeded
-    // ("filled") dashboards only; no adding/removing pages, no scenario choice.
-    hiddenTemplateIds: ['improve', 'automate'],
+    // A locked-down test build: Overview, Understand, Operate & Improve; no
+    // adding/removing pages, no scenario choice.
+    hiddenTemplateIds: ['automate'],
     allowNewDashboard: false,
     allowRemoveDashboard: false,
     allowScenarioToggle: false,
