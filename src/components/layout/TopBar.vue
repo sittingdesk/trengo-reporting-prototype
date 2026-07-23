@@ -17,22 +17,19 @@ import { useFilters } from '@/composables/useFilters'
 import { TEAMS } from '@/data/filters'
 
 const route = useRoute()
-const { getTab, tabTemplate } = useWorkspace()
+const { getTab } = useWorkspace()
 const { teamIds, toggleTeam, clearTeams } = useFilters()
 
 const tabId = computed(() => (route.name === 'tab' ? String(route.params.tabId) : ''))
 const tab = computed(() => (tabId.value ? getTab(tabId.value) : undefined))
-const template = computed(() => (tabId.value ? tabTemplate(tabId.value) : undefined))
 
 const title = computed(() => tab.value?.name ?? 'Analytics')
-const subtitle = computed(() => template.value?.description ?? '')
 </script>
 
 <template>
   <header class="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-grey-300 bg-white px-6">
     <div class="min-w-0">
       <h1 class="truncate text-base font-semibold text-grey-900">{{ title }}</h1>
-      <p v-if="subtitle" class="truncate text-xs text-grey-600">{{ subtitle }}</p>
     </div>
 
     <!-- Global filters + dashboard action (only on a dashboard tab). -->

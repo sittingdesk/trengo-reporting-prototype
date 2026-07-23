@@ -10,12 +10,12 @@ const max = computed(() => Math.max(1, ...props.rows.map((r) => r.count)))
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col justify-center gap-2.5">
+  <div class="flex flex-1 flex-col justify-center gap-4">
     <div v-for="row in rows" :key="row.stage" class="flex items-center gap-3">
       <span class="w-24 shrink-0 truncate text-xs font-medium text-grey-600">{{ row.stage }}</span>
-      <div class="relative h-7 flex-1 overflow-hidden rounded-base bg-grey-100">
+      <div class="relative h-7 flex-1 overflow-hidden rounded-[3px] bg-grey-100">
         <div
-          class="h-full rounded-base bg-leaf-400 transition-[width] duration-300"
+          class="h-full rounded-[3px] bg-leaf-400 transition-[width] duration-300"
           :style="{ width: `${Math.max(2, (row.count / max) * 100)}%` }"
         />
       </div>

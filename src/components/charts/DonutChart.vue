@@ -39,7 +39,9 @@ function build() {
         {
           data: props.segments.map((s) => s.value),
           backgroundColor: props.segments.map((_, i) => palette[i % palette.length]),
-          borderWidth: 0,
+          // White border between arcs reads as a small gap on the card.
+          borderColor: token('--color-white', '#ffffff'),
+          borderWidth: 3,
         },
       ],
     },
