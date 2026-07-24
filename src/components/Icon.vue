@@ -18,7 +18,7 @@ const props = withDefaults(
   defineProps<{
     name: string
     size?: number
-    variant?: 'linear' | 'sidebar' | 'sidebar-filled'
+    variant?: 'linear' | 'filled' | 'sidebar' | 'sidebar-filled'
   }>(),
   { size: 20, variant: 'linear' },
 )
@@ -27,6 +27,11 @@ const props = withDefaults(
 // whole linear set, not just what's used — fine for a single-file prototype,
 // but an engineer should switch to on-demand loading for production.
 const linear = import.meta.glob('../../svg icons/linear/*.svg', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>
+const filled = import.meta.glob('../../svg icons/filled/*.svg', {
   query: '?raw',
   import: 'default',
   eager: true,
@@ -60,6 +65,8 @@ function buildMap(glob: Record<string, string>, opts: { filledVariant: boolean }
 
 const maps = {
   linear: buildMap(linear, { filledVariant: false }),
+  // The svg icons/filled/* folder is entirely filled glyphs (plain names).
+  filled: buildMap(filled, { filledVariant: false }),
   sidebar: buildMap(sidebar, { filledVariant: false }),
   'sidebar-filled': buildMap(sidebar, { filledVariant: true }),
 }

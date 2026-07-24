@@ -18,6 +18,7 @@ import { resolveEmptyState } from '@/data/emptyStates'
 import { formatValue } from '@/lib/format'
 import { metricValue, filterSignature } from '@/lib/mock'
 import { Tooltip } from '@/components/ui/tooltip'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { canExportWidget, exportWidgetCSV } from '@/lib/csvExport'
 import { useFilters } from '@/composables/useFilters'
 import { useSettings } from '@/composables/useSettings'
@@ -61,15 +62,23 @@ const formatted = computed(() => {
   return formatValue(sample.value.value, m.unit)
 })
 
+// Per-card "More" menu (kebab). Holds Export as CSV (charts/tables) + Remove widget.
+const menuOpen = ref(false)
+
 // Per-widget CSV export (chart/table widgets only).
 const exportable = computed(() => (metric.value ? canExportWidget(metric.value) : false))
 function onExport() {
+  menuOpen.value = false
   if (!metric.value || !sample.value) return
   exportWidgetCSV(metric.value, sample.value, {
     channels: channelIds.value.join('+') || 'all',
     teams: teamIds.value.join('+') || 'all',
     rangeLabel: dateRangeLabel.value,
   })
+}
+// Remove widget — prototype placeholder (widgets come from the template; no removal yet).
+function onRemove() {
+  menuOpen.value = false
 }
 
 // One neutral empty state. `always` (no data source yet) forces empty regardless
@@ -140,13 +149,22 @@ const skeletonBars = computed(() =>
 <template>
   <article
     v-if="metric"
-    class="flex min-h-[152px] flex-col justify-between rounded-lg border border-grey-300 bg-white p-5"
+    class="group flex min-h-[152px] flex-col justify-between gap-4 overflow-hidden rounded-lg border border-grey-300 bg-white p-4"
   >
-    <!-- Top group: header + body stay connected (12px), grows to fill -->
-    <div class="flex min-h-0 flex-1 flex-col gap-3">
-    <!-- Header: label + (histogram legend) + top-right info icon -->
-    <header class="flex items-start gap-2">
-      <h3 class="min-w-0 flex-1 text-sm font-medium text-grey-600">{{ metric.label }}</h3>
+    <!-- Header: label + inline info icon · (chart legend) · More menu -->
+    <header class="flex items-center gap-2">
+      <div class="flex min-w-0 flex-1 items-center gap-2">
+        <h3 class="truncate text-base font-medium text-grey-700">{{ metric.label }}</h3>
+        <Tooltip v-if="!loading" :text="metric.caveat">
+          <span class="flex shrink-0 cursor-default items-center text-grey-400 transition-colors hover:text-grey-600">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="8" fill="currentColor" />
+              <circle cx="8" cy="4.6" r="1.1" fill="#fff" />
+              <rect x="6.9" y="6.7" width="2.2" height="5" rx="1.1" fill="#fff" />
+            </svg>
+          </span>
+        </Tooltip>
+      </div>
       <div
         v-if="metric.resultType === 'histogram' && resolvedState === 'value' && !loading"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
@@ -162,27 +180,40 @@ const skeletonBars = computed(() =>
           <span class="size-2 rounded-circle" :class="l.tint === 'leaf' ? 'bg-leaf-500' : 'bg-sky-600'" /> {{ l.name }}
         </span>
       </div>
-      <button
-        v-if="exportable && sample && !loading && resolvedState === 'value'"
-        type="button"
-        class="flex shrink-0 items-center rounded-sm p-0.5 text-grey-400 transition-colors hover:text-grey-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label="Download CSV"
-        title="Download CSV"
-        @click="onExport"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3v12" /><path d="M7 12l5 5 5-5" /><path d="M5 21h14" />
-        </svg>
-      </button>
-      <Tooltip v-if="!loading" :text="metric.caveat">
-        <span class="flex shrink-0 cursor-default items-center text-grey-400 transition-colors hover:text-grey-600">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <circle cx="8" cy="8" r="8" fill="currentColor" />
-            <circle cx="8" cy="4.6" r="1.1" fill="#fff" />
-            <rect x="6.9" y="6.7" width="2.2" height="5" rx="1.1" fill="#fff" />
-          </svg>
-        </span>
-      </Tooltip>
+
+      <!-- More menu (kebab, secondary-button style) -->
+      <Popover v-if="!loading" v-model:open="menuOpen">
+        <PopoverTrigger as-child>
+          <button
+            type="button"
+            class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm border border-grey-300 bg-white text-grey-500 opacity-0 transition-[color,background-color,opacity] hover:bg-grey-100 hover:text-grey-700 focus:outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 data-[state=open]:opacity-100 data-[state=open]:bg-grey-100"
+            aria-label="More options"
+          >
+            <Icon name="MoreHoriz" variant="filled" :size="20" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" class="w-44 p-1">
+          <button
+            v-if="exportable && sample && resolvedState === 'value'"
+            type="button"
+            class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm text-grey-900 transition-colors hover:bg-grey-100 focus:outline-none focus-visible:bg-grey-100"
+            @click="onExport"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-grey-500" aria-hidden="true">
+              <path d="M12 3v12" /><path d="M7 12l5 5 5-5" /><path d="M5 21h14" />
+            </svg>
+            Export as CSV
+          </button>
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm text-grey-900 transition-colors hover:bg-grey-100 focus:outline-none focus-visible:bg-grey-100"
+            @click="onRemove"
+          >
+            <Icon name="Trash" :size="16" class="shrink-0 text-grey-500" />
+            Remove widget
+          </button>
+        </PopoverContent>
+      </Popover>
     </header>
 
       <!-- Body (per state) — sits 4px under the header -->
@@ -248,33 +279,31 @@ const skeletonBars = computed(() =>
         <DataTable v-if="sample?.table" :columns="sample.table.columns" :rows="sample.table.rows" :initial-rows="sample.table.initialRows" />
       </div>
 
-      <!-- Value (default) -->
-      <div v-else class="text-[40px] font-semibold leading-[44px] tracking-[-0.8px] text-grey-800 tabular-nums">
-        {{ formatted }}
+      <!-- Value (default) — number + trend, grouped and bottom-anchored (Figma 6986:72319) -->
+      <div v-else class="flex flex-col gap-2">
+        <span class="whitespace-nowrap text-[36px] font-bold leading-[40px] text-grey-900 tabular-nums">{{ formatted }}</span>
+        <div v-if="showDelta && delta" class="flex items-center gap-2">
+          <Icon
+            v-if="delta.up || delta.down"
+            :name="delta.up ? 'TrendUp' : 'TrendDown'"
+            :size="16"
+            :class="{
+              'text-leaf-500': delta.tone === 'good',
+              'text-error-500': delta.tone === 'bad',
+              'text-grey-600': delta.tone === 'flat',
+            }"
+          />
+          <p class="text-xs font-medium leading-4 text-grey-600">
+            <span
+              :class="{
+                'text-leaf-500': delta.tone === 'good',
+                'text-error-500': delta.tone === 'bad',
+                'text-grey-600': delta.tone === 'flat',
+              }"
+            >{{ delta.pct }}</span>
+            {{ ' ' }}{{ comparisonLabel }}
+          </p>
+        </div>
       </div>
-    </div>
-
-    <!-- Bottom slot: delta only, and only in the value state (never reserved space) -->
-    <div v-if="!loading && showDelta && delta" class="flex items-center gap-1">
-      <Icon
-        v-if="delta.up || delta.down"
-        :name="delta.up ? 'TrendUp' : 'TrendDown'"
-        :size="20"
-        :class="{
-          'text-leaf-500': delta.tone === 'good',
-          'text-error-500': delta.tone === 'bad',
-          'text-grey-600': delta.tone === 'flat',
-        }"
-      />
-      <span
-        class="text-xs font-semibold"
-        :class="{
-          'text-leaf-500': delta.tone === 'good',
-          'text-error-500': delta.tone === 'bad',
-          'text-grey-600': delta.tone === 'flat',
-        }"
-      >{{ delta.pct }}</span>
-      <span class="text-xs font-semibold text-grey-600">{{ comparisonLabel }}</span>
-    </div>
   </article>
 </template>

@@ -24,6 +24,9 @@ export interface WidgetPlaceholder {
 /** A real widget bound to a metric in the registry (renders a MetricBox). */
 export interface MetricWidget {
   metricId: string
+  /** Width in the 12-column grid (1–12). Defaults by result type; the future
+   *  drag-to-resize hook writes this. */
+  span?: number
 }
 
 /** A template widget is either a (mock) placeholder or a real metric widget. */
@@ -40,8 +43,6 @@ export interface Template {
   widgets: Widget[]
   /** Surface this template first + show a "Recommended" badge in the gallery. */
   recommended?: boolean
-  /** Grid columns for this page's layout (default 3). Understand uses 2. */
-  columns?: number
 }
 
 export const TEMPLATES: Template[] = [
@@ -119,11 +120,10 @@ export const TEMPLATES: Template[] = [
     name: 'Understand',
     description: 'Diagnostic insight into customer behaviour and needs.',
     recommended: true,
-    columns: 2, // full line on top, 2×2 bar grid, full-width funnel at the bottom
     widgets: [
       { metricId: 'conversations_and_new_contacts' }, // full-width dual line
-      { metricId: 'conversations_by_channel' },
-      { metricId: 'new_vs_returning' }, // donut
+      { metricId: 'conversations_by_channel', span: 7 }, // slightly wider than the donut
+      { metricId: 'new_vs_returning', span: 5 }, // donut (7 + 5 = 12, one row)
       { metricId: 'deal_stage_funnel' }, // full-width funnel
     ],
   },

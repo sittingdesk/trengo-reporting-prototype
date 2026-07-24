@@ -40,29 +40,51 @@ const KIND_LABEL: Record<WidgetKind, string> = {
   tbd: 'TBD',
 }
 
-// Page grid: 2 or 3 columns per the template (default 3). Literal classes only.
-const columns = computed(() => template.value?.columns ?? 3)
-const gridClass = computed(() =>
-  columns.value === 2
-    ? 'grid grid-cols-1 gap-4 sm:grid-cols-2'
-    : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3',
-)
+// 12-column grid — the flexible foundation for later drag/resize. Each widget owns a
+// `span` (1–12); resizing = changing that number. Mobile 1-up, tablet 2-up, desktop 12.
+const gridClass = 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12'
 
-// Wide widgets span more columns. Metric widgets use their result type; placeholders use kind.
-const WIDE_KINDS: WidgetKind[] = ['trend', 'histogram', 'table']
-// Types that always span the full page width.
-const FULL_TYPES = ['time_series', 'table', 'funnel']
+// Default span by metric result type (out of 12): value cards 3 → 4 per row.
+const SPAN_BY_TYPE: Record<string, number> = {
+  value: 3,
+  histogram: 6,
+  breakdown: 6,
+  donut: 6,
+  time_series: 12,
+  table: 12,
+  funnel: 12,
+}
+// Default span for (mock) placeholder widgets, by kind.
+const SPAN_BY_KIND: Record<WidgetKind, number> = {
+  value: 3,
+  tbd: 3,
+  breakdown: 6,
+  histogram: 6,
+  trend: 12,
+  table: 12,
+}
+// span → literal responsive classes (Tailwind JIT needs complete literals). Full
+// 1–12 set so any per-widget span (incl. future drag/resize) renders.
+const SPAN_CLASS: Record<number, string> = {
+  1: 'lg:col-span-1',
+  2: 'lg:col-span-2',
+  3: 'lg:col-span-3',
+  4: 'lg:col-span-4',
+  5: 'lg:col-span-5',
+  6: 'lg:col-span-6',
+  7: 'lg:col-span-7',
+  8: 'lg:col-span-8',
+  9: 'lg:col-span-9',
+  10: 'lg:col-span-10',
+  11: 'lg:col-span-11',
+  12: 'sm:col-span-2 lg:col-span-12',
+}
+
 function spanClass(widget: Widget) {
-  if (isMetricWidget(widget)) {
-    const rt = getMetric(widget.metricId)?.resultType
-    if (rt && FULL_TYPES.includes(rt)) {
-      return columns.value === 2 ? 'sm:col-span-2' : 'sm:col-span-2 lg:col-span-3'
-    }
-    // Histogram is wide only in the 3-col layout; half-width in the 2-col layout.
-    if (rt === 'histogram') return columns.value === 2 ? '' : 'lg:col-span-2'
-    return '' // value, breakdown → one column
-  }
-  return WIDE_KINDS.includes(widget.kind) ? 'lg:col-span-2' : ''
+  const span = isMetricWidget(widget)
+    ? (widget.span ?? SPAN_BY_TYPE[getMetric(widget.metricId)?.resultType ?? 'value'] ?? 3)
+    : SPAN_BY_KIND[widget.kind] ?? 3
+  return SPAN_CLASS[span] ?? 'lg:col-span-3'
 }
 </script>
 

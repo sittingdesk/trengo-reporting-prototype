@@ -54,7 +54,7 @@ function changeIteration(id: string) {
 </script>
 
 <template>
-  <aside class="flex w-60 shrink-0 flex-col border-r border-grey-300 bg-grey-100">
+  <aside class="flex w-60 shrink-0 flex-col border-r border-grey-300 bg-white">
     <!-- Heading + create -->
     <div class="flex items-center justify-between px-4 pb-2 pt-5">
       <h2 class="text-lg font-bold text-grey-900">Analytics</h2>
