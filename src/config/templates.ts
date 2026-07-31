@@ -136,7 +136,8 @@ export const TEMPLATES: Template[] = [
       { metricId: 'first_response_time' },
       { metricId: 'resolution_time' },
       { metricId: 'call_wait_time' },
-      { metricId: 'created_vs_closed' },
+      { metricId: 'created_vs_closed', span: 6 }, // 50/50 with wait-time-by-team
+      { metricId: 'wait_time_by_team', span: 6 }, // avg queue wait per team (voice)
       { metricId: 'workload_by_agent' },
       { metricId: 'performance_by_channel' },
     ],

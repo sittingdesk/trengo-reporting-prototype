@@ -4,6 +4,7 @@
 // Supports an optional second "Average" series drawn beside the primary one.
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Chart } from '@/lib/chart'
+import { fmtDuration } from '@/lib/format'
 
 const props = withDefaults(
   defineProps<{
@@ -15,10 +16,26 @@ const props = withDefaults(
     seriesLabel?: string
     averageLabel?: string
     legend?: boolean
+    // 'duration' formats the y-axis + tooltip as m/s (values stay raw seconds).
+    unit?: 'count' | 'duration'
+    // Always render every x-axis label (no auto-skip) and truncate long ones —
+    // for categorical bars (e.g. per-team) where every label must show.
+    showAllLabels?: boolean
     height?: number
   }>(),
-  { height: 200, seriesLabel: 'Today', averageLabel: 'Average', legend: true },
+  {
+    height: 200,
+    seriesLabel: 'Today',
+    averageLabel: 'Average',
+    legend: true,
+    unit: 'count',
+    showAllLabels: false,
+  },
 )
+
+// Axis/tooltip value formatter — raw counts, or seconds → "1m 20s".
+const fmtVal = (v: number | string) =>
+  props.unit === 'duration' ? fmtDuration(Number(v)) : String(v)
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 let chart: InstanceType<typeof Chart> | null = null
@@ -93,19 +110,46 @@ function build() {
           usePointStyle: true,
           boxPadding: 4,
           padding: 10,
+          callbacks: {
+            label: (ctx: any) => `${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${fmtVal(ctx.parsed.y)}`,
+          },
         },
       },
       scales: {
         x: {
           // Faint vertical grid lines (like the production reference).
           grid: { display: true, color: grid, drawTicks: false },
-          ticks: { color: axis, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 24 },
+          ticks: {
+            color: axis,
+            font: { size: 10 },
+            maxRotation: 0,
+            // Categorical bars show every label + truncate; time buckets auto-skip.
+            autoSkip: !props.showAllLabels,
+            maxTicksLimit: props.showAllLabels ? undefined : 24,
+            // Truncate to the width available per label (recomputed on resize);
+            // down to a single first letter when that's all that fits.
+            callback: props.showAllLabels
+              ? function (this: any, value: string | number) {
+                  const l = String(this.getLabelForValue(Number(value)))
+                  const n = this.ticks?.length || this.getLabels?.().length || 1
+                  const per = (this.width || 0) / n
+                  const maxChars = per > 0 ? Math.max(1, Math.floor(per / 7)) : 12
+                  if (l.length <= maxChars) return l
+                  return maxChars <= 1 ? l.slice(0, 1) : l.slice(0, maxChars - 1) + '…'
+                }
+              : undefined,
+          },
         },
         y: {
           beginAtZero: true,
           grid: { color: grid },
           border: { display: false },
-          ticks: { color: axis, font: { size: 10 }, maxTicksLimit: 6 },
+          ticks: {
+            color: axis,
+            font: { size: 10 },
+            maxTicksLimit: 6,
+            callback: (v: any) => fmtVal(v),
+          },
         },
       },
     },

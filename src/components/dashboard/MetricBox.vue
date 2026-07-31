@@ -260,8 +260,11 @@ const skeletonBars = computed(() =>
           :data="sample.series"
           :series="sample.lines"
           :legend="false"
+          :unit="metric.unit === 'seconds' ? 'duration' : 'count'"
+          :show-all-labels="true"
           :height="200"
         />
+        <p v-if="metric.footnote" class="mt-2 text-xs text-grey-500">{{ metric.footnote }}</p>
       </div>
 
       <!-- Donut (share of a total across segments) -->

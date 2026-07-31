@@ -44,6 +44,10 @@ export interface MetricDef {
   lowerIsBetter?: boolean
   /** Shown as a tooltip — definition caveats / open questions. */
   caveat?: string
+  /** Muted line shown beneath the chart (data-coverage caveats). */
+  footnote?: string
+  /** CSV header names for breakdown widgets (dimension + measure columns). */
+  csvColumns?: { dimension: string; measure: string }
 }
 
 export const METRICS: MetricDef[] = [
@@ -158,6 +162,19 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'efficiency',
     caveat: 'Volume, first response time and CSAT per channel.',
+  },
+  {
+    id: 'wait_time_by_team',
+    label: 'Average wait time by team',
+    unit: 'seconds',
+    resultType: 'breakdown',
+    status: 'ready',
+    category: 'voice',
+    base: 120, // ~2m average queue wait
+    lowerIsBetter: true,
+    caveat:
+      'Average time callers waited in the queue before being answered, per team. Calls without a team are not shown.',
+    csvColumns: { dimension: 'team', measure: 'avg_wait_seconds' },
   },
   // --- Understand page ---
   {

@@ -27,6 +27,7 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   created_vs_closed: { noun: 'conversations', icon: 'Inbox' },
   workload_by_agent: { noun: 'conversations', icon: 'Users' },
   performance_by_channel: { noun: 'conversations', icon: 'Inbox' },
+  wait_time_by_team: { noun: 'answered calls', icon: 'Phone' },
   open_conversations: { noun: 'open conversations', icon: 'Inbox' },
   assigned_conversations: { noun: 'assigned conversations', icon: 'Inbox' },
 

@@ -93,7 +93,9 @@ function widgetRows(metric: MetricDef, sample: MetricSample): Row[] {
         return row
       })
     }
-    return sample.labels.map((label, i) => ({ category: label, count: sample.series?.[i] ?? '' }))
+    const dim = metric.csvColumns?.dimension ?? 'category'
+    const measure = metric.csvColumns?.measure ?? 'count'
+    return sample.labels.map((label, i) => ({ [dim]: label, [measure]: sample.series?.[i] ?? '' }))
   }
 
   if (metric.resultType === 'donut' && sample.donut) {

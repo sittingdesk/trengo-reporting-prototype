@@ -231,6 +231,20 @@ export function metricValue(
 
   // Breakdown bars: one bar per channel category (WhatsApp / Live chat / Email / Voice).
   if (def.resultType === 'breakdown') {
+    // Avg queue wait (seconds) per team — durations don't scale by subset (the
+    // per-signature seed varies them by filter); team filter narrows which teams show.
+    if (def.id === 'wait_time_by_team') {
+      const teams = tm === 'all' ? TEAMS : TEAMS.filter((t) => tm.split(',').includes(t.id))
+      const rows = teams
+        .map((t) => ({ label: t.label, value: Math.max(5, Math.round(base * jitter(rng, 0.5))) }))
+        .sort((a, b) => b.value - a.value) // longest wait first — the operational signal
+      return {
+        value: rows.reduce((a, r) => a + r.value, 0),
+        previous: 0,
+        labels: rows.map((r) => r.label),
+        series: rows.map((r) => r.value),
+      }
+    }
     const labels = CATALOG.map((c) => c.label)
     const perChannel = (base * chFactor * tmFactor * Math.sqrt(days / 7)) / labels.length
     const series = labels.map(() => Math.max(0, Math.round(perChannel * jitter(rng, 0.5))))
