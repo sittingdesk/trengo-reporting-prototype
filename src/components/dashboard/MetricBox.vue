@@ -279,7 +279,7 @@ const skeletonBars = computed(() =>
 
       <!-- Table -->
       <div v-else-if="metric.resultType === 'table'" class="flex flex-1 flex-col">
-        <DataTable v-if="sample?.table" :columns="sample.table.columns" :rows="sample.table.rows" :initial-rows="sample.table.initialRows" />
+        <DataTable v-if="sample?.table" :columns="sample.table.columns" :rows="sample.table.rows" />
       </div>
 
       <!-- Value (default) — number + trend, grouped and bottom-anchored (Figma 6986:72319) -->

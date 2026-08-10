@@ -42,7 +42,9 @@ const KIND_LABEL: Record<WidgetKind, string> = {
 
 // 12-column grid — the flexible foundation for later drag/resize. Each widget owns a
 // `span` (1–12); resizing = changing that number. Mobile 1-up, tablet 2-up, desktop 12.
-const gridClass = 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12'
+// items-start: tiles keep their natural height (value cards don't stretch to a taller
+// chart neighbour), so KPI cards stay a consistent 152px across rows.
+const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-12'
 
 // Default span by metric result type (out of 12): value cards 3 → 4 per row.
 const SPAN_BY_TYPE: Record<string, number> = {

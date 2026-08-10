@@ -59,7 +59,7 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'volume',
     base: 320,
-    caveat: 'Conversations currently open (not yet resolved).',
+    caveat: 'Tickets currently open. A rising number may signal capacity issues.',
   },
   {
     id: 'assigned_conversations',
@@ -69,7 +69,7 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'volume',
     base: 245,
-    caveat: 'Open conversations assigned to an agent.',
+    caveat: 'Tickets currently assigned to an agent. Compare with open tickets to spot unassigned backlog.',
   },
   {
     id: 'first_response_time',
@@ -80,7 +80,7 @@ export const METRICS: MetricDef[] = [
     category: 'efficiency',
     base: 95, // ~1m 35s
     lowerIsBetter: true,
-    caveat: 'System-wide aggregate. Average excludes conversations with no agent reply.',
+    caveat: 'Median time to the first agent reply. Excludes tickets that start with an outbound message.',
   },
   {
     id: 'resolution_time',
@@ -91,7 +91,7 @@ export const METRICS: MetricDef[] = [
     category: 'efficiency',
     base: 18000, // seconds (~5h)
     lowerIsBetter: true,
-    caveat: 'Human resolution time (excludes AI-resolved tickets). Reopens reset the clock.',
+    caveat: 'Median time from creation to close, across closed tickets. Long times signal process or knowledge gaps.',
   },
   {
     id: 'avg_csat',
@@ -101,7 +101,7 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'quality',
     base: 0.92,
-    caveat: 'Average across resolved conversations with a CSAT response.',
+    caveat: 'Average rating from CSAT surveys answered in this period. Scale: 1–5.',
   },
   {
     id: 'win_rate',
@@ -111,7 +111,7 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'sales',
     base: 0.34,
-    caveat: 'Won deals ÷ closed deals. Optional date-filter behaviour still being confirmed.',
+    caveat: 'Share of opportunities that closed as won.',
   },
   {
     id: 'conversations_by_hour',
@@ -121,7 +121,7 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'volume',
     base: 60,
-    caveat: 'Volume of conversations created, bucketed by hour of day.',
+    caveat: 'Hourly distribution of new tickets, shown in UTC. Use it to spot peak demand.',
   },
   // --- Operate page ---
   {
@@ -143,7 +143,7 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'volume',
     base: 500, // tickets created per day
-    caveat: 'Conversations created vs closed over the selected period.',
+    caveat: 'New tickets against closed ones. A widening gap means your backlog is growing.',
   },
   {
     id: 'workload_by_agent',
@@ -152,7 +152,7 @@ export const METRICS: MetricDef[] = [
     resultType: 'table',
     status: 'ready',
     category: 'efficiency',
-    caveat: 'Open, closed and average response time per agent.',
+    caveat: 'Activity per agent, for the selected period and filters. Agents with fewer assigned tickets may still carry longer or harder ones.',
   },
   {
     id: 'performance_by_channel',
@@ -161,7 +161,7 @@ export const METRICS: MetricDef[] = [
     resultType: 'table',
     status: 'ready',
     category: 'efficiency',
-    caveat: 'Volume, first response time and CSAT per channel.',
+    caveat: 'Compare how each channel performs on the same metrics. Volume differences between channels can make small channels look volatile.',
   },
   {
     id: 'wait_time_by_team',
@@ -172,8 +172,7 @@ export const METRICS: MetricDef[] = [
     category: 'voice',
     base: 120, // ~2m average queue wait
     lowerIsBetter: true,
-    caveat:
-      'Average time callers waited in the queue before being answered, per team. Calls without a team are not shown.',
+    caveat: 'Average time callers wait before a team answers. Shows which teams need more voice capacity.',
     csvColumns: { dimension: 'team', measure: 'avg_wait_seconds' },
   },
   // --- Understand page ---
@@ -256,7 +255,7 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'ready',
     category: 'sales',
-    caveat: 'Average value of won deals.',
+    caveat: 'Average value of a closed-won deal in this period.',
   },
   {
     id: 'pipeline_value',
@@ -265,7 +264,7 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'ready',
     category: 'sales',
-    caveat: 'Total value of deals currently in the Boards pipeline.',
+    caveat: 'Total value of all open deals.',
   },
   {
     id: 'calls_volume',
@@ -274,7 +273,7 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'ready',
     category: 'voice',
-    caveat: 'Total/missed volume rule (the date-window definition) is still TBD.',
+    caveat: 'Inbound and outbound calls handled across your voice channels.',
   },
 ]
 

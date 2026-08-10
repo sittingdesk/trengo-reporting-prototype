@@ -14,11 +14,13 @@ export interface TableColumn {
   label: string
   align?: 'left' | 'right'
   badge?: boolean // render cells as a muted pill (e.g. "In development")
+  avatar?: boolean // prefix the cell with an initials avatar (e.g. agent names)
+  sortable?: boolean // clickable header; sorts by `sortKey` (raw value)
+  sortKey?: string // row key holding the raw sortable value (defaults to `key`)
 }
 export interface TableData {
   columns: TableColumn[]
   rows: Record<string, string | number>[]
-  initialRows?: number // collapsed row count; the rest reveal via "Load more"
 }
 
 export interface MetricSample {
@@ -36,8 +38,13 @@ export interface MetricSample {
   legendBelow?: boolean // render the line-chart legend below the chart (not header)
 }
 
-/** Mock agent roster for the "Workload by agent" table. */
-const AGENTS = ['Sanne Bakker', 'Daan Visser', 'Emma de Jong', 'Lucas Smit', 'Julia Mulder', 'Noah Peters']
+/** Mock agent roster for the "Workload by agent" table (large, to show scale). */
+const AGENTS = [
+  'Sanne Bakker', 'Daan Visser', 'Emma de Jong', 'Lucas Smit', 'Julia Mulder', 'Noah Peters',
+  'Sophie Jansen', 'Finn de Boer', 'Mila van Dijk', 'Lars Bakker', 'Tess Vermeulen', 'Sem Kok',
+  'Anna Meijer', 'Bram de Vries', 'Lotte Willems', 'Thijs Smit', 'Nina Hendriks', 'Ruben Maas',
+  'Fleur Bos', 'Jesse van Leeuwen', 'Sara Peeters', 'Tim Dekker', 'Eva Scholten', 'Gijs Post',
+]
 
 /** Mock channels/inboxes for the "Performance by channel" table (Load more reveals all). */
 const PERF_CHANNELS = [
@@ -317,48 +324,52 @@ function tableData(
   const rangeFactor = Math.sqrt(days / 7)
   const scale = rangeFactor * chFactor * tmFactor
 
+  // Sortable numeric/duration column: display formatted, keep a `<key>Raw` number.
+  const num = (key: string, raw: number, fmt: (n: number) => string) => ({
+    [key]: fmt(raw),
+    [`${key}Raw`]: Math.round(raw),
+  })
+
   if (id === 'workload_by_agent') {
     return {
       columns: [
-        { key: 'agent', label: 'Agent', align: 'left' },
-        { key: 'assigned', label: 'Assigned tickets', align: 'left' },
-        { key: 'firstResponse', label: 'First response time', align: 'left' },
-        { key: 'resolution', label: 'Total resolution time', align: 'left' },
-        { key: 'closed', label: 'Closed tickets', align: 'left' },
-        { key: 'messages', label: 'Messages sent', align: 'left' },
-        { key: 'comments', label: 'Internal comments', align: 'left' },
+        { key: 'agent', label: 'Agent', align: 'left', sortable: true, avatar: true },
+        { key: 'assigned', label: 'Assigned tickets', align: 'left', sortable: true, sortKey: 'assignedRaw' },
+        { key: 'firstResponse', label: 'First response time', align: 'left', sortable: true, sortKey: 'firstResponseRaw' },
+        { key: 'resolution', label: 'Total resolution time', align: 'left', sortable: true, sortKey: 'resolutionRaw' },
+        { key: 'closed', label: 'Closed tickets', align: 'left', sortable: true, sortKey: 'closedRaw' },
+        { key: 'messages', label: 'Messages sent', align: 'left', sortable: true, sortKey: 'messagesRaw' },
+        { key: 'comments', label: 'Internal comments', align: 'left', sortable: true, sortKey: 'commentsRaw' },
       ],
       rows: AGENTS.map((agent) => ({
         agent,
-        assigned: fmtCount(Math.max(0, 45 * scale * jitter(rng, 0.4))),
-        firstResponse: fmtDuration(Math.max(15, 95 * jitter(rng, 0.5))),
-        resolution: fmtDuration(Math.max(600, 18000 * jitter(rng, 0.5))),
-        closed: fmtCount(Math.max(0, 55 * scale * jitter(rng, 0.4))),
-        messages: fmtCount(Math.max(0, 220 * scale * jitter(rng, 0.45))),
-        comments: fmtCount(Math.max(0, 60 * scale * jitter(rng, 0.5))),
+        ...num('assigned', Math.max(0, 45 * scale * jitter(rng, 0.4)), fmtCount),
+        ...num('firstResponse', Math.max(15, 95 * jitter(rng, 0.5)), fmtDuration),
+        ...num('resolution', Math.max(600, 18000 * jitter(rng, 0.5)), fmtDuration),
+        ...num('closed', Math.max(0, 55 * scale * jitter(rng, 0.4)), fmtCount),
+        ...num('messages', Math.max(0, 220 * scale * jitter(rng, 0.45)), fmtCount),
+        ...num('comments', Math.max(0, 60 * scale * jitter(rng, 0.5)), fmtCount),
       })),
-      initialRows: 4,
     }
   }
 
   // performance_by_channel
   return {
     columns: [
-      { key: 'channel', label: 'Channel', align: 'left' },
-      { key: 'resolution', label: 'Resolution time', align: 'left' },
-      { key: 'firstResponse', label: 'First response time', align: 'left' },
+      { key: 'channel', label: 'Channel', align: 'left', sortable: true },
+      { key: 'resolution', label: 'Resolution time', align: 'left', sortable: true, sortKey: 'resolutionRaw' },
+      { key: 'firstResponse', label: 'First response time', align: 'left', sortable: true, sortKey: 'firstResponseRaw' },
       { key: 'sla', label: 'SLA compliance', align: 'left', badge: true },
-      { key: 'closed', label: 'Closed tickets', align: 'left' },
-      { key: 'open', label: 'Open tickets', align: 'left' },
+      { key: 'closed', label: 'Closed tickets', align: 'left', sortable: true, sortKey: 'closedRaw' },
+      { key: 'open', label: 'Open tickets', align: 'left', sortable: true, sortKey: 'openRaw' },
     ],
     rows: PERF_CHANNELS.map((channel) => ({
       channel,
-      resolution: fmtDuration(Math.max(600, 18000 * jitter(rng, 0.6))),
-      firstResponse: fmtDuration(Math.max(15, 95 * jitter(rng, 0.5))),
+      ...num('resolution', Math.max(600, 18000 * jitter(rng, 0.6)), fmtDuration),
+      ...num('firstResponse', Math.max(15, 95 * jitter(rng, 0.5)), fmtDuration),
       sla: 'In development', // not a real metric yet
-      closed: fmtCount(Math.max(0, 300 * scale * jitter(rng, 0.5))),
-      open: fmtCount(Math.max(0, 120 * scale * jitter(rng, 0.5))),
+      ...num('closed', Math.max(0, 300 * scale * jitter(rng, 0.5)), fmtCount),
+      ...num('open', Math.max(0, 120 * scale * jitter(rng, 0.5)), fmtCount),
     })),
-    initialRows: 4,
   }
 }

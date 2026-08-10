@@ -103,16 +103,18 @@ export const TEMPLATES: Template[] = [
     description: 'At-a-glance health and KPIs.',
     recommended: true,
     widgets: [
-      { metricId: 'open_conversations' },
-      { metricId: 'assigned_conversations' },
-      { metricId: 'first_response_time' },
-      { metricId: 'resolution_time' },
-      { metricId: 'avg_csat' },
-      { metricId: 'win_rate' },
-      { metricId: 'conversations_by_hour' },
-      { metricId: 'avg_deal_size' },
-      { metricId: 'pipeline_value' },
-      { metricId: 'calls_volume' },
+      // 3-up KPIs (span 4) → two even rows; the histogram takes its own full-width
+      // row (span 12) so a tall chart never sits beside short KPI tiles.
+      { metricId: 'open_conversations', span: 4 },
+      { metricId: 'assigned_conversations', span: 4 },
+      { metricId: 'first_response_time', span: 4 },
+      { metricId: 'resolution_time', span: 4 },
+      { metricId: 'avg_csat', span: 4 },
+      { metricId: 'win_rate', span: 4 },
+      { metricId: 'conversations_by_hour', span: 12 },
+      { metricId: 'avg_deal_size', span: 4 },
+      { metricId: 'pipeline_value', span: 4 },
+      { metricId: 'calls_volume', span: 4 },
     ],
   },
   {
