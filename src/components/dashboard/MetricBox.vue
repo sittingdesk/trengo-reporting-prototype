@@ -17,6 +17,7 @@ import { getMetric } from '@/data/metrics'
 import { resolveEmptyState } from '@/data/emptyStates'
 import { formatValue } from '@/lib/format'
 import { metricValue, filterSignature } from '@/lib/mock'
+import { CHART_HEIGHT } from '@/lib/chart'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { canExportWidget, exportWidgetCSV } from '@/lib/csvExport'
@@ -131,6 +132,20 @@ const showDelta = computed(
     !!delta.value,
 )
 
+// Stacked time-series (Call volume): per-series totals + grand total, folded into the
+// header legend so the numbers live with the chart (no separate KPI tiles).
+const seriesTotals = computed(() => {
+  const lines = sample.value?.lines
+  if (!lines) return null
+  const items = lines.map((l) => ({
+    name: l.name,
+    tint: l.tint,
+    value: l.data.reduce((a, b) => a + b, 0),
+  }))
+  return { items, total: items.reduce((a, i) => a + i.value, 0) }
+})
+const fmtCount = (n: number) => formatValue(n, 'count')
+
 const skeletonVariant = computed<'value' | 'graph' | 'line' | 'donut' | 'funnel' | 'table'>(() => {
   const rt = metric.value?.resultType
   if (rt === 'table') return 'table'
@@ -172,8 +187,19 @@ const skeletonBars = computed(() =>
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-leaf-400" /> Today</span>
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-grey-300" /> Average</span>
       </div>
+      <!-- Stacked time-series (e.g. Call volume): legend enriched with per-series totals + Total -->
       <div
-        v-else-if="metric.resultType === 'time_series' && resolvedState === 'value' && sample?.lines && !sample?.legendBelow && !loading"
+        v-else-if="metric.resultType === 'time_series' && metric.stacked && resolvedState === 'value' && seriesTotals && !loading"
+        class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
+      >
+        <span v-for="item in seriesTotals.items" :key="item.name" class="flex items-center gap-1.5">
+          <span class="size-2 rounded-circle" :class="item.tint === 'leaf' ? 'bg-leaf-500' : 'bg-sky-600'" />
+          {{ item.name }} <span class="font-semibold tabular-nums text-grey-900">{{ fmtCount(item.value) }}</span>
+        </span>
+        <span class="flex items-center gap-1.5">Total <span class="font-semibold tabular-nums text-grey-900">{{ fmtCount(seriesTotals.total) }}</span></span>
+      </div>
+      <div
+        v-else-if="metric.resultType === 'time_series' && !metric.stacked && resolvedState === 'value' && sample?.lines && !sample?.legendBelow && !loading"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span v-for="l in sample.lines" :key="l.name" class="flex items-center gap-1.5">
@@ -186,7 +212,7 @@ const skeletonBars = computed(() =>
         <PopoverTrigger as-child>
           <button
             type="button"
-            class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm border border-grey-300 bg-white text-grey-500 opacity-0 transition-[color,background-color,opacity] hover:bg-grey-100 hover:text-grey-700 focus:outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 data-[state=open]:opacity-100 data-[state=open]:bg-grey-100"
+            class="inline-flex h-6 w-0 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-grey-300 bg-white text-grey-500 opacity-0 transition-[color,background-color,opacity,width] hover:bg-grey-100 hover:text-grey-700 focus:outline-none focus-visible:w-6 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:w-6 group-hover:opacity-100 data-[state=open]:w-6 data-[state=open]:opacity-100 data-[state=open]:bg-grey-100"
             aria-label="More options"
           >
             <Icon name="MoreHoriz" variant="filled" :size="20" />
@@ -236,19 +262,27 @@ const skeletonBars = computed(() =>
           :data="sample.series"
           :average="sample.average"
           :legend="false"
-          :height="200"
+          :height="CHART_HEIGHT"
         />
       </div>
 
-      <!-- Time series (line) -->
+      <!-- Time series — line by default, or stacked bars (e.g. Call volume) -->
       <div v-else-if="metric.resultType === 'time_series'" class="flex flex-1 flex-col">
+        <BarChart
+          v-if="metric.stacked && sample?.lines && sample?.labels"
+          :labels="sample.labels"
+          :series="sample.lines"
+          :legend="false"
+          :stacked="true"
+          :height="CHART_HEIGHT"
+        />
         <LineChart
-          v-if="sample?.lines && sample?.labels"
+          v-else-if="sample?.lines && sample?.labels"
           :labels="sample.labels"
           :series="sample.lines"
           :legend="!!sample?.legendBelow"
           legend-position="bottom"
-          :height="220"
+          :height="CHART_HEIGHT"
         />
       </div>
 
@@ -262,14 +296,14 @@ const skeletonBars = computed(() =>
           :legend="false"
           :unit="metric.unit === 'seconds' ? 'duration' : 'count'"
           :show-all-labels="true"
-          :height="200"
+          :height="CHART_HEIGHT"
         />
         <p v-if="metric.footnote" class="mt-2 text-xs text-grey-500">{{ metric.footnote }}</p>
       </div>
 
       <!-- Donut (share of a total across segments) -->
       <div v-else-if="metric.resultType === 'donut'" class="flex flex-1 flex-col">
-        <DonutChart v-if="sample?.donut" :segments="sample.donut" center-label="contacts" :height="200" />
+        <DonutChart v-if="sample?.donut" :segments="sample.donut" center-label="contacts" :height="CHART_HEIGHT" />
       </div>
 
       <!-- Funnel (counts per pipeline stage) -->

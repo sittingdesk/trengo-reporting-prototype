@@ -2,7 +2,7 @@
 // LineChart — a thin Chart.js line-chart wrapper (uses the shared registration in
 // src/lib/chart.ts). Reads colours from the CSS design tokens so it stays on-brand.
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { Chart } from '@/lib/chart'
+import { Chart, CHART_HEIGHT } from '@/lib/chart'
 
 const props = withDefaults(
   defineProps<{
@@ -12,7 +12,7 @@ const props = withDefaults(
     legendPosition?: 'top' | 'bottom'
     height?: number
   }>(),
-  { height: 200, legend: true, legendPosition: 'top' },
+  { height: CHART_HEIGHT, legend: true, legendPosition: 'top' },
 )
 
 const canvas = ref<HTMLCanvasElement | null>(null)

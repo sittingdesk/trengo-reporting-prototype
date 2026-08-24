@@ -3,7 +3,7 @@
 // src/lib/chart.ts). Reads colours from the CSS design tokens. Shows a centred
 // total overlay and a built-in legend.
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { Chart } from '@/lib/chart'
+import { Chart, CHART_HEIGHT } from '@/lib/chart'
 import { fmtCount } from '@/lib/format'
 
 const props = withDefaults(
@@ -12,7 +12,7 @@ const props = withDefaults(
     centerLabel?: string
     height?: number
   }>(),
-  { height: 200, centerLabel: '' },
+  { height: CHART_HEIGHT, centerLabel: '' },
 )
 
 const canvas = ref<HTMLCanvasElement | null>(null)

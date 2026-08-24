@@ -36,3 +36,16 @@ Chart.register(
 )
 
 export { Chart }
+
+/**
+ * Canonical chart-body height (px) — the single source of truth for how tall a
+ * chart renders inside a MetricBox. Every chart type (bar/line/donut/funnel) uses
+ * this so two chart widgets sharing a row are always the same height, regardless of
+ * type. Do NOT hard-code per-widget heights — import this instead.
+ *
+ * Dynamic-layout note: this is the base "one row-unit" height. When drag-to-resize
+ * lands, a widget's card height becomes `rows × CHART_HEIGHT`; chart bodies already
+ * fill their container (maintainAspectRatio:false), so they scale with no per-type
+ * bookkeeping.
+ */
+export const CHART_HEIGHT = 200

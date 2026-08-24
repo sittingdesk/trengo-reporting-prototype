@@ -18,26 +18,27 @@ export interface EmptyStateConfig {
 }
 
 export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
-  first_response_time: { noun: 'customer conversations', icon: 'Inbox' },
-  resolution_time: { noun: 'conversations', icon: 'Inbox' },
-  conversations_by_hour: { noun: 'conversations', icon: 'Inbox' },
+  first_response_time: { noun: 'customer tickets', icon: 'Inbox' },
+  resolution_time: { noun: 'tickets', icon: 'Inbox' },
+  conversations_by_hour: { noun: 'tickets', icon: 'Inbox' },
   avg_csat: { noun: 'ratings', icon: 'EmotionSmile' },
   win_rate: { noun: 'decided deals', icon: 'Target' },
   call_wait_time: { noun: 'calls', icon: 'Phone' },
-  created_vs_closed: { noun: 'conversations', icon: 'Inbox' },
-  workload_by_agent: { noun: 'conversations', icon: 'Users' },
-  performance_by_channel: { noun: 'conversations', icon: 'Inbox' },
+  created_vs_closed: { noun: 'tickets', icon: 'Inbox' },
+  workload_by_agent: { noun: 'tickets', icon: 'Users' },
+  performance_by_channel: { noun: 'tickets', icon: 'Inbox' },
   wait_time_by_team: { noun: 'answered calls', icon: 'Phone' },
-  open_conversations: { noun: 'open conversations', icon: 'Inbox' },
-  assigned_conversations: { noun: 'assigned conversations', icon: 'Inbox' },
+  open_conversations: { noun: 'open tickets', icon: 'Inbox' },
+  assigned_conversations: { noun: 'assigned tickets', icon: 'Inbox' },
 
   // ---- Understand page ----
-  conversations_and_new_contacts: { noun: 'conversations', icon: 'Inbox' },
-  conversations_created: { noun: 'conversations', icon: 'Inbox' },
-  conversations_by_channel: { noun: 'conversations', icon: 'Inbox' },
+  conversations_and_new_contacts: { noun: 'tickets', icon: 'Inbox' },
+  conversations_created: { noun: 'tickets', icon: 'Inbox' },
+  conversations_by_channel: { noun: 'tickets', icon: 'Inbox' },
   new_contacts_by_channel: { noun: 'contacts', icon: 'Users' },
   new_vs_returning: { noun: 'contacts', icon: 'Users' },
   calls_by_hour: { noun: 'calls', icon: 'Phone' },
+  call_volume: { noun: 'calls', icon: 'Phone' },
   deal_stage_funnel: { noun: 'deals', icon: 'Target' },
 
   // ---- no data source yet → always the neutral empty state ----

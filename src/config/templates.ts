@@ -49,29 +49,29 @@ export const TEMPLATES: Template[] = [
   {
     id: 'dashboard',
     name: 'Dashboard',
-    description: 'A general overview of conversations, response times, and team activity.',
+    description: 'A general overview of tickets, response times, and team activity.',
     widgets: [
-      { name: 'Open conversations', kind: 'value' },
-      { name: 'Assigned conversations', kind: 'value' },
+      { name: 'Open tickets', kind: 'value' },
+      { name: 'Assigned tickets', kind: 'value' },
       { name: 'First response time', kind: 'value' },
       { name: 'Resolution time', kind: 'value' },
-      { name: 'Conversations by hour', kind: 'histogram' },
+      { name: 'Tickets by hour', kind: 'histogram' },
       { name: 'Agent online status', kind: 'tbd' },
     ],
   },
   {
     id: 'workload-management',
     name: 'Workload management',
-    description: 'Created, closed and re-opened conversations and overall workload over time.',
+    description: 'Created, closed and re-opened tickets and overall workload over time.',
     widgets: [
-      { name: 'Created conversations', kind: 'value' },
-      { name: 'Closed conversations', kind: 'value' },
-      { name: 'Re-opened conversations', kind: 'value' },
+      { name: 'Created tickets', kind: 'value' },
+      { name: 'Closed tickets', kind: 'value' },
+      { name: 'Re-opened tickets', kind: 'value' },
       { name: 'Total resolution time', kind: 'value' },
       { name: 'First response time', kind: 'value' },
       // Line graph, renamed from "Workload management".
       { name: 'Created tickets vs Closed tickets', kind: 'trend' },
-      { name: 'Conversations created', kind: 'trend' },
+      { name: 'Tickets created', kind: 'trend' },
     ],
   },
   {
@@ -123,7 +123,8 @@ export const TEMPLATES: Template[] = [
     description: 'Diagnostic insight into customer behaviour and needs.',
     recommended: true,
     widgets: [
-      { metricId: 'conversations_and_new_contacts' }, // full-width dual line
+      { metricId: 'conversations_and_new_contacts', span: 6 }, // 50/50 with call volume
+      { metricId: 'call_volume', span: 6 }, // stacked bars (inbound/outbound), 50/50
       { metricId: 'conversations_by_channel', span: 7 }, // slightly wider than the donut
       { metricId: 'new_vs_returning', span: 5 }, // donut (7 + 5 = 12, one row)
       { metricId: 'deal_stage_funnel' }, // full-width funnel

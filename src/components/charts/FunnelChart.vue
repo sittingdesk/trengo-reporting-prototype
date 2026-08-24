@@ -5,10 +5,11 @@
 // Plain divs + inline SVG — no chart library.
 import { computed } from 'vue'
 import { fmtCount, fmtPercent } from '@/lib/format'
+import { CHART_HEIGHT } from '@/lib/chart'
 
 const props = defineProps<{ rows: { stage: string; count: number }[] }>()
 
-const H = 200 // bar-area height (px)
+const H = CHART_HEIGHT // bar-area height (px) — shared chart-height unit
 const W = 56 // connector width (px)
 
 const max = computed(() => Math.max(1, ...props.rows.map((r) => r.count)))

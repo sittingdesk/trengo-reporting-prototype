@@ -218,8 +218,25 @@ export function metricValue(
         labels,
         legendBelow: true,
         lines: [
-          { name: 'Conversations', tint: 'leaf', data: created, csvKey: 'conversations_created' },
+          { name: 'Tickets', tint: 'leaf', data: created, csvKey: 'tickets_created' },
           { name: 'New contacts', tint: 'sky', data: newc, dashed: true, csvKey: 'new_contacts' },
+        ],
+      }
+    }
+    // Inbound vs Outbound calls per bucket, stacked (outbound the larger share,
+    // per the Voice Reporting reference). Rendered as stacked bars via metric.stacked.
+    if (def.id === 'call_volume') {
+      const inbound = created.map((c) => Math.max(0, Math.round(c * 0.35 * jitter(tsRng, 0.35))))
+      const outbound = created.map((c) => Math.max(0, Math.round(c * 0.75 * jitter(tsRng, 0.35))))
+      const inTotal = inbound.reduce((a, b) => a + b, 0)
+      const outTotal = outbound.reduce((a, b) => a + b, 0)
+      return {
+        value: inTotal + outTotal, // empty only when both directions are zero
+        previous: (inTotal + outTotal) * jitter(rng, 0.2),
+        labels,
+        lines: [
+          { name: 'Inbound', tint: 'leaf', data: inbound },
+          { name: 'Outbound', tint: 'sky', data: outbound },
         ],
       }
     }
@@ -232,7 +249,7 @@ export function metricValue(
             { name: 'Created', tint: 'leaf' as const, data: created },
             { name: 'Closed', tint: 'sky' as const, data: closed },
           ]
-        : [{ name: 'Conversations', tint: 'leaf' as const, data: created }]
+        : [{ name: 'Tickets', tint: 'leaf' as const, data: created }]
     return { value: total, previous: total * jitter(rng, 0.2), labels, lines }
   }
 

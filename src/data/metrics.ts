@@ -46,6 +46,8 @@ export interface MetricDef {
   caveat?: string
   /** Muted line shown beneath the chart (data-coverage caveats). */
   footnote?: string
+  /** Render a time_series as stacked bars (e.g. Inbound vs Outbound) instead of lines. */
+  stacked?: boolean
   /** CSV header names for breakdown widgets (dimension + measure columns). */
   csvColumns?: { dimension: string; measure: string }
 }
@@ -53,7 +55,7 @@ export interface MetricDef {
 export const METRICS: MetricDef[] = [
   {
     id: 'open_conversations',
-    label: 'Open conversations',
+    label: 'Open tickets',
     unit: 'count',
     resultType: 'value',
     status: 'ready',
@@ -63,7 +65,7 @@ export const METRICS: MetricDef[] = [
   },
   {
     id: 'assigned_conversations',
-    label: 'Assigned conversations',
+    label: 'Assigned tickets',
     unit: 'count',
     resultType: 'value',
     status: 'ready',
@@ -80,7 +82,8 @@ export const METRICS: MetricDef[] = [
     category: 'efficiency',
     base: 95, // ~1m 35s
     lowerIsBetter: true,
-    caveat: 'Median time to the first agent reply. Excludes tickets that start with an outbound message.',
+    caveat:
+      "Median time to the first reply from a human agent; automated replies don't count. Excludes tickets that start with an outbound message.",
   },
   {
     id: 'resolution_time',
@@ -91,7 +94,7 @@ export const METRICS: MetricDef[] = [
     category: 'efficiency',
     base: 18000, // seconds (~5h)
     lowerIsBetter: true,
-    caveat: 'Median time from creation to close, across closed tickets. Long times signal process or knowledge gaps.',
+    caveat: 'Median time from creation to close, for human-handled tickets (not AI-resolved). Long times signal process or knowledge gaps.',
   },
   {
     id: 'avg_csat',
@@ -115,7 +118,7 @@ export const METRICS: MetricDef[] = [
   },
   {
     id: 'conversations_by_hour',
-    label: 'Conversations by hour',
+    label: 'Tickets by hour',
     unit: 'count',
     resultType: 'histogram',
     status: 'ready',
@@ -178,34 +181,34 @@ export const METRICS: MetricDef[] = [
   // --- Understand page ---
   {
     id: 'conversations_and_new_contacts',
-    label: 'Conversations & new contacts',
+    label: 'Tickets & new contacts',
     unit: 'count',
     resultType: 'time_series',
     status: 'ready',
     category: 'volume',
     base: 500,
     caveat:
-      'Conversations created per day, alongside contacts messaging for the first time. A narrowing gap means growth is coming from new people; a widening gap means existing contacts are messaging more.',
+      'Tickets created per day, alongside contacts messaging for the first time. A narrowing gap means growth is coming from new people; a widening gap means existing contacts are messaging more.',
   },
   {
     id: 'conversations_created',
-    label: 'Conversations created',
+    label: 'Tickets created',
     unit: 'count',
     resultType: 'time_series',
     status: 'ready',
     category: 'volume',
     base: 500, // per day
-    caveat: 'Conversations created over the selected period.',
+    caveat: 'Tickets created over the selected period.',
   },
   {
     id: 'conversations_by_channel',
-    label: 'Conversations by entry channel',
+    label: 'Tickets by entry channel',
     unit: 'count',
     resultType: 'breakdown',
     status: 'ready',
     category: 'volume',
     base: 900, // per channel-ish, scaled by filters
-    caveat: 'Conversations created in the period, split by the channel they came in on.',
+    caveat: 'Tickets created in the period, split by the channel they came in on.',
   },
   {
     id: 'new_contacts_by_channel',
@@ -226,6 +229,17 @@ export const METRICS: MetricDef[] = [
     category: 'volume',
     base: 320,
     caveat: 'Contacts in the period split into first-time (new) and returning.',
+  },
+  {
+    id: 'call_volume',
+    label: 'Call volume',
+    unit: 'count',
+    resultType: 'time_series',
+    status: 'ready',
+    category: 'voice',
+    base: 12, // calls per day, split inbound/outbound
+    stacked: true,
+    caveat: 'Inbound and outbound calls over the selected period, split by direction.',
   },
   {
     id: 'calls_by_hour',

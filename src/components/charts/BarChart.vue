@@ -3,7 +3,7 @@
 // src/lib/chart.ts). Reads colours from the CSS design tokens so it stays on-brand.
 // Supports an optional second "Average" series drawn beside the primary one.
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { Chart } from '@/lib/chart'
+import { Chart, CHART_HEIGHT } from '@/lib/chart'
 import { fmtDuration } from '@/lib/format'
 
 const props = withDefaults(
@@ -21,15 +21,19 @@ const props = withDefaults(
     // Always render every x-axis label (no auto-skip) and truncate long ones —
     // for categorical bars (e.g. per-team) where every label must show.
     showAllLabels?: boolean
+    // Stack multi-series bars (inbound + outbound = total height) instead of grouping
+    // them side-by-side. Only meaningful with `series`.
+    stacked?: boolean
     height?: number
   }>(),
   {
-    height: 200,
+    height: CHART_HEIGHT,
     seriesLabel: 'Today',
     averageLabel: 'Average',
     legend: true,
     unit: 'count',
     showAllLabels: false,
+    stacked: false,
   },
 )
 
@@ -67,7 +71,8 @@ function datasets() {
       label: s.name,
       data: s.data,
       backgroundColor: colors[s.tint],
-      maxBarThickness: 18,
+      // Stacked columns are one-per-slot → let them fill wider; grouped stay slim.
+      maxBarThickness: props.stacked ? 48 : 18,
       ...bar,
     }))
   }
@@ -117,6 +122,7 @@ function build() {
       },
       scales: {
         x: {
+          stacked: props.stacked,
           // Faint vertical grid lines (like the production reference).
           grid: { display: true, color: grid, drawTicks: false },
           ticks: {
@@ -126,21 +132,23 @@ function build() {
             // Categorical bars show every label + truncate; time buckets auto-skip.
             autoSkip: !props.showAllLabels,
             maxTicksLimit: props.showAllLabels ? undefined : 24,
-            // Truncate to the width available per label (recomputed on resize);
-            // down to a single first letter when that's all that fits.
-            callback: props.showAllLabels
-              ? function (this: any, value: string | number) {
-                  const l = String(this.getLabelForValue(Number(value)))
-                  const n = this.ticks?.length || this.getLabels?.().length || 1
-                  const per = (this.width || 0) / n
-                  const maxChars = per > 0 ? Math.max(1, Math.floor(per / 7)) : 12
-                  if (l.length <= maxChars) return l
-                  return maxChars <= 1 ? l.slice(0, 1) : l.slice(0, maxChars - 1) + '…'
-                }
-              : undefined,
+            // Always resolve the real label (don't leave it as the raw index).
+            // In show-all-labels mode, truncate to the width available per label
+            // (recomputed on resize); down to a single first letter when that's all
+            // that fits. Otherwise return the full label and let autoSkip thin them.
+            callback: function (this: any, value: string | number) {
+              const l = String(this.getLabelForValue(Number(value)))
+              if (!props.showAllLabels) return l
+              const n = this.ticks?.length || this.getLabels?.().length || 1
+              const per = (this.width || 0) / n
+              const maxChars = per > 0 ? Math.max(1, Math.floor(per / 7)) : 12
+              if (l.length <= maxChars) return l
+              return maxChars <= 1 ? l.slice(0, 1) : l.slice(0, maxChars - 1) + '…'
+            },
           },
         },
         y: {
+          stacked: props.stacked,
           beginAtZero: true,
           grid: { color: grid },
           border: { display: false },
