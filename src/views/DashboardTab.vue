@@ -41,14 +41,18 @@ const KIND_LABEL: Record<WidgetKind, string> = {
 }
 
 // 12-column grid — the flexible foundation for later drag/resize. Each widget owns a
-// `span` (1–12); resizing = changing that number. Mobile 1-up, tablet 2-up, desktop 12.
+// `span` (1–12); resizing = changing that number. Tiers: mobile 1-up · tablet (6-col)
+// span-aware — KPI-sized cards 3-up, chart/table-sized full-width, so rows always fill
+// with no stray holes · desktop full 12-col spans.
 // items-start: tiles keep their natural height (value cards don't stretch to a taller
 // chart neighbour), so KPI cards stay a consistent 152px across rows.
-const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-12'
+const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-6 lg:grid-cols-12'
 
-// Default span by metric result type (out of 12): value cards 3 → 4 per row.
+// Default span by metric result type (out of 12). Value cards default to 4 → 3-up
+// KPI rows (the convention on every page); set a per-widget `span` to override
+// (e.g. span 3 for a deliberate 4-up page — also the future drag-resize hook).
 const SPAN_BY_TYPE: Record<string, number> = {
-  value: 3,
+  value: 4,
   histogram: 6,
   breakdown: 6,
   donut: 6,
@@ -66,27 +70,30 @@ const SPAN_BY_KIND: Record<WidgetKind, number> = {
   table: 12,
 }
 // span → literal responsive classes (Tailwind JIT needs complete literals). Full
-// 1–12 set so any per-widget span (incl. future drag/resize) renders.
+// 1–12 set so any per-widget span (incl. future drag/resize) renders. Tablet (sm,
+// 6-col grid) derives a fitting width from the span so rows fill with no holes:
+// span 3 (quarters, 4-up groups) → halves (2×2); span 4 (thirds) → thirds;
+// spans ≥5 (charts/tables) → full.
 const SPAN_CLASS: Record<number, string> = {
-  1: 'lg:col-span-1',
-  2: 'lg:col-span-2',
-  3: 'lg:col-span-3',
-  4: 'lg:col-span-4',
-  5: 'lg:col-span-5',
-  6: 'lg:col-span-6',
-  7: 'lg:col-span-7',
-  8: 'lg:col-span-8',
-  9: 'lg:col-span-9',
-  10: 'lg:col-span-10',
-  11: 'lg:col-span-11',
-  12: 'sm:col-span-2 lg:col-span-12',
+  1: 'sm:col-span-2 lg:col-span-1',
+  2: 'sm:col-span-2 lg:col-span-2',
+  3: 'sm:col-span-3 lg:col-span-3',
+  4: 'sm:col-span-2 lg:col-span-4',
+  5: 'sm:col-span-6 lg:col-span-5',
+  6: 'sm:col-span-6 lg:col-span-6',
+  7: 'sm:col-span-6 lg:col-span-7',
+  8: 'sm:col-span-6 lg:col-span-8',
+  9: 'sm:col-span-6 lg:col-span-9',
+  10: 'sm:col-span-6 lg:col-span-10',
+  11: 'sm:col-span-6 lg:col-span-11',
+  12: 'sm:col-span-6 lg:col-span-12',
 }
 
 function spanClass(widget: Widget) {
   const span = isMetricWidget(widget)
     ? (widget.span ?? SPAN_BY_TYPE[getMetric(widget.metricId)?.resultType ?? 'value'] ?? 3)
     : SPAN_BY_KIND[widget.kind] ?? 3
-  return SPAN_CLASS[span] ?? 'lg:col-span-3'
+  return SPAN_CLASS[span] ?? 'sm:col-span-2 lg:col-span-3'
 }
 </script>
 

@@ -316,7 +316,8 @@ export function metricValue(
     return { value, previous }
   }
 
-  // Durations (stored in seconds): vary, but don't scale with range length.
+  // Durations (seconds) & money (averages/stocks like deal size or pipeline value):
+  // vary per filter signature, but don't scale with range length.
   if (def.unit !== 'count') {
     const value = Math.max(1, base * jitter(rng, 0.18))
     const previous = Math.max(1, base * jitter(rng, 0.18))

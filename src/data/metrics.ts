@@ -269,6 +269,7 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'ready',
     category: 'sales',
+    base: 3450, // EUR — an average: doesn't scale with the date range
     caveat: 'Average value of a closed-won deal in this period.',
   },
   {
@@ -278,16 +279,31 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'ready',
     category: 'sales',
+    base: 248000, // EUR — a current stock: doesn't scale with the date range
     caveat: 'Total value of all open deals.',
   },
   {
     id: 'calls_volume',
-    label: 'Calls',
+    label: 'Total calls',
     unit: 'count',
     resultType: 'value',
     status: 'ready',
     category: 'voice',
+    base: 90, // ≈ the Call volume chart's 7-day total, for coherence
     caveat: 'Inbound and outbound calls handled across your voice channels.',
+  },
+  {
+    // Registry: voip_missed_calls. The missed predicate (status/failure_reason
+    // rules) is still TBD with data — mock shows a plausible count meanwhile.
+    id: 'missed_calls',
+    label: 'Missed calls',
+    unit: 'count',
+    resultType: 'value',
+    status: 'ready',
+    category: 'voice',
+    base: 18,
+    lowerIsBetter: true,
+    caveat: 'Calls that ended before they were answered.',
   },
 ]
 

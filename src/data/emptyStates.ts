@@ -24,6 +24,7 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   avg_csat: { noun: 'ratings', icon: 'EmotionSmile' },
   win_rate: { noun: 'decided deals', icon: 'Target' },
   call_wait_time: { noun: 'calls', icon: 'Phone' },
+  missed_calls: { noun: 'missed calls', icon: 'Phone' },
   created_vs_closed: { noun: 'tickets', icon: 'Inbox' },
   workload_by_agent: { noun: 'tickets', icon: 'Users' },
   performance_by_channel: { noun: 'tickets', icon: 'Inbox' },
@@ -40,11 +41,9 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   calls_by_hour: { noun: 'calls', icon: 'Phone' },
   call_volume: { noun: 'calls', icon: 'Phone' },
   deal_stage_funnel: { noun: 'deals', icon: 'Target' },
-
-  // ---- no data source yet → always the neutral empty state ----
-  avg_deal_size: { noun: 'deals', icon: 'Target', always: true },
-  pipeline_value: { noun: 'deals', icon: 'Target', always: true },
-  calls_volume: { noun: 'calls', icon: 'Phone', always: true },
+  avg_deal_size: { noun: 'deals', icon: 'Target' },
+  pipeline_value: { noun: 'deals', icon: 'Target' },
+  calls_volume: { noun: 'calls', icon: 'Phone' },
 }
 
 /** Copy template — the ONLY place empty-state wording lives. */
