@@ -47,6 +47,12 @@ const resultType = computed(() => dimension.value?.resultType ?? metric.value?.r
 // Break-downs live in the ⋯ menu, so the card header stays clean regardless of how
 // many a measure declares — no width juggling, and room for more settings later.
 const dimensions = computed(() => metric.value?.dimensions ?? [])
+/** Active configuration, appended to the title so a tile is self-describing — a
+ *  screenshot carries its own definition, and it's the only hint that other views
+ *  exist now the control lives in the ⋯ menu. Hidden when there's nothing to choose. */
+const activeConfigLabel = computed(() =>
+  dimensions.value.length > 1 ? dimension.value?.label : undefined,
+)
 const showDimensionControl = computed(
   () => dimensions.value.length > 1 && !loading.value && !errored.value,
 )
@@ -224,7 +230,11 @@ const skeletonBars = computed(() =>
     <!-- Header: label + inline info icon · (chart legend) · More menu -->
     <header class="flex items-center gap-2">
       <div class="flex min-w-0 flex-1 items-center gap-2">
-        <h3 class="truncate text-base font-medium text-grey-700">{{ metric.label }}</h3>
+        <h3 class="truncate text-base font-medium text-grey-700">
+          {{ metric.label
+          }}<span v-if="activeConfigLabel" class="font-normal text-grey-500">
+            · {{ activeConfigLabel }}</span>
+        </h3>
         <Tooltip v-if="!loading" :text="dimension?.caveat ?? metric.caveat">
           <span class="flex shrink-0 cursor-default items-center text-grey-400 transition-colors hover:text-grey-600">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
