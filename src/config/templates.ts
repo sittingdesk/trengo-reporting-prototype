@@ -142,15 +142,17 @@ export const TEMPLATES: Template[] = [
     description: 'Live operational performance.',
     recommended: true,
     widgets: [
-      // Deliberate 4-up KPI row (span 3) — the default span 4 would leave 3 + 1 orphan.
+      // ONE card width for the whole page (span 3), not per-row tuning. Under
+      // drag-and-drop + resize you can't guarantee rows fill, so gaps have to look
+      // deliberate rather than broken — a consistent column rhythm gives predictable
+      // snap targets, and the trailing empty slot is where "+ Add widget" will live.
       { metricId: 'first_response_time', span: 3 },
       { metricId: 'resolution_time_all', span: 3 },
       { metricId: 'time_to_answer', span: 3 },
       { metricId: 'longest_wait_time', span: 3 },
-      // Call-duration row — 3 cards at span 4 so the row fills (span 3 would leave a gap).
-      { metricId: 'avg_call_duration' },
-      { metricId: 'shortest_call_duration' },
-      { metricId: 'longest_call_duration' },
+      { metricId: 'avg_call_duration', span: 3 },
+      { metricId: 'shortest_call_duration', span: 3 },
+      { metricId: 'longest_call_duration', span: 3 },
       { metricId: 'created_vs_closed', span: 6 }, // 50/50 with wait-time-by-team
       { metricId: 'wait_time', span: 6 }, // avg queue wait (by team / over time)
       { metricId: 'workload_by_agent' },
