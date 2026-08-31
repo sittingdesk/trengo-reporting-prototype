@@ -145,7 +145,7 @@ export const TEMPLATES: Template[] = [
       // Deliberate 4-up KPI row (span 3) — the default span 4 would leave 3 + 1 orphan.
       { metricId: 'first_response_time', span: 3 },
       { metricId: 'resolution_time_all', span: 3 },
-      { metricId: 'call_wait_time', span: 3 },
+      { metricId: 'time_to_answer', span: 3 },
       { metricId: 'longest_wait_time', span: 3 },
       // Call-duration row — 3 cards at span 4 so the row fills (span 3 would leave a gap).
       { metricId: 'avg_call_duration' },
