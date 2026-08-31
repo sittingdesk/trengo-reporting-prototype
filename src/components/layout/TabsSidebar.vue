@@ -35,6 +35,7 @@ const dataStates: { id: DataState; label: string }[] = [
   { id: 'normal', label: 'Normal' },
   { id: 'loading', label: 'Loading' },
   { id: 'empty', label: 'Empty' },
+  { id: 'error', label: 'Error' },
 ]
 
 // After changing scenario/iteration, land on the first visible tab (or welcome).
@@ -101,8 +102,9 @@ function changeIteration(id: string) {
 
     <!-- Prototype-only controls -->
     <div class="space-y-3 border-t border-grey-300 p-3">
-      <!-- Iteration (feature-flag set) -->
-      <div>
+      <!-- Iteration (feature-flag set) — temporarily hidden, bring back later.
+           The active iteration still applies; only the picker is hidden. -->
+      <div v-if="false">
         <div class="mb-1.5 text-xs font-medium text-grey-600">Iteration</div>
         <select
           class="w-full truncate rounded-base border border-grey-300 bg-white px-2 py-1.5 text-xs font-medium text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -149,14 +151,15 @@ function changeIteration(id: string) {
         </span>
       </button>
 
-      <!-- Data state (viewing mode): force every card into normal / loading / empty -->
+      <!-- Data state (viewing mode): force every card into normal / loading / empty /
+           error. 2×2 grid — four labels don't fit on one row in a 240px sidebar. -->
       <div>
         <div class="mb-1.5 text-xs font-medium text-grey-600">Data state</div>
-        <div class="flex gap-1 rounded-base bg-grey-200 p-0.5">
+        <div class="grid grid-cols-2 gap-1 rounded-base bg-grey-200 p-0.5">
           <button
             v-for="d in dataStates"
             :key="d.id"
-            class="flex-1 rounded-sm px-2 py-1 text-xs font-semibold transition-colors"
+            class="rounded-sm px-2 py-1 text-xs font-semibold transition-colors"
             :class="
               dataState === d.id
                 ? 'bg-white text-grey-900 shadow-100'

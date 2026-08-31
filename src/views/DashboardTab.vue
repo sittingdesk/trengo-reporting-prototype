@@ -59,6 +59,7 @@ const SPAN_BY_TYPE: Record<string, number> = {
   time_series: 12,
   table: 12,
   funnel: 12,
+  heatmap: 12, // 24 hour columns need the full row
 }
 // Default span for (mock) placeholder widgets, by kind.
 const SPAN_BY_KIND: Record<WidgetKind, number> = {

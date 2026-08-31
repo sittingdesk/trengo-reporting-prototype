@@ -26,6 +26,9 @@ export interface TableData {
 export interface MetricSample {
   value: number
   previous: number // comparable previous-period value (for the delta toggle)
+  /** Supporting figure shown beside the big number on a value card (e.g. the raw
+   *  count behind a rate). Pre-formatted — the card renders it verbatim. */
+  secondary?: string
   series?: number[] // hourly buckets for histograms — "Today" (length 24)
   average?: number[] // average per hour across the period (length 24)
   labels?: string[] // x-axis labels (hours for histogram, dates for time series)
@@ -33,9 +36,12 @@ export interface MetricSample {
   // the CSV column header for that series.
   lines?: { name: string; tint: 'leaf' | 'sky'; data: number[]; dashed?: boolean; csvKey?: string }[]
   table?: TableData
+  heatmap?: number[][] // 7 rows (Mon–Sun) × 24 hour columns (calls_by_hour)
   funnel?: { stage: string; count: number }[] // funnel stages (deal_stage_funnel)
   donut?: { label: string; value: number }[] // doughnut segments (new_vs_returning)
   legendBelow?: boolean // render the line-chart legend below the chart (not header)
+  /** Dashed reference line on a time chart (e.g. the period average). */
+  referenceValue?: number
 }
 
 /** Mock agent roster for the "Workload by agent" table (large, to show scale). */
@@ -149,6 +155,9 @@ function hourWeight(h: number): number {
   return 0.15 + Math.exp(-Math.pow(h - 13, 2) / 40)
 }
 
+/** Heatmap row order — Monday first (matches the Voice reporting reference). */
+export const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
 /**
  * Deterministic mock sample for a metric under the current filters.
  * Rates (percentage) are not scaled by range/subset; counts/durations are.
@@ -157,6 +166,7 @@ export function metricValue(
   def: MetricDef,
   signature: string,
   dateRange?: { start?: DateValue; end?: DateValue },
+  dimensionId?: string,
 ): MetricSample {
   const seed = hashString(`${def.id}|${signature}`)
   const rng = mulberry32(seed)
@@ -166,6 +176,49 @@ export function metricValue(
   const chFactor = subsetFactor(ch === 'all' ? 0 : ch.split(',').length, CHANNEL_INSTANCE_IDS.length)
   const tmFactor = subsetFactor(tm === 'all' ? 0 : tm.split(',').length, TEAMS.length)
   const base = def.base ?? 0
+
+  // Extremes over a window behave differently from averages: a MAX creeps up and a MIN
+  // creeps down as the window widens (more calls = more chances for an outlier). Averages
+  // stay flat — they fall through to the duration branch below.
+  if (def.id === 'longest_call_duration' || def.id === 'shortest_call_duration') {
+    const widen = Math.sqrt(days / 7)
+    const isMax = def.id === 'longest_call_duration'
+    const scale = isMax ? 0.85 + 0.3 * widen : 1.15 - 0.25 * Math.min(widen, 2.2)
+    const at = (r: () => number) =>
+      Math.max(isMax ? 60 : 3, Math.round(base * scale * chFactor * tmFactor * jitter(r, 0.25)))
+    return { value: at(rng), previous: at(rng) }
+  }
+
+  // Longest wait: a MAX, so unlike an average it does grow with a longer window (more
+  // calls → higher peak) — but sub-linearly. Registry: voip_longest_wait_time.
+  if (def.id === 'longest_wait_time') {
+    const scale = 0.85 + 0.3 * Math.sqrt(days / 7)
+    const value = Math.max(30, Math.round(base * scale * chFactor * tmFactor * jitter(rng, 0.3)))
+    const previous = Math.max(30, Math.round(base * scale * chFactor * tmFactor * jitter(rng, 0.3)))
+    return { value, previous }
+  }
+
+  // Average wait time, broken down by DATE. Same measure as the per-team view — only
+  // the group-by differs (that's the whole point of dimensions). Durations don't scale
+  // with the range length, so buckets only jitter around the base.
+  if (def.id === 'wait_time' && dimensionId === 'time') {
+    const bucketed = timeSeriesBuckets(dateRange?.start, dateRange?.end)
+    const labels = bucketed.labels.length ? bucketed.labels : ['—']
+    const tsRng = mulberry32(hashString(`${def.id}|time|${signature}`))
+    // Queue wait only (VoIP1+2) vs the team view's 5-component total wait — the registry
+    // sizes that gap at ~35%, so show it rather than pretending the views agree.
+    const data = labels.map(() =>
+      Math.max(5, Math.round(base * 0.65 * tmFactor * jitter(tsRng, 0.45))),
+    )
+    const avg = Math.round(data.reduce((a, b) => a + b, 0) / data.length)
+    return {
+      value: avg,
+      previous: avg * jitter(rng, 0.2),
+      labels,
+      lines: [{ name: 'Avg wait', tint: 'leaf', data, csvKey: 'avg_wait_seconds' }],
+      referenceValue: avg,
+    }
+  }
 
   // Histograms: 24 hourly buckets — "Today" plus a lower "Average" curve.
   if (def.resultType === 'histogram') {
@@ -184,6 +237,29 @@ export function metricValue(
     }
     const prevTotal = total * jitter(rng, 0.2)
     return { value: total, previous: prevTotal, series, average, labels }
+  }
+
+  // Heatmap: day-of-week (Mon–Sun) × hour-of-day counts. Raw totals for the period —
+  // all Mondays combined, all Tuesdays, etc. Weekends run much quieter. Scaled like the
+  // other call counts (√ range) so it stays coherent with the Total calls KPI.
+  if (def.resultType === 'heatmap') {
+    const rangeScale = Math.sqrt(days / 7)
+    const grid: number[][] = []
+    let total = 0
+    for (let d = 0; d < 7; d++) {
+      // Sat/Sun much quieter, but not dead — at this volume a harsher factor rounds the
+      // whole weekend to zero, which reads as a broken widget rather than a quiet one.
+      const dayFactor = d >= 5 ? 0.35 : 1
+      const row: number[] = []
+      for (let h = 0; h < 24; h++) {
+        const shape = (base / 20) * hourWeight(h) * dayFactor * chFactor * tmFactor * rangeScale
+        const n = Math.max(0, Math.round(shape * jitter(rng, 0.5)))
+        row.push(n)
+        total += n
+      }
+      grid.push(row)
+    }
+    return { value: total, previous: total * jitter(rng, 0.2), heatmap: grid }
   }
 
   // Time series: Created vs Closed over the period, bucketed by real dates
@@ -257,7 +333,7 @@ export function metricValue(
   if (def.resultType === 'breakdown') {
     // Avg queue wait (seconds) per team — durations don't scale by subset (the
     // per-signature seed varies them by filter); team filter narrows which teams show.
-    if (def.id === 'wait_time_by_team') {
+    if (def.id === 'wait_time') {
       const teams = tm === 'all' ? TEAMS : TEAMS.filter((t) => tm.split(',').includes(t.id))
       const rows = teams
         .map((t) => ({ label: t.label, value: Math.max(5, Math.round(base * jitter(rng, 0.5))) }))
@@ -307,6 +383,22 @@ export function metricValue(
   // Tables: per-agent / per-channel rows (pre-formatted, filter-scaled).
   if (def.resultType === 'table') {
     return { value: 0, previous: 0, table: tableData(def.id, rng, chFactor, tmFactor, days) }
+  }
+
+  // Missed calls: a RATE (missed ÷ inbound) with the raw count as the supporting
+  // figure — a bare count can't be judged and grows with the date range. Denominator is
+  // inbound only: outbound calls can't be "missed". Must sit before the percentage
+  // branch below, which clamps to 0.4–0.99 and would distort a ~16% rate.
+  if (def.id === 'missed_calls') {
+    const totalCalls = 90 * Math.sqrt(days / 7) * chFactor * tmFactor // matches calls_volume
+    const inbound = Math.max(1, Math.round(totalCalls * 0.32)) // inbound share, per call_volume
+    const missed = Math.max(0, Math.round(inbound * base * jitter(rng, 0.3)))
+    const prevMissed = Math.max(0, Math.round(inbound * base * jitter(rng, 0.3)))
+    return {
+      value: missed / inbound,
+      previous: prevMissed / inbound,
+      secondary: `${fmtCount(missed)} of ${fmtCount(inbound)} inbound`,
+    }
   }
 
   // Percentages / rates: bounded, not scaled by volume.

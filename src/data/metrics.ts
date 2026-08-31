@@ -24,7 +24,24 @@ export type ResultType =
   | 'breakdown' // bar chart: one bar per category, or bucketed two-series bars
   | 'donut' // doughnut chart (share of a total across a few segments)
   | 'funnel' // horizontal funnel (counts per stage)
+  | 'heatmap' // day-of-week × hour-of-day grid (7 rows × 24 columns)
   | 'table'
+
+/**
+ * A way of breaking a measure down. Same number, different group-by — so these are
+ * SETTINGS on one widget, not separate metrics (see the widget-settings plan).
+ * `viz` picks the rendering when a result type supports more than one (a time series
+ * can be bars or a line).
+ */
+export interface MetricDimension {
+  id: string
+  label: string
+  resultType: ResultType
+  viz?: 'bar' | 'line'
+  /** Overrides the measure's caveat for this break-down. Views can cover different
+   *  populations, so one tooltip often can't describe them all honestly. */
+  caveat?: string
+}
 
 /** ready = show a value; restricted = gated by permissions. */
 export type MetricStatus = 'ready' | 'restricted'
@@ -50,11 +67,15 @@ export interface MetricDef {
   stacked?: boolean
   /** CSV header names for breakdown widgets (dimension + measure columns). */
   csvColumns?: { dimension: string; measure: string }
+  /** Break-downs this measure supports. >1 renders a switcher in the card header;
+   *  the active one overrides `resultType`. */
+  dimensions?: MetricDimension[]
 }
 
 export const METRICS: MetricDef[] = [
   {
-    id: 'open_conversations',
+    // registry: open_tickets [Overview]
+    id: 'open_tickets',
     label: 'Open tickets',
     unit: 'count',
     resultType: 'value',
@@ -64,7 +85,8 @@ export const METRICS: MetricDef[] = [
     caveat: 'Tickets currently open. A rising number may signal capacity issues.',
   },
   {
-    id: 'assigned_conversations',
+    // registry: assigned_tickets [Overview]
+    id: 'assigned_tickets',
     label: 'Assigned tickets',
     unit: 'count',
     resultType: 'value',
@@ -74,6 +96,7 @@ export const METRICS: MetricDef[] = [
     caveat: 'Tickets currently assigned to an agent. Compare with open tickets to spot unassigned backlog.',
   },
   {
+    // registry: first_response_time [Overview, Operate]
     id: 'first_response_time',
     label: 'First response time',
     unit: 'seconds',
@@ -86,7 +109,10 @@ export const METRICS: MetricDef[] = [
       "Median time to the first reply from a human agent; automated replies don't count. Excludes tickets that start with an outbound message.",
   },
   {
-    id: 'resolution_time',
+    // registry: resolution_time_all [Overview] — AI *and* human. Used on both pages so
+    // the two never disagree. ⚠️ the registry flags its AI/human predicate as "AN
+    // INFERENCE, NOT CONFIRMED" — open dependency.
+    id: 'resolution_time_all',
     label: 'Resolution time',
     unit: 'hours',
     resultType: 'value',
@@ -94,9 +120,11 @@ export const METRICS: MetricDef[] = [
     category: 'efficiency',
     base: 18000, // seconds (~5h)
     lowerIsBetter: true,
-    caveat: 'Median time from creation to close, for human-handled tickets (not AI-resolved). Long times signal process or knowledge gaps.',
+    caveat:
+      'Median time from creation to close, covering both AI-resolved and human-handled tickets. Long times signal process or knowledge gaps.',
   },
   {
+    // registry: csat_average_score (no pages tag) — we place it on Improve
     id: 'avg_csat',
     label: 'Average CSAT',
     unit: 'percentage',
@@ -107,6 +135,7 @@ export const METRICS: MetricDef[] = [
     caveat: 'Average rating from CSAT surveys answered in this period. Scale: 1–5.',
   },
   {
+    // registry: win_rate [Overview]
     id: 'win_rate',
     label: 'Win rate',
     unit: 'percentage',
@@ -117,6 +146,7 @@ export const METRICS: MetricDef[] = [
     caveat: 'Share of opportunities that closed as won.',
   },
   {
+    // registry: tickets_created_by_hour [Overview] — ORPHANED here (replaced by the heatmap)
     id: 'conversations_by_hour',
     label: 'Tickets by hour',
     unit: 'count',
@@ -128,6 +158,7 @@ export const METRICS: MetricDef[] = [
   },
   // --- Operate page ---
   {
+    // registry: voip_avg_wait_time_suite [Operate] — ⚠️ its registry LABEL is 'Average wait time', which collides with our wait_time card
     id: 'call_wait_time',
     label: 'Call wait time',
     unit: 'seconds',
@@ -139,6 +170,61 @@ export const METRICS: MetricDef[] = [
     caveat: 'Average time callers wait before an agent answers.',
   },
   {
+    // Registry: voip_longest_wait_time — MAX(voip_queue_wait_seconds), NO grouping, so
+    // there's no team/channel attribution to show alongside it.
+    id: 'longest_wait_time',
+    label: 'Longest wait time',
+    unit: 'seconds',
+    resultType: 'value',
+    status: 'ready',
+    category: 'voice',
+    base: 380, // ~6m20s — well above the 42s average so the pair reads sensibly
+    lowerIsBetter: true,
+    caveat:
+      "Longest single wait before a caller was answered. One unusual call can dominate this number, and callers who hung up aren't counted.",
+  },
+  {
+    // Registry: voip_avg_duration (pages: [Operate]). NOTE: that entry lists no filters
+    // at all — including no date range — and no caveats. Flagged to the data team.
+    id: 'avg_call_duration',
+    label: 'Average call duration',
+    unit: 'seconds',
+    resultType: 'value',
+    status: 'ready',
+    category: 'voice',
+    base: 210, // ~3m30s
+    lowerIsBetter: true, // AHT convention — shorter handling is usually better
+    caveat: 'Average length of a call, across inbound and outbound.',
+  },
+  {
+    // NOT in the registry yet — would be MIN(voip_call_duration) on trengodb__voip_calls,
+    // the same shape as voip_longest_wait_time. Needs a rule excluding zero-length calls,
+    // or it reads 0s permanently.
+    id: 'shortest_call_duration',
+    label: 'Shortest call duration',
+    unit: 'seconds',
+    resultType: 'value',
+    status: 'ready',
+    category: 'voice',
+    base: 14,
+    // Deliberately NOT lowerIsBetter: a shortest call trending UP means fewer instant
+    // drops, which is the good direction here.
+    caveat: 'Shortest single call in the period. Very short calls often mean drops or misdials.',
+  },
+  {
+    // NOT in the registry yet — would be MAX(voip_call_duration).
+    id: 'longest_call_duration',
+    label: 'Longest call duration',
+    unit: 'seconds',
+    resultType: 'value',
+    status: 'ready',
+    category: 'voice',
+    base: 1500, // ~25m
+    lowerIsBetter: true,
+    caveat: 'Longest single call in the period. One unusual call can dominate this number.',
+  },
+  {
+    // registry: tickets_created_over_time + tickets_closed_over_time [Operate] — two entries, one widget
     id: 'created_vs_closed',
     label: 'Created vs closed',
     unit: 'count',
@@ -149,6 +235,7 @@ export const METRICS: MetricDef[] = [
     caveat: 'New tickets against closed ones. A widening gap means your backlog is growing.',
   },
   {
+    // registry: workload_by_agent [Operate]
     id: 'workload_by_agent',
     label: 'Workload by agent',
     unit: 'count',
@@ -158,6 +245,7 @@ export const METRICS: MetricDef[] = [
     caveat: 'Activity per agent, for the selected period and filters. Agents with fewer assigned tickets may still carry longer or harder ones.',
   },
   {
+    // registry: performance_by_channel [Operate]
     id: 'performance_by_channel',
     label: 'Performance by channel',
     unit: 'count',
@@ -167,16 +255,38 @@ export const METRICS: MetricDef[] = [
     caveat: 'Compare how each channel performs on the same metrics. Volume differences between channels can make small channels look volatile.',
   },
   {
-    id: 'wait_time_by_team',
-    label: 'Average wait time by team',
+    // One MEASURE, two break-downs — each backed by its OWN registry entry, which is
+    // why each carries its own caveat: the two cover different populations and the
+    // registry sizes the gap at ~35%.
+    //   team → average_wait_time_by_team    (5-component total wait, VoIP2, incl. abandoned)
+    //   time → voip_wait_time_by_day_suite  (queue wait only, VoIP1 + VoIP2)
+    id: 'wait_time',
+    label: 'Average wait time',
     unit: 'seconds',
-    resultType: 'breakdown',
+    resultType: 'breakdown', // fallback; the active dimension overrides it
     status: 'ready',
     category: 'voice',
     base: 120, // ~2m average queue wait
     lowerIsBetter: true,
-    caveat: 'Average time callers wait before a team answers. Shows which teams need more voice capacity.',
+    caveat: 'Average time callers wait before being answered.',
     csvColumns: { dimension: 'team', measure: 'avg_wait_seconds' },
+    dimensions: [
+      {
+        id: 'team',
+        label: 'By team',
+        resultType: 'breakdown',
+        caveat:
+          'Total wait — queue, IVR, forward and transfer — by the answering agent\'s team, including calls that were abandoned. VoIP2 only, so it runs higher than the Over time view.',
+      },
+      {
+        id: 'time',
+        label: 'Over time',
+        resultType: 'time_series',
+        viz: 'bar',
+        caveat:
+          'Average queue wait per day, across VoIP1 and VoIP2. Counts queue time only, so it runs lower than the By team view.',
+      },
+    ],
   },
   // --- Understand page ---
   {
@@ -191,6 +301,7 @@ export const METRICS: MetricDef[] = [
       'Tickets created per day, alongside contacts messaging for the first time. A narrowing gap means growth is coming from new people; a widening gap means existing contacts are messaging more.',
   },
   {
+    // registry: conversations_created (billing-window grain) — ⚠️ we label it 'Tickets created'; orphaned
     id: 'conversations_created',
     label: 'Tickets created',
     unit: 'count',
@@ -201,6 +312,7 @@ export const METRICS: MetricDef[] = [
     caveat: 'Tickets created over the selected period.',
   },
   {
+    // registry: entry_channel_tickets — ticket grain, so the 'Tickets' label is correct
     id: 'conversations_by_channel',
     label: 'Tickets by entry channel',
     unit: 'count',
@@ -211,6 +323,7 @@ export const METRICS: MetricDef[] = [
     caveat: 'Tickets created in the period, split by the channel they came in on.',
   },
   {
+    // registry: entry_channel_new_contacts
     id: 'new_contacts_by_channel',
     label: 'New contacts by entry channel',
     unit: 'count',
@@ -221,6 +334,7 @@ export const METRICS: MetricDef[] = [
     caveat: 'Contacts created for the first time in the period, by entry channel.',
   },
   {
+    // registry: tickets_new_vs_returning_contact — ⚠️ registry returns a percentage, we draw a donut of counts
     id: 'new_vs_returning',
     label: 'New vs returning contacts',
     unit: 'count',
@@ -231,6 +345,7 @@ export const METRICS: MetricDef[] = [
     caveat: 'Contacts in the period split into first-time (new) and returning.',
   },
   {
+    // registry: voip_call_outcomes_by_day is the closest; inbound/outbound split not separately defined
     id: 'call_volume',
     label: 'Call volume',
     unit: 'count',
@@ -242,16 +357,20 @@ export const METRICS: MetricDef[] = [
     caveat: 'Inbound and outbound calls over the selected period, split by direction.',
   },
   {
+    // Registry: calls_by_hour. The registry groups by hour only — the day-of-week
+    // dimension this heatmap needs is still to be added with data.
     id: 'calls_by_hour',
-    label: 'Calls by hour',
+    label: 'Calls by day & hour',
     unit: 'count',
-    resultType: 'histogram',
+    resultType: 'heatmap',
     status: 'ready',
     category: 'voice',
     base: 25,
-    caveat: 'Volume of calls, bucketed by hour of day (UTC).',
+    caveat:
+      'Calls by day of week and hour, shown in UTC. All Mondays are combined, all Tuesdays, and so on.',
   },
   {
+    // registry: deal_stage_funnel
     id: 'deal_stage_funnel',
     label: 'Deal stage funnel',
     unit: 'count',
@@ -263,6 +382,7 @@ export const METRICS: MetricDef[] = [
   },
   // --- Not yet showing a value — presentation comes from src/data/emptyStates.ts ---
   {
+    // registry: average_deal_size [Overview]
     id: 'avg_deal_size',
     label: 'Average deal size',
     unit: 'currency',
@@ -273,6 +393,20 @@ export const METRICS: MetricDef[] = [
     caveat: 'Average value of a closed-won deal in this period.',
   },
   {
+    // registry: average_sales_cycle [Overview] — AVG(board_card_time_to_close_days).
+    // Stored in DAYS (not seconds) — see fmtDays in src/lib/format.ts.
+    id: 'average_sales_cycle',
+    label: 'Average sales cycle',
+    unit: 'days',
+    resultType: 'value',
+    status: 'ready',
+    category: 'sales',
+    base: 18,
+    lowerIsBetter: true,
+    caveat: 'Average days from creation to close, for deals on the selected board.',
+  },
+  {
+    // registry: pipeline_value [Overview] — no date filter in the registry (a current stock)
     id: 'pipeline_value',
     label: 'Pipeline value',
     unit: 'currency',
@@ -283,6 +417,7 @@ export const METRICS: MetricDef[] = [
     caveat: 'Total value of all open deals.',
   },
   {
+    // registry: voip_total_calls [Overview]
     id: 'calls_volume',
     label: 'Total calls',
     unit: 'count',
@@ -297,13 +432,14 @@ export const METRICS: MetricDef[] = [
     // rules) is still TBD with data — mock shows a plausible count meanwhile.
     id: 'missed_calls',
     label: 'Missed calls',
-    unit: 'count',
+    unit: 'percentage', // a rate — the raw count rides along as `secondary`
     resultType: 'value',
     status: 'ready',
     category: 'voice',
-    base: 18,
+    base: 0.16, // missed ÷ inbound
     lowerIsBetter: true,
-    caveat: 'Calls that ended before they were answered.',
+    caveat:
+      'Share of inbound calls that ended before an agent answered. Outbound calls are not counted.',
   },
 ]
 

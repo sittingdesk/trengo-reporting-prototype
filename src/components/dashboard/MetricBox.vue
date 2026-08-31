@@ -9,13 +9,15 @@ import Icon from '@/components/Icon.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 import LineChart from '@/components/charts/LineChart.vue'
 import FunnelChart from '@/components/charts/FunnelChart.vue'
+import HeatmapChart from '@/components/charts/HeatmapChart.vue'
 import DonutChart from '@/components/charts/DonutChart.vue'
 import DataTable from '@/components/dashboard/DataTable.vue'
 import MetricSkeleton from '@/components/dashboard/MetricSkeleton.vue'
 import MetricEmptyState from '@/components/dashboard/MetricEmptyState.vue'
+import MetricErrorState from '@/components/dashboard/MetricErrorState.vue'
 import { getMetric } from '@/data/metrics'
 import { resolveEmptyState } from '@/data/emptyStates'
-import { formatValue } from '@/lib/format'
+import { formatValue, fmtDuration } from '@/lib/format'
 import { metricValue, filterSignature } from '@/lib/mock'
 import { CHART_HEIGHT } from '@/lib/chart'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -27,14 +29,32 @@ import { useSettings } from '@/composables/useSettings'
 const props = defineProps<{ metricId: string }>()
 
 const { dateRange, channelIds, teamIds, comparisonLabel, dateRangeLabel } = useFilters()
-const { showComparison, showEmptyData, forceLoading } = useSettings()
+const { showComparison, showEmptyData, forceLoading, forceError } = useSettings()
 
 const metric = computed(() => getMetric(props.metricId))
+
+// Active break-down. One measure can be grouped several ways (e.g. wait time by team
+// vs over time) — that's a per-widget SETTING, not a separate metric, so it lives here
+// and would be persisted alongside `span` once dashboards are editable.
+const activeDim = ref<string | undefined>(metric.value?.dimensions?.[0]?.id)
+watch(metric, (m) => (activeDim.value = m?.dimensions?.[0]?.id))
+const dimension = computed(
+  () => metric.value?.dimensions?.find((d) => d.id === activeDim.value) ?? null,
+)
+/** The active break-down decides how this widget renders. */
+const resultType = computed(() => dimension.value?.resultType ?? metric.value?.resultType)
+
+// Break-downs live in the ⋯ menu, so the card header stays clean regardless of how
+// many a measure declares — no width juggling, and room for more settings later.
+const dimensions = computed(() => metric.value?.dimensions ?? [])
+const showDimensionControl = computed(
+  () => dimensions.value.length > 1 && !loading.value && !errored.value,
+)
 
 const signature = computed(() => filterSignature(dateRange.value, channelIds.value, teamIds.value))
 const sample = computed(() => {
   const m = metric.value
-  return m ? metricValue(m, signature.value, dateRange.value) : null
+  return m ? metricValue(m, signature.value, dateRange.value, activeDim.value) : null
 })
 
 // Brief simulated load on mount + whenever the filter signature changes — shows
@@ -53,11 +73,46 @@ watch(
 )
 const loading = computed(() => forceLoading.value || autoLoading.value)
 
+// Error state. A failed fetch is an UNKNOWN, not a fact — so this branch renders
+// before restricted/empty/value, and a broken widget can never fall through to a
+// number, a zero, or "no … in this period". Per-widget, so one dead endpoint never
+// blanks the page. `failed` is the local flag a real fetch rejection would set.
+const failed = ref(false)
+const errored = computed(() => forceError.value || failed.value)
+
+// Refetch this one widget. Deliberately does NOT swap in the loading skeleton: that
+// would resize the card mid-interaction. The spinner lives in the retry button instead,
+// so the feedback sits on the control you clicked and the card never moves.
+const retrying = ref(false)
+function retry() {
+  if (retrying.value) return
+  retrying.value = true
+  setTimeout(() => {
+    retrying.value = false
+    failed.value = false // a real refetch would resolve or re-set this
+  }, 700)
+}
+
+// Body height of this widget when it renders normally — the error state matches it so
+// the card keeps its footprint (no grid reflow when only some endpoints fail).
+const BODY_HEIGHT: Record<string, number> = {
+  histogram: CHART_HEIGHT,
+  breakdown: CHART_HEIGHT,
+  donut: CHART_HEIGHT,
+  time_series: CHART_HEIGHT,
+  funnel: 248,
+  heatmap: 252,
+  table: 288,
+}
+const errorMinHeight = computed(() =>
+  resultType.value ? BODY_HEIGHT[resultType.value] : undefined,
+)
+
 const formatted = computed(() => {
   const m = metric.value
   if (!m || !sample.value) return '—'
   // "No events" demo: counts render a true 0 (zero is a value, not an empty state).
-  if (showEmptyData.value && m.resultType === 'value' && m.unit === 'count') {
+  if (showEmptyData.value && resultType.value === 'value' && m.unit === 'count') {
     return formatValue(0, m.unit)
   }
   return formatValue(sample.value.value, m.unit)
@@ -67,7 +122,7 @@ const formatted = computed(() => {
 const menuOpen = ref(false)
 
 // Per-widget CSV export (chart/table widgets only).
-const exportable = computed(() => (metric.value ? canExportWidget(metric.value) : false))
+const exportable = computed(() => (metric.value ? canExportWidget(metric.value) && !errored.value : false))
 function onExport() {
   menuOpen.value = false
   if (!metric.value || !sample.value) return
@@ -91,10 +146,10 @@ const resolvedState = computed<CardState>(() => {
   const m = metric.value
   if (!m || m.status !== 'ready') return 'value' // restricted renders its own branch
   if (resolveEmptyState(m.id).always) return 'empty'
-  const isCount = m.resultType === 'value' && m.unit === 'count'
+  const isCount = resultType.value === 'value' && m.unit === 'count'
   const chartTypes = ['value', 'histogram', 'time_series', 'breakdown', 'donut', 'funnel']
   const noEvents =
-    showEmptyData.value || (chartTypes.includes(m.resultType) && sample.value?.value === 0)
+    showEmptyData.value || (chartTypes.includes(resultType.value ?? '') && sample.value?.value === 0)
   return noEvents && !isCount ? 'empty' : 'value'
 })
 
@@ -103,8 +158,8 @@ const resolvedState = computed<CardState>(() => {
 const deltaEligible = computed(() => {
   const m = metric.value
   if (!m) return false
-  if (m.resultType === 'value') return true
-  return m.resultType === 'time_series' && sample.value?.lines?.length === 1
+  if (resultType.value === 'value') return true
+  return resultType.value === 'time_series' && sample.value?.lines?.length === 1
 })
 
 // Delta — direction-aware (lower-is-better metrics invert the colour).
@@ -147,12 +202,12 @@ const seriesTotals = computed(() => {
 const fmtCount = (n: number) => formatValue(n, 'count')
 
 const skeletonVariant = computed<'value' | 'graph' | 'line' | 'donut' | 'funnel' | 'table'>(() => {
-  const rt = metric.value?.resultType
+  const rt = resultType.value
   if (rt === 'table') return 'table'
   if (rt === 'funnel') return 'funnel'
   if (rt === 'donut') return 'donut'
   if (rt === 'time_series') return 'line'
-  if (rt === 'histogram' || rt === 'breakdown') return 'graph'
+  if (rt === 'histogram' || rt === 'breakdown' || rt === 'heatmap') return 'graph'
   return 'value'
 })
 // Match the loading bar count to the real chart (24 by-hour, 4 channels, …).
@@ -170,7 +225,7 @@ const skeletonBars = computed(() =>
     <header class="flex items-center gap-2">
       <div class="flex min-w-0 flex-1 items-center gap-2">
         <h3 class="truncate text-base font-medium text-grey-700">{{ metric.label }}</h3>
-        <Tooltip v-if="!loading" :text="metric.caveat">
+        <Tooltip v-if="!loading" :text="dimension?.caveat ?? metric.caveat">
           <span class="flex shrink-0 cursor-default items-center text-grey-400 transition-colors hover:text-grey-600">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <circle cx="8" cy="8" r="8" fill="currentColor" />
@@ -181,7 +236,7 @@ const skeletonBars = computed(() =>
         </Tooltip>
       </div>
       <div
-        v-if="metric.resultType === 'histogram' && resolvedState === 'value' && !loading"
+        v-if="resultType === 'histogram' && resolvedState === 'value' && !loading"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-leaf-400" /> Today</span>
@@ -189,7 +244,7 @@ const skeletonBars = computed(() =>
       </div>
       <!-- Stacked time-series (e.g. Call volume): legend enriched with per-series totals + Total -->
       <div
-        v-else-if="metric.resultType === 'time_series' && metric.stacked && resolvedState === 'value' && seriesTotals && !loading"
+        v-else-if="resultType === 'time_series' && metric.stacked && resolvedState === 'value' && seriesTotals && !loading"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span v-for="item in seriesTotals.items" :key="item.name" class="flex items-center gap-1.5">
@@ -199,7 +254,7 @@ const skeletonBars = computed(() =>
         <span class="flex items-center gap-1.5">Total <span class="font-semibold tabular-nums text-grey-900">{{ fmtCount(seriesTotals.total) }}</span></span>
       </div>
       <div
-        v-else-if="metric.resultType === 'time_series' && !metric.stacked && resolvedState === 'value' && sample?.lines && !sample?.legendBelow && !loading"
+        v-else-if="resultType === 'time_series' && !metric.stacked && resolvedState === 'value' && sample?.lines && sample.lines.length > 1 && !sample?.legendBelow && !loading"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span v-for="l in sample.lines" :key="l.name" class="flex items-center gap-1.5">
@@ -218,7 +273,29 @@ const skeletonBars = computed(() =>
             <Icon name="MoreHoriz" variant="filled" :size="20" />
           </button>
         </PopoverTrigger>
-        <PopoverContent align="end" class="w-44 p-1">
+        <PopoverContent align="end" class="w-48 p-1">
+          <!-- Break down by — same measure, different group-by -->
+          <template v-if="showDimensionControl">
+            <div class="px-2 pb-1 pt-1.5 text-xs font-semibold text-grey-500">Break down by</div>
+            <button
+              v-for="d in dimensions"
+              :key="d.id"
+              type="button"
+              class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm transition-colors hover:bg-grey-100 focus:outline-none focus-visible:bg-grey-100"
+              :class="activeDim === d.id ? 'font-semibold text-grey-900' : 'text-grey-700'"
+              @click="activeDim = d.id; menuOpen = false"
+            >
+              <Icon
+                name="Check"
+                :size="16"
+                class="shrink-0"
+                :class="activeDim === d.id ? 'text-leaf-500' : 'text-transparent'"
+              />
+              {{ d.label }}
+            </button>
+            <div class="my-1 h-px bg-grey-200" role="separator" />
+          </template>
+
           <button
             v-if="exportable && sample && resolvedState === 'value'"
             type="button"
@@ -245,6 +322,9 @@ const skeletonBars = computed(() =>
       <!-- Body (per state) — sits 4px under the header -->
       <MetricSkeleton v-if="loading" :variant="skeletonVariant" :bars="skeletonBars" />
 
+      <!-- Error — before every other state, so a failure never reads as data -->
+      <MetricErrorState v-else-if="errored" :min-height="errorMinHeight" :retrying="retrying" @retry="retry" />
+
       <!-- Restricted -->
       <div v-else-if="metric.status === 'restricted'" class="flex flex-1 flex-col items-center justify-center gap-1 text-center">
         <Icon name="Lock" :size="18" class="text-grey-400" />
@@ -255,7 +335,7 @@ const skeletonBars = computed(() =>
       <MetricEmptyState v-else-if="resolvedState !== 'value'" :metric-id="metric.id" />
 
       <!-- Histogram -->
-      <div v-else-if="metric.resultType === 'histogram'" class="flex flex-1 flex-col">
+      <div v-else-if="resultType === 'histogram'" class="flex flex-1 flex-col">
         <BarChart
           v-if="sample?.series && sample?.labels"
           :labels="sample.labels"
@@ -267,13 +347,19 @@ const skeletonBars = computed(() =>
       </div>
 
       <!-- Time series — line by default, or stacked bars (e.g. Call volume) -->
-      <div v-else-if="metric.resultType === 'time_series'" class="flex flex-1 flex-col">
+      <div v-else-if="resultType === 'time_series'" class="flex flex-1 flex-col">
         <BarChart
-          v-if="metric.stacked && sample?.lines && sample?.labels"
+          v-if="(metric.stacked || dimension?.viz === 'bar') && sample?.lines && sample?.labels"
           :labels="sample.labels"
           :series="sample.lines"
           :legend="false"
-          :stacked="true"
+          :stacked="metric.stacked === true"
+          :unit="metric.unit === 'seconds' ? 'duration' : 'count'"
+          :reference-line="
+            sample.referenceValue
+              ? { value: sample.referenceValue, label: `Period avg. ${fmtDuration(sample.referenceValue)}` }
+              : undefined
+          "
           :height="CHART_HEIGHT"
         />
         <LineChart
@@ -287,7 +373,7 @@ const skeletonBars = computed(() =>
       </div>
 
       <!-- Breakdown (bar chart: one bar per category, or two series over time) -->
-      <div v-else-if="metric.resultType === 'breakdown'" class="flex flex-1 flex-col">
+      <div v-else-if="resultType === 'breakdown'" class="flex flex-1 flex-col">
         <BarChart
           v-if="sample?.labels && (sample?.series || sample?.lines)"
           :labels="sample.labels"
@@ -302,23 +388,32 @@ const skeletonBars = computed(() =>
       </div>
 
       <!-- Donut (share of a total across segments) -->
-      <div v-else-if="metric.resultType === 'donut'" class="flex flex-1 flex-col">
+      <div v-else-if="resultType === 'donut'" class="flex flex-1 flex-col">
         <DonutChart v-if="sample?.donut" :segments="sample.donut" center-label="contacts" :height="CHART_HEIGHT" />
       </div>
 
+      <!-- Heatmap (day of week × hour of day) -->
+      <div v-else-if="resultType === 'heatmap'" class="flex flex-1 flex-col">
+        <HeatmapChart v-if="sample?.heatmap" :data="sample.heatmap" />
+      </div>
+
       <!-- Funnel (counts per pipeline stage) -->
-      <div v-else-if="metric.resultType === 'funnel'" class="flex flex-1 flex-col">
+      <div v-else-if="resultType === 'funnel'" class="flex flex-1 flex-col">
         <FunnelChart v-if="sample?.funnel" :rows="sample.funnel" />
       </div>
 
       <!-- Table -->
-      <div v-else-if="metric.resultType === 'table'" class="flex flex-1 flex-col">
+      <div v-else-if="resultType === 'table'" class="flex flex-1 flex-col">
         <DataTable v-if="sample?.table" :columns="sample.table.columns" :rows="sample.table.rows" />
       </div>
 
       <!-- Value (default) — number + trend, grouped and bottom-anchored (Figma 6986:72319) -->
       <div v-else class="flex flex-col gap-2">
-        <span class="whitespace-nowrap text-[36px] font-bold leading-[40px] text-grey-900 tabular-nums">{{ formatted }}</span>
+        <div class="flex flex-wrap items-baseline gap-x-2">
+          <span class="whitespace-nowrap text-[36px] font-bold leading-[40px] text-grey-900 tabular-nums">{{ formatted }}</span>
+          <!-- Supporting figure for rate metrics (e.g. the raw count behind a %) -->
+          <span v-if="sample?.secondary" class="text-sm font-medium text-grey-600 tabular-nums">{{ sample.secondary }}</span>
+        </div>
         <div v-if="showDelta && delta" class="flex items-center gap-2">
           <Icon
             v-if="delta.up || delta.down"

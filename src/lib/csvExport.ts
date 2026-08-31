@@ -3,6 +3,7 @@
 // Only chart/table widgets are exportable (see canExportWidget).
 import type { MetricDef } from '@/data/metrics'
 import type { MetricSample } from '@/lib/mock'
+import { DAY_LABELS } from '@/lib/mock'
 
 export interface ExportFilters {
   channels: string // e.g. 'all' or 'whatsapp+email'
@@ -21,6 +22,7 @@ export function canExportWidget(metric: MetricDef): boolean {
       metric.resultType === 'breakdown' ||
       metric.resultType === 'donut' ||
       metric.resultType === 'funnel' ||
+      metric.resultType === 'heatmap' ||
       metric.resultType === 'table')
   )
 }
@@ -96,6 +98,17 @@ function widgetRows(metric: MetricDef, sample: MetricSample): Row[] {
     const dim = metric.csvColumns?.dimension ?? 'category'
     const measure = metric.csvColumns?.measure ?? 'count'
     return sample.labels.map((label, i) => ({ [dim]: label, [measure]: sample.series?.[i] ?? '' }))
+  }
+
+  if (metric.resultType === 'heatmap' && sample.heatmap) {
+    // One row per day/hour cell — long format, so it pivots cleanly in a spreadsheet.
+    const rows: Row[] = []
+    sample.heatmap.forEach((row, d) =>
+      row.forEach((calls, h) =>
+        rows.push({ day: DAY_LABELS[d], hour: `${String(h).padStart(2, '0')}:00`, calls }),
+      ),
+    )
+    return rows
   }
 
   if (metric.resultType === 'donut' && sample.donut) {

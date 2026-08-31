@@ -103,20 +103,23 @@ export const TEMPLATES: Template[] = [
     description: 'At-a-glance health and KPIs.',
     recommended: true,
     widgets: [
-      // 3-up KPI rows via the value-card default (span 4); the histogram takes its
-      // own full-width row (span 12) so a tall chart never sits beside short KPIs.
-      { metricId: 'open_conversations' },
-      { metricId: 'assigned_conversations' },
+      // Three even 3-up KPI rows, grouped by domain, via the value-card default
+      // (span 4). The heatmap takes its own full-width row (span 12 by default) so a
+      // tall chart never sits beside short KPIs.
+      // Support
+      { metricId: 'open_tickets' },
+      { metricId: 'assigned_tickets' },
       { metricId: 'first_response_time' },
-      { metricId: 'resolution_time' },
-      { metricId: 'avg_csat' },
-      { metricId: 'win_rate' },
-      { metricId: 'conversations_by_hour', span: 12 },
-      // Secondary KPI row — deliberate 4-up (span 3) so the four cards fill one row.
+      // Support + voice
+      { metricId: 'resolution_time_all' },
+      { metricId: 'calls_volume' },
+      { metricId: 'missed_calls' },
+      { metricId: 'calls_by_hour' }, // day × hour heatmap (replaced Tickets by hour)
+      // Sales — 4 cards at span 3 so the row fills (default span 4 would leave an orphan).
+      { metricId: 'win_rate', span: 3 },
       { metricId: 'avg_deal_size', span: 3 },
       { metricId: 'pipeline_value', span: 3 },
-      { metricId: 'calls_volume', span: 3 },
-      { metricId: 'missed_calls', span: 3 },
+      { metricId: 'average_sales_cycle', span: 3 },
     ],
   },
   {
@@ -127,9 +130,10 @@ export const TEMPLATES: Template[] = [
     widgets: [
       { metricId: 'conversations_and_new_contacts', span: 6 }, // 50/50 with call volume
       { metricId: 'call_volume', span: 6 }, // stacked bars (inbound/outbound), 50/50
-      { metricId: 'conversations_by_channel', span: 7 }, // slightly wider than the donut
-      { metricId: 'new_vs_returning', span: 5 }, // donut (7 + 5 = 12, one row)
-      { metricId: 'deal_stage_funnel' }, // full-width funnel
+      { metricId: 'conversations_by_channel', span: 12 }, // full-width while the donut is hidden
+      // Temporarily hidden — bring back later.
+      // { metricId: 'new_vs_returning', span: 5 }, // donut (7 + 5 = 12, one row)
+      // { metricId: 'deal_stage_funnel' }, // full-width funnel
     ],
   },
   {
@@ -138,11 +142,17 @@ export const TEMPLATES: Template[] = [
     description: 'Live operational performance.',
     recommended: true,
     widgets: [
-      { metricId: 'first_response_time' },
-      { metricId: 'resolution_time' },
-      { metricId: 'call_wait_time' },
+      // Deliberate 4-up KPI row (span 3) — the default span 4 would leave 3 + 1 orphan.
+      { metricId: 'first_response_time', span: 3 },
+      { metricId: 'resolution_time_all', span: 3 },
+      { metricId: 'call_wait_time', span: 3 },
+      { metricId: 'longest_wait_time', span: 3 },
+      // Call-duration row — 3 cards at span 4 so the row fills (span 3 would leave a gap).
+      { metricId: 'avg_call_duration' },
+      { metricId: 'shortest_call_duration' },
+      { metricId: 'longest_call_duration' },
       { metricId: 'created_vs_closed', span: 6 }, // 50/50 with wait-time-by-team
-      { metricId: 'wait_time_by_team', span: 6 }, // avg queue wait per team (voice)
+      { metricId: 'wait_time', span: 6 }, // avg queue wait (by team / over time)
       { metricId: 'workload_by_agent' },
       { metricId: 'performance_by_channel' },
     ],
@@ -152,7 +162,9 @@ export const TEMPLATES: Template[] = [
     name: 'Improve',
     description: 'Where to prioritise change — knowledge, process, automation.',
     recommended: true,
-    widgets: [],
+    // Quality signals live here: avg_csat is our only `quality`-category metric, and
+    // Overview is otherwise volume/efficiency/voice/sales.
+    widgets: [{ metricId: 'avg_csat' }],
   },
   {
     id: 'automate',

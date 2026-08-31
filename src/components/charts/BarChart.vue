@@ -24,6 +24,8 @@ const props = withDefaults(
     // Stack multi-series bars (inbound + outbound = total height) instead of grouping
     // them side-by-side. Only meaningful with `series`.
     stacked?: boolean
+    // Dashed horizontal marker (e.g. the period average), drawn across the plot.
+    referenceLine?: { value: number; label: string }
     height?: number
   }>(),
   {
@@ -96,8 +98,38 @@ function build() {
   const axis = token('--color-grey-600', '#70767b')
   const legendText = token('--color-grey-700', '#4d5256')
 
+  // Dashed reference line + right-aligned label. A tiny inline plugin keeps this
+  // dependency-free (chartjs-plugin-annotation would be overkill for one line).
+  const refLinePlugin = {
+    id: 'referenceLine',
+    afterDatasetsDraw(c: any) {
+      const ref = props.referenceLine
+      if (!ref) return
+      const y = c.scales.y?.getPixelForValue(ref.value)
+      if (y == null || !isFinite(y)) return
+      const { left, right } = c.chartArea
+      const g = c.ctx
+      g.save()
+      g.setLineDash([4, 4])
+      g.lineWidth = 1
+      g.strokeStyle = token('--color-grey-500', '#8a9096')
+      g.beginPath()
+      g.moveTo(left, y)
+      g.lineTo(right, y)
+      g.stroke()
+      g.setLineDash([])
+      g.font = '10px Inter, sans-serif'
+      g.fillStyle = token('--color-grey-600', '#70767b')
+      g.textAlign = 'right'
+      g.textBaseline = 'bottom'
+      g.fillText(ref.label, right, y - 3)
+      g.restore()
+    },
+  }
+
   chart = new Chart(canvas.value, {
     type: 'bar',
+    plugins: [refLinePlugin],
     data: { labels: props.labels, datasets: datasets() },
     options: {
       responsive: true,
@@ -169,7 +201,7 @@ onBeforeUnmount(() => chart?.destroy())
 
 // Re-render when the data changes (e.g. filters update the series).
 watch(
-  () => [props.labels, props.data, props.average, props.series],
+  () => [props.labels, props.data, props.average, props.series, props.referenceLine],
   () => {
     if (!chart) return
     chart.data.labels = props.labels

@@ -23,6 +23,13 @@ export function fmtDuration(totalSeconds: number): string {
   return `${sec}s`
 }
 
+/** Whole days → "18 days" / "1 day". Kept out of fmtDuration, which caps at hours
+ *  (an 18-day sales cycle would otherwise render as "432h"). */
+export function fmtDays(days: number): string {
+  const d = Math.max(0, Math.round(days))
+  return `${d} ${d === 1 ? 'day' : 'days'}`
+}
+
 /** A 0–1 ratio → "92%". */
 export function fmtPercent(ratio: number): string {
   return `${Math.round(ratio * 100)}%`
@@ -42,8 +49,9 @@ export function formatValue(value: number, unit: Unit): string {
     case 'seconds':
     case 'minutes':
     case 'hours':
-    case 'days':
       return fmtDuration(value) // value metrics store duration in seconds
+    case 'days':
+      return fmtDays(value) // stored in days, not seconds (e.g. sales cycle)
     case 'currency':
       return fmtCurrency(value)
     case 'count':

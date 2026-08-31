@@ -10,7 +10,7 @@
 //   empty   — simulate "no events in range" (counts still show a true 0)
 import { ref, computed } from 'vue'
 
-export type DataState = 'normal' | 'loading' | 'empty'
+export type DataState = 'normal' | 'loading' | 'empty' | 'error'
 
 const state = ref({ showComparison: false, dataState: 'normal' as DataState })
 
@@ -24,6 +24,7 @@ export function useSettings() {
   // Derived flags the cards read (keeps MetricBox's call sites simple).
   const showEmptyData = computed(() => state.value.dataState === 'empty')
   const forceLoading = computed(() => state.value.dataState === 'loading')
+  const forceError = computed(() => state.value.dataState === 'error')
 
   return {
     showComparison,
@@ -33,5 +34,6 @@ export function useSettings() {
     setDataState,
     showEmptyData,
     forceLoading,
+    forceError,
   }
 }

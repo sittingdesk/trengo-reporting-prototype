@@ -19,18 +19,22 @@ export interface EmptyStateConfig {
 
 export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   first_response_time: { noun: 'customer tickets', icon: 'Inbox' },
-  resolution_time: { noun: 'tickets', icon: 'Inbox' },
+  resolution_time_all: { noun: 'tickets', icon: 'Inbox' },
   conversations_by_hour: { noun: 'tickets', icon: 'Inbox' },
   avg_csat: { noun: 'ratings', icon: 'EmotionSmile' },
   win_rate: { noun: 'decided deals', icon: 'Target' },
   call_wait_time: { noun: 'calls', icon: 'Phone' },
+  longest_wait_time: { noun: 'answered calls', icon: 'Phone' },
+  avg_call_duration: { noun: 'calls', icon: 'Phone' },
+  shortest_call_duration: { noun: 'calls', icon: 'Phone' },
+  longest_call_duration: { noun: 'calls', icon: 'Phone' },
   missed_calls: { noun: 'missed calls', icon: 'Phone' },
   created_vs_closed: { noun: 'tickets', icon: 'Inbox' },
   workload_by_agent: { noun: 'tickets', icon: 'Users' },
   performance_by_channel: { noun: 'tickets', icon: 'Inbox' },
-  wait_time_by_team: { noun: 'answered calls', icon: 'Phone' },
-  open_conversations: { noun: 'open tickets', icon: 'Inbox' },
-  assigned_conversations: { noun: 'assigned tickets', icon: 'Inbox' },
+  wait_time: { noun: 'answered calls', icon: 'Phone' },
+  open_tickets: { noun: 'open tickets', icon: 'Inbox' },
+  assigned_tickets: { noun: 'assigned tickets', icon: 'Inbox' },
 
   // ---- Understand page ----
   conversations_and_new_contacts: { noun: 'tickets', icon: 'Inbox' },
@@ -43,14 +47,21 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   deal_stage_funnel: { noun: 'deals', icon: 'Target' },
   avg_deal_size: { noun: 'deals', icon: 'Target' },
   pipeline_value: { noun: 'deals', icon: 'Target' },
+  average_sales_cycle: { noun: 'closed deals', icon: 'Target' },
   calls_volume: { noun: 'calls', icon: 'Phone' },
 }
 
-/** Copy template — the ONLY place empty-state wording lives. */
+/** Copy template — the ONLY place empty/error-state wording lives. */
 export const COPY = {
   empty: {
     title: (c: EmptyStateConfig) => `No ${c.noun ?? 'data'} in this period`,
     subline: () => 'Try a wider date range',
+  },
+  // Error is an UNKNOWN, not a fact — never claim "none", never show a number.
+  error: {
+    title: () => "Couldn't load this widget",
+    retry: () => 'Try again',
+    retrying: () => 'Retrying…',
   },
 } as const
 
