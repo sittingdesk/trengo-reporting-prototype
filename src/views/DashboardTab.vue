@@ -7,6 +7,7 @@
 import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkspace } from '@/composables/useWorkspace'
+import { useSettings } from '@/composables/useSettings'
 import { isMetricWidget, type Widget, type WidgetKind } from '@/config/templates'
 import { getMetric } from '@/data/metrics'
 import Icon from '@/components/Icon.vue'
@@ -16,10 +17,31 @@ import MetricBox from '@/components/dashboard/MetricBox.vue'
 const route = useRoute()
 const router = useRouter()
 const { getTab, tabTemplate } = useWorkspace()
+const { slaEnabled } = useSettings()
 
 const tabId = computed(() => String(route.params.tabId))
 const tab = computed(() => getTab(tabId.value))
 const template = computed(() => tabTemplate(tabId.value))
+
+// Capability gate. A metric that `requires` a feature the workspace doesn't have is
+// omitted from the page entirely — not greyed out, not empty. Without an SLA policy
+// there is no target, so there is nothing to measure: an empty "SLA compliance" card
+// would be claiming we looked and found nothing, which is the same lie the error state
+// exists to prevent. Widgets are filtered here, so the grid simply reflows.
+const widgets = computed(
+  () =>
+    template.value?.widgets.filter((w) => {
+      if (!isMetricWidget(w)) return true
+      const requires = getMetric(w.metricId)?.requires
+      return requires !== 'sla' || slaEnabled.value
+    }) ?? [],
+)
+
+/** Stable key so toggling a capability re-creates cards rather than re-using a
+ *  MetricBox (and its break-down / retry state) for a different metric. */
+function widgetKey(widget: Widget, i: number) {
+  return isMetricWidget(widget) ? widget.metricId : `${widget.name}-${i}`
+}
 
 // If the tab id doesn't exist (e.g. after a scenario reseed), bounce home.
 watch(
@@ -48,11 +70,14 @@ const KIND_LABEL: Record<WidgetKind, string> = {
 // chart neighbour), so KPI cards stay a consistent 152px across rows.
 const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-6 lg:grid-cols-12'
 
-// Default span by metric result type (out of 12). Value cards default to 4 → 3-up
-// KPI rows (the convention on every page); set a per-widget `span` to override
-// (e.g. span 3 for a deliberate 4-up page — also the future drag-resize hook).
+// Default span by metric result type (out of 12). Value cards default to 3 → 4-up KPI
+// rows: ONE card width across every page, so a KPI is the same size wherever you meet
+// it and the snap targets stay predictable once widgets can be dragged and resized.
+// Rows aren't guaranteed to fill — a trailing gap is deliberate, and it's where
+// "+ Add widget" will live. Set a per-widget `span` to override (also the future
+// drag-resize hook).
 const SPAN_BY_TYPE: Record<string, number> = {
-  value: 4,
+  value: 3,
   histogram: 6,
   breakdown: 6,
   donut: 6,
@@ -94,14 +119,17 @@ function spanClass(widget: Widget) {
   const span = isMetricWidget(widget)
     ? (widget.span ?? SPAN_BY_TYPE[getMetric(widget.metricId)?.resultType ?? 'value'] ?? 3)
     : SPAN_BY_KIND[widget.kind] ?? 3
-  return SPAN_CLASS[span] ?? 'sm:col-span-2 lg:col-span-3'
+  const base = SPAN_CLASS[span] ?? 'sm:col-span-2 lg:col-span-3'
+  // A trailing gap in a KPI block is deliberate; the grid filling it with the next chart
+  // is not. `newRow` pushes the widget back to column 1 (literal class — Tailwind JIT).
+  return isMetricWidget(widget) && widget.newRow ? `${base} lg:col-start-1` : base
 }
 </script>
 
 <template>
   <!-- Empty template (Understand, …): nothing added yet. -->
   <div
-    v-if="tab && template && template.widgets.length === 0"
+    v-if="tab && template && widgets.length === 0"
     class="flex h-full flex-col items-center justify-center gap-3 px-6 text-center"
   >
     <div class="flex size-12 items-center justify-center rounded-circle bg-grey-200 text-grey-600">
@@ -119,7 +147,7 @@ function spanClass(widget: Widget) {
 
   <div v-else-if="tab && template" class="px-8 py-6">
     <div :class="gridClass">
-      <template v-for="(widget, i) in template.widgets" :key="i">
+      <template v-for="(widget, i) in widgets" :key="widgetKey(widget, i)">
         <!-- Real metric widget -->
         <MetricBox
           v-if="isMetricWidget(widget)"

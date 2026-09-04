@@ -4,10 +4,10 @@
 // (date range + channel + team) but are DETERMINISTIC for a given filter combo —
 // so values don't flicker on re-render. Nothing here touches real data.
 import { getLocalTimeZone, startOfMonth, type DateValue } from '@internationalized/date'
-import type { MetricDef } from '@/data/metrics'
+import type { MetricDef, FeatureFlag } from '@/data/metrics'
 import { TEAMS } from '@/data/filters'
 import { CHANNEL_INSTANCE_IDS, CATALOG } from '@/data/channelData'
-import { fmtCount, fmtDuration } from '@/lib/format'
+import { fmtCount, fmtDuration, fmtPercent } from '@/lib/format'
 
 export interface TableColumn {
   key: string
@@ -17,6 +17,15 @@ export interface TableColumn {
   avatar?: boolean // prefix the cell with an initials avatar (e.g. agent names)
   sortable?: boolean // clickable header; sorts by `sortKey` (raw value)
   sortKey?: string // row key holding the raw sortable value (defaults to `key`)
+  /** Definition shown behind an ⓘ on the header — a column needs to explain itself
+   *  the same way a card does, since a table packs several metrics into one tile. */
+  hint?: string
+  /** Capability the column depends on; dropped from the table when it's off. Same
+   *  rule as widget-level `requires`, one level down. */
+  requires?: FeatureFlag
+  /** Makes this the table's initial ranking, in this direction. Without it the table
+   *  falls back to the first sortable numeric column, descending. */
+  defaultSort?: 'asc' | 'desc'
 }
 export interface TableData {
   columns: TableColumn[]
@@ -36,7 +45,7 @@ export interface MetricSample {
   // the CSV column header for that series.
   lines?: { name: string; tint: 'leaf' | 'sky'; data: number[]; dashed?: boolean; csvKey?: string }[]
   table?: TableData
-  heatmap?: number[][] // 7 rows (Mon–Sun) × 24 hour columns (calls_by_hour)
+  heatmap?: number[][] // 7 rows (Mon–Sun) × 24 hour columns (voip_calls_by_day_hour)
   funnel?: { stage: string; count: number }[] // funnel stages (deal_stage_funnel)
   donut?: { label: string; value: number }[] // doughnut segments (new_vs_returning)
   legendBelow?: boolean // render the line-chart legend below the chart (not header)
@@ -162,6 +171,43 @@ export const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
  * Deterministic mock sample for a metric under the current filters.
  * Rates (percentage) are not scaled by range/subset; counts/durations are.
  */
+/**
+ * One SLA verdict set, shared by the headline and the two per-target cards so the three
+ * numbers reconcile on screen.
+ *
+ * Two rules from `sla-definitions-and-how.md` drive the shape:
+ * - **Judged per ticket, then aggregated.** Filters change WHICH tickets are in the set,
+ *   never a verdict — so everything here is met ÷ measured over the filtered population.
+ *   Never an average of rates: a channel at 90% on 2,000 tickets beside one at 50% on 20
+ *   is 89.6%, not 70%.
+ * - **Each target has its own denominator.** AI-only tickets have no first-response
+ *   target ("the first-response target doesn't apply to AI-only tickets") but ARE measured
+ *   on resolution. Only channels with no policy drop out of both.
+ *
+ * The headline is strict — a ticket must meet EVERY target that applied — so it is
+ * derived from the two, never generated independently. ⚠️ Mock assumes the two outcomes
+ * are independent; real data will correlate (a swamped queue misses both at once).
+ */
+function slaCompliance(signature: string, days: number, chFactor: number, tmFactor: number) {
+  const rng = mulberry32(hashString(`sla|${signature}`))
+  const measured = Math.max(1, Math.round(1500 * Math.sqrt(days / 7) * chFactor * tmFactor))
+  // ~8% of measured tickets are AI-only: resolution applies, first response doesn't.
+  const frPop = Math.max(1, Math.round(measured * 0.92))
+  const resPop = measured
+  const frRate = Math.min(0.99, Math.max(0.5, 0.94 * jitter(rng, 0.04)))
+  const resRate = Math.min(0.99, Math.max(0.5, 0.88 * jitter(rng, 0.05)))
+  const frMet = Math.round(frPop * frRate)
+  const resMet = Math.round(resPop * resRate)
+  return {
+    measured,
+    frPop,
+    frMet,
+    resPop,
+    resMet,
+    metAll: Math.round(measured * frRate * resRate),
+  }
+}
+
 export function metricValue(
   def: MetricDef,
   signature: string,
@@ -385,6 +431,28 @@ export function metricValue(
     return { value: 0, previous: 0, table: tableData(def.id, rng, chFactor, tmFactor, days) }
   }
 
+  // SLA compliance: met ÷ measured. The supporting figure carries the DENOMINATOR,
+  // which matters more here than on most rates — tickets on channels without a policy
+  // are excluded from it entirely, so "85%" alone hides how much was actually judged.
+  // Must sit before the percentage branch, which clamps to 0.4–0.99 and ignores counts.
+  if (def.id.startsWith('sla_') || def.id.endsWith('_compliance')) {
+    const c = slaCompliance(signature, days, chFactor, tmFactor)
+    const pick =
+      def.id === 'first_response_compliance'
+        ? { met: c.frMet, pop: c.frPop }
+        : def.id === 'resolution_compliance'
+          ? { met: c.resMet, pop: c.resPop }
+          : { met: c.metAll, pop: c.measured }
+    return {
+      value: pick.met / pick.pop,
+      previous: (pick.met / pick.pop) * jitter(rng, 0.06),
+      // No trailing noun: at 4-up width "of 1,500 tickets" wraps to a second line and
+      // makes this the only card in its row that isn't 160px tall. The title and the
+      // tooltip already say these are tickets.
+      secondary: `${fmtCount(pick.met)} of ${fmtCount(pick.pop)}`,
+    }
+  }
+
   // Missed calls: a RATE (missed ÷ inbound) with the raw count as the supporting
   // figure — a bare count can't be judged and grows with the date range. Denominator is
   // inbound only: outbound calls can't be "missed". Must sit before the percentage
@@ -469,7 +537,18 @@ function tableData(
       { key: 'channel', label: 'Channel', align: 'left', sortable: true },
       { key: 'resolution', label: 'Resolution time', align: 'left', sortable: true, sortKey: 'resolutionRaw' },
       { key: 'firstResponse', label: 'First response time', align: 'left', sortable: true, sortKey: 'firstResponseRaw' },
-      { key: 'sla', label: 'SLA compliance', align: 'left', badge: true },
+      {
+        key: 'sla',
+        label: 'SLA compliance',
+        align: 'left',
+        sortable: true,
+        sortKey: 'slaRaw',
+        // Worst first: with compliance on the table, the useful question is which
+        // channel is breaking its promise — a work queue, not a lookup table.
+        defaultSort: 'asc',
+        requires: 'sla',
+        hint: 'Share of this channel\u2019s tickets that met every target in its policy \u2014 miss one and the whole ticket counts as a breach. Channels without a policy aren\u2019t measured.',
+      },
       { key: 'closed', label: 'Closed tickets', align: 'left', sortable: true, sortKey: 'closedRaw' },
       { key: 'open', label: 'Open tickets', align: 'left', sortable: true, sortKey: 'openRaw' },
     ],
@@ -477,9 +556,33 @@ function tableData(
       channel,
       ...num('resolution', Math.max(600, 18000 * jitter(rng, 0.6)), fmtDuration),
       ...num('firstResponse', Math.max(15, 95 * jitter(rng, 0.5)), fmtDuration),
-      sla: 'In development', // not a real metric yet
+      ...channelCompliance(channel, rng),
       ...num('closed', Math.max(0, 300 * scale * jitter(rng, 0.5)), fmtCount),
       ...num('open', Math.max(0, 120 * scale * jitter(rng, 0.5)), fmtCount),
     })),
   }
+}
+
+/**
+ * Per-channel SLA compliance. The channel picks the policy (one channel → one policy),
+ * so this is the break-down that's native to how SLA actually works.
+ *
+ * A channel with NO policy has no figure at all — not 0%, not 100%. It's excluded from
+ * the denominator entirely (`sla-definitions-and-how.md`, Theme 3), so showing it a
+ * number would invent a verdict on a promise that was never made.
+ *
+ * Centred on the same 0.85 the headline card uses, so the two read as consistent. ⚠️ In
+ * real data they must actually reconcile (the headline is met ÷ measured across all
+ * channels, not the average of these) — a weighting the mock doesn't attempt.
+ */
+const CHANNELS_WITHOUT_POLICY = ['Instagram']
+
+function channelCompliance(channel: string, rng: () => number) {
+  if (CHANNELS_WITHOUT_POLICY.includes(channel)) {
+    // 101 keeps it out of the way when ranking worst-first — it isn't a bad score,
+    // it's the absence of one, so it must never lead the queue.
+    return { sla: 'No policy', slaRaw: 101 }
+  }
+  const pct = Math.min(0.99, Math.max(0.55, 0.85 * jitter(rng, 0.12)))
+  return { sla: fmtPercent(pct), slaRaw: Math.round(pct * 100) }
 }

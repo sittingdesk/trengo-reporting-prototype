@@ -22,14 +22,14 @@ defineEmits<{ retry: [] }>()
   <!-- role=alert (empty uses role=status): a failed load is worth announcing. -->
   <div
     role="alert"
-    class="flex flex-1 flex-col items-center justify-center gap-4 px-3 py-2 text-center"
+    class="flex flex-1 flex-col items-center justify-center gap-2 px-3 text-center"
     :style="minHeight ? { minHeight: `${minHeight}px` } : undefined"
   >
-    <span class="flex items-center justify-center rounded-base border border-black/10 bg-white p-1.5">
-      <Icon name="AlertTriangle" :size="20" class="text-grey-700" aria-hidden="true" />
-    </span>
+    <!-- No chip, matching MetricEmptyState — these are sibling states and have to keep
+         looking like siblings; the retry button is what tells them apart. -->
+    <Icon name="AlertTriangle" :size="20" class="text-grey-600" aria-hidden="true" />
 
-    <div class="flex flex-col items-center gap-2 pb-2">
+    <div class="flex flex-col items-center gap-2">
       <span class="text-xs font-semibold text-grey-800">{{ COPY.error.title() }}</span>
       <button
         type="button"

@@ -4,6 +4,7 @@
 // and scannable/rankable even with many rows (e.g. 50 agents). No "Load more".
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import type { TableColumn } from '@/lib/mock'
+import { Tooltip } from '@/components/ui/tooltip'
 
 const props = defineProps<{
   columns: TableColumn[]
@@ -12,20 +13,41 @@ const props = defineProps<{
 
 const sortKeyOf = (c: TableColumn) => c.sortKey ?? c.key
 
-// Default: rank by the first sortable numeric column (one with a sortKey), descending.
-const initial = props.columns.find((c) => c.sortable && c.sortKey) ?? props.columns.find((c) => c.sortable)
-const sortKey = ref<string | null>(initial ? sortKeyOf(initial) : null)
-const sortDir = ref<'asc' | 'desc'>('desc')
+// Default ranking: a column that asks for one wins; otherwise the first sortable
+// numeric column (one with a sortKey), descending.
+const defaultCol = computed(
+  () =>
+    props.columns.find((c) => c.sortable && c.defaultSort) ??
+    props.columns.find((c) => c.sortable && c.sortKey) ??
+    props.columns.find((c) => c.sortable),
+)
+
+const chosenKey = ref<string | null>(null)
+const chosenDir = ref<'asc' | 'desc' | null>(null)
+
+// Columns can come and go (a capability being switched off), so the active sort is
+// validated against the columns actually on screen rather than latched at setup.
+const sortKey = computed(() => {
+  const live = props.columns.some((c) => c.sortable && sortKeyOf(c) === chosenKey.value)
+  if (chosenKey.value && live) return chosenKey.value
+  return defaultCol.value ? sortKeyOf(defaultCol.value) : null
+})
+const sortDir = computed<'asc' | 'desc'>(() => {
+  const live = props.columns.some((c) => c.sortable && sortKeyOf(c) === chosenKey.value)
+  if (chosenKey.value && live && chosenDir.value) return chosenDir.value
+  return defaultCol.value?.defaultSort ?? 'desc'
+})
 
 function toggleSort(c: TableColumn) {
   if (!c.sortable) return
   const key = sortKeyOf(c)
   if (sortKey.value === key) {
-    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+    chosenDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
-    sortKey.value = key
-    sortDir.value = c.sortKey ? 'desc' : 'asc' // numeric → high-first; name → A–Z
+    // numeric → high-first, name → A–Z, unless the column states its own preference
+    chosenDir.value = c.defaultSort ?? (c.sortKey ? 'desc' : 'asc')
   }
+  chosenKey.value = key
 }
 const isActive = (c: TableColumn) => c.sortable && sortKey.value === sortKeyOf(c)
 
@@ -90,6 +112,20 @@ watch(sortedRows, () => nextTick(updateFade))
           >
             <span class="inline-flex items-center gap-1">
               {{ col.label }}
+              <!-- A table packs several metrics into one tile, so a column carrying a
+                   definition explains itself here rather than in the card tooltip. -->
+              <Tooltip v-if="col.hint" :text="col.hint">
+                <span
+                  class="flex cursor-default items-center text-grey-400 transition-colors hover:text-grey-600"
+                  @click.stop
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="8" fill="currentColor" />
+                    <circle cx="8" cy="4.6" r="1.1" fill="#fff" />
+                    <rect x="6.9" y="6.7" width="2.2" height="5" rx="1.1" fill="#fff" />
+                  </svg>
+                </span>
+              </Tooltip>
               <span v-if="isActive(col)" aria-hidden="true">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </span>
           </th>

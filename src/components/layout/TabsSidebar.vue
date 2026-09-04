@@ -24,7 +24,7 @@ const {
   setScenario,
   setIteration,
 } = useWorkspace()
-const { showComparison, toggleComparison, dataState, setDataState } = useSettings()
+const { slaEnabled, toggleSla, dataState, setDataState } = useSettings()
 
 const scenarios: { id: Scenario; label: string }[] = [
   { id: 'existing', label: 'Existing customer' },
@@ -134,22 +134,27 @@ function changeIteration(id: string) {
         </div>
       </div>
 
-      <!-- Comparison toggle (shows period-over-period deltas on cards) -->
-      <button
-        class="flex w-full items-center justify-between rounded-base px-1 text-xs font-medium text-grey-600"
-        @click="toggleComparison()"
-      >
-        <span>Comparison</span>
-        <span
-          class="relative h-4 w-7 rounded-pill transition-colors"
-          :class="showComparison ? 'bg-leaf-500' : 'bg-grey-300'"
+      <!-- Feature availability. Unlike the switches below it, this one changes WHICH
+           widgets a page has, not how they look: metrics that need an SLA policy
+           don't exist without one, so they're absent rather than empty. -->
+      <div>
+        <div class="mb-1.5 text-xs font-medium text-grey-600">Features</div>
+        <button
+          class="flex w-full items-center justify-between rounded-base px-1 text-xs font-medium text-grey-600"
+          @click="toggleSla()"
         >
+          <span>SLA</span>
           <span
-            class="absolute top-0.5 size-3 rounded-circle bg-white transition-all"
-            :class="showComparison ? 'left-3.5' : 'left-0.5'"
-          />
-        </span>
-      </button>
+            class="relative h-4 w-7 rounded-pill transition-colors"
+            :class="slaEnabled ? 'bg-leaf-500' : 'bg-grey-300'"
+          >
+            <span
+              class="absolute top-0.5 size-3 rounded-circle bg-white transition-all"
+              :class="slaEnabled ? 'left-3.5' : 'left-0.5'"
+            />
+          </span>
+        </button>
+      </div>
 
       <!-- Data state (viewing mode): force every card into normal / loading / empty /
            error. 2×2 grid — four labels don't fit on one row in a 240px sidebar. -->

@@ -124,7 +124,8 @@ function widgetRows(metric: MetricDef, sample: MetricSample): Row[] {
     return rows.map((r) => {
       const out: Row = {}
       for (const col of columns) {
-        // Badge columns (e.g. SLA "In development") export blank, never the label.
+        // Badge columns hold a status label, not a measurement — export blank rather
+        // than a word that would read as data.
         out[col.label] = col.badge ? '' : r[col.key]
       }
       return out

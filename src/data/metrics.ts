@@ -43,6 +43,14 @@ export interface MetricDimension {
   caveat?: string
 }
 
+/**
+ * A capability the workspace must have switched on before a metric can exist at all.
+ * Distinct from `status: 'restricted'` (the metric exists, this USER can't see it):
+ * without an SLA policy there is no target, so there is nothing to measure — the
+ * widget isn't hidden, it's absent. Prototype-driven by the SLA toggle in the sidebar.
+ */
+export type FeatureFlag = 'sla'
+
 /** ready = show a value; restricted = gated by permissions. */
 export type MetricStatus = 'ready' | 'restricted'
 
@@ -59,6 +67,10 @@ export interface MetricDef {
   base?: number
   /** When true, a DECREASE is good (faster response, less time) — flips delta colour. */
   lowerIsBetter?: boolean
+  /** Volume metrics that aren't good or bad on their own: more calls can mean demand OR
+   *  an outage, fewer can mean efficiency OR customers giving up. The delta still shows
+   *  the movement — it just refuses to judge it. */
+  neutral?: boolean
   /** Shown as a tooltip — definition caveats / open questions. */
   caveat?: string
   /** Muted line shown beneath the chart (data-coverage caveats). */
@@ -70,6 +82,9 @@ export interface MetricDef {
   /** Break-downs this measure supports. >1 renders a switcher in the card header;
    *  the active one overrides `resultType`. */
   dimensions?: MetricDimension[]
+  /** Capability this metric depends on. Widgets bound to it are omitted from a page
+   *  entirely while the capability is off. */
+  requires?: FeatureFlag
 }
 
 export const METRICS: MetricDef[] = [
@@ -81,6 +96,7 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'ready',
     category: 'volume',
+    neutral: true, // volume — reports the change, doesn't judge it
     base: 320,
     caveat: 'Tickets created in this period that are still open. A rising number can signal capacity issues.',
   },
@@ -92,6 +108,7 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'ready',
     category: 'volume',
+    neutral: true, // volume — reports the change, doesn't judge it
     base: 245,
     caveat: 'Tickets created in this period that are assigned to an agent. Compare with open tickets to spot unassigned backlog.',
   },
@@ -122,6 +139,52 @@ export const METRICS: MetricDef[] = [
     lowerIsBetter: true,
     caveat:
       'Median time from creation to close, covering both AI-resolved and human-handled tickets. Long times can signal process or knowledge gaps.',
+  },
+  {
+    // registry: sla_compliance — ⚠️ marked Phase 2, EXCLUDED FROM MVP (confirmed by
+    // Deborah, 2026-06-29). Present here as design-ahead, which is exactly why it sits
+    // behind the SLA capability rather than in the default page.
+    // Definition from the SLA project (`sla-definitions-and-how.md`, Theme 3).
+    id: 'sla_compliance',
+    label: 'SLA compliance',
+    unit: 'percentage',
+    resultType: 'value',
+    status: 'ready',
+    category: 'efficiency',
+    requires: 'sla',
+    base: 0.85, // the doc's worked example: 1,275 of 1,500 measured tickets
+    caveat:
+      'Share of tickets that met every SLA target that applied to them — miss one and the whole ticket counts as a breach. Tickets on channels without a policy are not measured.',
+  },
+  {
+    // The headline is judged strictly — miss one target and the whole ticket fails — so it
+    // can't say WHICH promise broke. These two split it. Each has its own denominator:
+    // AI-only tickets have no first-response target but are still measured on resolution,
+    // so the two are not percentages of the same population.
+    // registry: no entry — depends on the same per-ticket verdict snapshot sla_compliance
+    // needs, which doesn't exist yet.
+    id: 'first_response_compliance',
+    label: 'First response compliance',
+    unit: 'percentage',
+    resultType: 'value',
+    status: 'ready',
+    category: 'efficiency',
+    requires: 'sla',
+    base: 0.94,
+    caveat:
+      'Share of tickets that got a first reply within target. Any reply stops the clock, including an AI Agent’s. Tickets the AI handled alone have no first-response target, so they are not counted here.',
+  },
+  {
+    id: 'resolution_compliance',
+    label: 'Resolution compliance',
+    unit: 'percentage',
+    resultType: 'value',
+    status: 'ready',
+    category: 'efficiency',
+    requires: 'sla',
+    base: 0.88,
+    caveat:
+      'Share of tickets closed within their resolution target. Counts every measured ticket, including those the AI resolved on its own.',
   },
   {
     // registry: csat_average_score (no pages tag) — we place it on Improve
@@ -170,11 +233,13 @@ export const METRICS: MetricDef[] = [
     category: 'voice',
     base: 42, // ~42s
     lowerIsBetter: true,
-    caveat: 'Average time from a call entering the queue to an agent picking up.',
+    caveat:
+      "Average queue wait before an agent picks up. Doesn't include IVR or transfer time — see Average wait time for that.",
   },
   {
-    // Registry: voip_longest_wait_time — MAX(voip_queue_wait_seconds), NO grouping, so
-    // there's no team/channel attribution to show alongside it.
+    // registry: voip_longest_wait_time [Operate] — now page-tagged, closing the "which
+    // one does the Linear ticket mean" question. MAX(voip_queue_wait_seconds), no grouping,
+    // so it shares the QUEUE basis with Time to answer, not the total-wait basis.
     id: 'longest_wait_time',
     label: 'Longest wait time',
     unit: 'seconds',
@@ -184,11 +249,14 @@ export const METRICS: MetricDef[] = [
     base: 380, // ~6m20s — well above the 42s average so the pair reads sensibly
     lowerIsBetter: true,
     caveat:
-      "Longest single wait before a caller was answered. Callers who hung up aren't counted, and one unusual call can dominate this number.",
+      'Longest single queue wait in this period. One unusual call can dominate this number.',
   },
   {
     // Registry: voip_avg_duration (pages: [Operate]). NOTE: that entry lists no filters
     // at all — including no date range — and no caveats. Flagged to the data team.
+    // registry: voip_avg_duration [Operate] — now page-tagged. ⚠️ still lists NO date
+    // filter (fields are duration + call type only), so as written it wouldn't respond to
+    // the date picker. Open with the data team.
     id: 'avg_call_duration',
     label: 'Average call duration',
     unit: 'seconds',
@@ -197,12 +265,13 @@ export const METRICS: MetricDef[] = [
     category: 'voice',
     base: 210, // ~3m30s
     lowerIsBetter: true, // AHT convention — shorter handling is usually better
-    caveat: 'Average length of an answered call, inbound and outbound.',
+    caveat: 'Average length of a call, inbound and outbound.',
   },
   {
-    // NOT in the registry yet — would be MIN(voip_call_duration) on trengodb__voip_calls,
-    // the same shape as voip_longest_wait_time. Needs a rule excluding zero-length calls,
-    // or it reads 0s permanently.
+    // registry: voip_shortest_call_duration [Operate] — added 2026-09-04 (was "doesn't
+    // exist"). MIN(voip_call_duration), no grouping. ⚠️ no zero-length floor: the entry's
+    // own caveat says a single zero-duration call dominates it, so in production this
+    // reads ~0s until an exclusion rule is agreed.
     id: 'shortest_call_duration',
     label: 'Shortest call duration',
     unit: 'seconds',
@@ -212,10 +281,12 @@ export const METRICS: MetricDef[] = [
     base: 14,
     // Deliberately NOT lowerIsBetter: a shortest call trending UP means fewer instant
     // drops, which is the good direction here.
-    caveat: 'Shortest single call in this period. Very short calls often mean drops or misdials.',
+    caveat:
+      'Shortest single call in this period, including calls that barely connected — usually drops or misdials.',
   },
   {
-    // NOT in the registry yet — would be MAX(voip_call_duration).
+    // registry: voip_longest_call_duration [Operate] — added 2026-09-04 (was "doesn't
+    // exist"). MAX(voip_call_duration), mirroring voip_longest_wait_time's shape.
     id: 'longest_call_duration',
     label: 'Longest call duration',
     unit: 'seconds',
@@ -311,6 +382,7 @@ export const METRICS: MetricDef[] = [
     resultType: 'time_series',
     status: 'ready',
     category: 'volume',
+    neutral: true, // volume — reports the change, doesn't judge it
     base: 500, // per day
     caveat: 'Tickets created in this period.',
   },
@@ -360,9 +432,11 @@ export const METRICS: MetricDef[] = [
     caveat: 'Calls per day, split into inbound and outbound.',
   },
   {
-    // Registry: calls_by_hour. The registry groups by hour only — the day-of-week
-    // dimension this heatmap needs is still to be added with data.
-    id: 'calls_by_hour',
+    // registry: voip_calls_by_day_hour [Overview] — added 2026-09-04, closing the
+    // day-of-week gap we raised. NOT `calls_by_hour`, which is hour-only and the registry
+    // now marks `pages: []`, superseded by this entry. Confirms UTC bucketing; Mon-first
+    // ordering is left to the display layer, which HeatmapChart already does.
+    id: 'voip_calls_by_day_hour',
     label: 'Calls by day & hour',
     unit: 'count',
     resultType: 'heatmap',
@@ -370,7 +444,7 @@ export const METRICS: MetricDef[] = [
     category: 'voice',
     base: 25,
     caveat:
-      'Shown in UTC. All Mondays are combined, all Tuesdays, and so on.',
+      'Calls by day of week and hour, combining every Monday, every Tuesday, and so on. Shown in UTC.',
   },
   {
     // registry: deal_stage_funnel
@@ -427,12 +501,15 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'ready',
     category: 'voice',
+    neutral: true, // volume — reports the change, doesn't judge it
     base: 90, // ≈ the Call volume chart's 7-day total, for coherence
-    caveat: 'Inbound and outbound calls in this period.',
+    caveat: 'All calls in this period, inbound and outbound, including missed ones.',
   },
   {
-    // Registry: voip_missed_calls. The missed predicate (status/failure_reason
-    // rules) is still TBD with data — mock shows a plausible count meanwhile.
+    // registry: voip_missed_rate [Overview] — added 2026-09-04, and it settles two things
+    // we flagged: the MISSED predicate is now fully specified (version-gated), and BOTH
+    // numerator and denominator are inbound-scoped, which is exactly what our tooltip
+    // claims. The supporting count comes from voip_missed_calls.
     id: 'missed_calls',
     label: 'Missed calls',
     unit: 'percentage', // a rate — the raw count rides along as `secondary`
@@ -442,7 +519,7 @@ export const METRICS: MetricDef[] = [
     base: 0.16, // missed ÷ inbound
     lowerIsBetter: true,
     caveat:
-      'Share of inbound calls that ended before an agent answered. Outbound calls are not counted.',
+      'Share of inbound calls that ended before an agent answered, including voicemails. Outbound calls are not counted.',
   },
 ]
 

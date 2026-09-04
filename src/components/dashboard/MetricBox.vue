@@ -16,7 +16,7 @@ import MetricSkeleton from '@/components/dashboard/MetricSkeleton.vue'
 import MetricEmptyState from '@/components/dashboard/MetricEmptyState.vue'
 import MetricErrorState from '@/components/dashboard/MetricErrorState.vue'
 import { getMetric } from '@/data/metrics'
-import { resolveEmptyState } from '@/data/emptyStates'
+import { resolveEmptyState, COPY } from '@/data/emptyStates'
 import { formatValue, fmtDuration } from '@/lib/format'
 import { metricValue, filterSignature } from '@/lib/mock'
 import { CHART_HEIGHT } from '@/lib/chart'
@@ -29,7 +29,7 @@ import { useSettings } from '@/composables/useSettings'
 const props = defineProps<{ metricId: string }>()
 
 const { dateRange, channelIds, teamIds, comparisonLabel, dateRangeLabel } = useFilters()
-const { showComparison, showEmptyData, forceLoading, forceError } = useSettings()
+const { showEmptyData, forceLoading, forceError, slaEnabled } = useSettings()
 
 const metric = computed(() => getMetric(props.metricId))
 
@@ -52,6 +52,12 @@ const dimensions = computed(() => metric.value?.dimensions ?? [])
  *  exist now the control lives in the ⋯ menu. Hidden when there's nothing to choose. */
 const activeConfigLabel = computed(() =>
   dimensions.value.length > 1 ? dimension.value?.label : undefined,
+)
+
+/** Same capability rule as the widget gate in DashboardTab, one level down: a column
+ *  measuring something the workspace can't have is absent, not blank. */
+const tableColumns = computed(
+  () => sample.value?.table?.columns.filter((c) => c.requires !== 'sla' || slaEnabled.value) ?? [],
 )
 const showDimensionControl = computed(
   () => dimensions.value.length > 1 && !loading.value && !errored.value,
@@ -99,9 +105,14 @@ function retry() {
   }, 700)
 }
 
-// Body height of this widget when it renders normally — the error state matches it so
-// the card keeps its footprint (no grid reflow when only some endpoints fail).
+// Body height of this widget when it renders normally — the empty AND error states match
+// it so the card keeps its footprint. Without it, switching state visibly rearranges the
+// page (the heatmap used to collapse 326px → 184px).
 const BODY_HEIGHT: Record<string, number> = {
+  // A KPI card's body: 160px card − 2 border − 32 padding − 24 header − 16 gap. Without
+  // this an errored KPI sat 12px taller than its healthy row-mates — exactly the case the
+  // error state exists for, since endpoints usually fail a few at a time.
+  value: 86,
   histogram: CHART_HEIGHT,
   breakdown: CHART_HEIGHT,
   donut: CHART_HEIGHT,
@@ -110,13 +121,18 @@ const BODY_HEIGHT: Record<string, number> = {
   heatmap: 252,
   table: 288,
 }
-const errorMinHeight = computed(() =>
+const bodyMinHeight = computed(() =>
   resultType.value ? BODY_HEIGHT[resultType.value] : undefined,
 )
 
 const formatted = computed(() => {
   const m = metric.value
   if (!m || !sample.value) return '—'
+  // An empty KPI card keeps the card's shape rather than swapping the body for a centred
+  // message: an em-dash in the value slot, the reason on the supporting line. Rows can't
+  // go ragged, and a "0" card and a "—" card read as siblings instead of two different
+  // visual languages sitting next to each other.
+  if (emptyValueCard.value) return '—'
   // "No events" demo: counts render a true 0 (zero is a value, not an empty state).
   if (showEmptyData.value && resultType.value === 'value' && m.unit === 'count') {
     return formatValue(0, m.unit)
@@ -132,7 +148,12 @@ const exportable = computed(() => (metric.value ? canExportWidget(metric.value) 
 function onExport() {
   menuOpen.value = false
   if (!metric.value || !sample.value) return
-  exportWidgetCSV(metric.value, sample.value, {
+  // Export what's on screen: a column hidden by a capability gate must not appear in
+  // the file either.
+  const exported = sample.value.table
+    ? { ...sample.value, table: { ...sample.value.table, columns: tableColumns.value } }
+    : sample.value
+  exportWidgetCSV(metric.value, exported, {
     channels: channelIds.value.join('+') || 'all',
     teams: teamIds.value.join('+') || 'all',
     rangeLabel: dateRangeLabel.value,
@@ -159,6 +180,15 @@ const resolvedState = computed<CardState>(() => {
   return noEvents && !isCount ? 'empty' : 'value'
 })
 
+/** A value card with nothing to show — rendered in place, not swapped out. */
+const emptyValueCard = computed(
+  () => resultType.value === 'value' && resolvedState.value === 'empty',
+)
+/** The reason, on the same supporting line the figure and comparison use. */
+const emptyLabel = computed(() =>
+  metric.value ? COPY.empty.title(resolveEmptyState(metric.value.id)) : '',
+)
+
 // A single-line "flow" time series (e.g. Conversations created) can show a delta;
 // the two-line Created-vs-closed comparison cannot (ambiguous), nor other charts.
 const deltaEligible = computed(() => {
@@ -168,17 +198,47 @@ const deltaEligible = computed(() => {
   return resultType.value === 'time_series' && sample.value?.lines?.length === 1
 })
 
+/** Movement smaller than this is noise, not news — below it the delta shows the change
+ *  but stays neutral. Previously 0.05%, which made a 0.2% wobble render as a red alarm
+ *  and left whole pages with no uncoloured card at all. 5% matches the noise floor the
+ *  comparison framework uses for efficiency metrics; per-metric overrides (pipeline value
+ *  and win rate are genuinely more volatile) would attach to MetricDef. */
+const FLAT_BAND_PCT = 5
+
 // Delta — direction-aware (lower-is-better metrics invert the colour).
 const delta = computed(() => {
   const m = metric.value
   const s = sample.value
   if (!m || !s || m.status !== 'ready' || !deltaEligible.value) return null
   const pct = ((s.value - s.previous) / (s.previous || 1)) * 100
+  // Arrow direction is a fact at any size; only the JUDGEMENT needs a threshold.
   const up = pct > 0.05
   const down = pct < -0.05
-  const good = m.lowerIsBetter ? down : up
-  const bad = m.lowerIsBetter ? up : down
-  return { pct: `${Math.abs(pct).toFixed(1)}%`, up, down, tone: good ? 'good' : bad ? 'bad' : 'flat' }
+  // One ordered scale over signed change, so every value lands in exactly one band —
+  // no gap where a change matches no rule. Positive = moved the good way.
+  const signed = m.lowerIsBetter ? -pct : pct
+  const tone = m.neutral
+    ? 'neutral'
+    : signed >= FLAT_BAND_PCT
+      ? 'good'
+      : signed <= -FLAT_BAND_PCT
+        ? 'bad'
+        : 'flat'
+  return { pct: `${Math.abs(pct).toFixed(1)}%`, up, down, tone }
+})
+
+/** leaf-600 rather than leaf-500: at the 12px this renders, leaf-500 is 3.55:1 on white
+ *  and fails WCAG AA (leaf-600 is 5.14:1). ⚠️ error-500 is 4.13:1 and also fails, but
+ *  it's the only error stop in design.md — fixing it needs a darker token. */
+const toneClass = computed(() => {
+  switch (delta.value?.tone) {
+    case 'good':
+      return 'text-leaf-600'
+    case 'bad':
+      return 'text-error-500'
+    default:
+      return 'text-grey-600' // flat (too small to matter) and neutral (not ours to judge)
+  }
 })
 
 // Delta row exists ONLY in the value state (fully hidden in every empty state),
@@ -189,7 +249,6 @@ const showDelta = computed(
     metric.value?.status === 'ready' &&
     resolvedState.value === 'value' &&
     !showEmptyData.value &&
-    showComparison.value &&
     !!delta.value,
 )
 
@@ -225,7 +284,7 @@ const skeletonBars = computed(() =>
 <template>
   <article
     v-if="metric"
-    class="group flex min-h-[152px] flex-col justify-between gap-4 overflow-hidden rounded-lg border border-grey-300 bg-white p-4"
+    class="group flex min-h-[160px] flex-col justify-between gap-4 overflow-hidden rounded-lg border border-grey-300 bg-white p-4"
   >
     <!-- Header: label + inline info icon · (chart legend) · More menu -->
     <header class="flex items-center gap-2">
@@ -333,7 +392,7 @@ const skeletonBars = computed(() =>
       <MetricSkeleton v-if="loading" :variant="skeletonVariant" :bars="skeletonBars" />
 
       <!-- Error — before every other state, so a failure never reads as data -->
-      <MetricErrorState v-else-if="errored" :min-height="errorMinHeight" :retrying="retrying" @retry="retry" />
+      <MetricErrorState v-else-if="errored" :min-height="bodyMinHeight" :retrying="retrying" @retry="retry" />
 
       <!-- Restricted -->
       <div v-else-if="metric.status === 'restricted'" class="flex flex-1 flex-col items-center justify-center gap-1 text-center">
@@ -342,7 +401,11 @@ const skeletonBars = computed(() =>
       </div>
 
       <!-- Empty state (one neutral pattern for every metric) -->
-      <MetricEmptyState v-else-if="resolvedState !== 'value'" :metric-id="metric.id" />
+      <MetricEmptyState
+        v-else-if="resolvedState !== 'value' && resultType !== 'value'"
+        :metric-id="metric.id"
+        :min-height="bodyMinHeight"
+      />
 
       <!-- Histogram -->
       <div v-else-if="resultType === 'histogram'" class="flex flex-1 flex-col">
@@ -414,37 +477,52 @@ const skeletonBars = computed(() =>
 
       <!-- Table -->
       <div v-else-if="resultType === 'table'" class="flex flex-1 flex-col">
-        <DataTable v-if="sample?.table" :columns="sample.table.columns" :rows="sample.table.rows" />
+        <DataTable v-if="sample?.table" :columns="tableColumns" :rows="sample.table.rows" />
       </div>
 
       <!-- Value (default) — number + trend, grouped and bottom-anchored (Figma 6986:72319) -->
       <div v-else class="flex flex-col gap-2">
+        <!-- Number + supporting figure share a baseline. At a narrow window the figure
+             drops to a second line; the card's min-height already reserves that row, so
+             it never pushes the card past its neighbours. -->
         <div class="flex flex-wrap items-baseline gap-x-2">
-          <span class="whitespace-nowrap text-[36px] font-bold leading-[40px] text-grey-900 tabular-nums">{{ formatted }}</span>
-          <!-- Supporting figure for rate metrics (e.g. the raw count behind a %) -->
-          <span v-if="sample?.secondary" class="text-sm font-medium text-grey-600 tabular-nums">{{ sample.secondary }}</span>
+          <!-- No placeholder glyph when empty: a dash next to "No deals in this period"
+               says the same thing twice. The sentence takes the value's place. -->
+          <span
+            v-if="!emptyValueCard"
+            class="whitespace-nowrap text-[36px] font-bold leading-[40px] text-grey-900 tabular-nums"
+          >{{ formatted }}</span>
+          <!-- Same 12/500 as the comparison line below it: both are supporting detail
+               for the number, so they read as one tier rather than two near-identical
+               sizes. It's also the type token design.md defines (text-Xs 12/500/16). -->
+          <span
+            v-if="sample?.secondary && !emptyValueCard"
+            class="text-xs font-medium leading-4 text-grey-600 tabular-nums"
+          >{{ sample.secondary }}</span>
+          <span v-if="emptyValueCard" class="text-xs font-medium leading-4 text-grey-600">{{
+            emptyLabel
+          }}</span>
         </div>
-        <div v-if="showDelta && delta" class="flex items-center gap-2">
-          <Icon
-            v-if="delta.up || delta.down"
-            :name="delta.up ? 'TrendUp' : 'TrendDown'"
-            :size="16"
-            :class="{
-              'text-leaf-500': delta.tone === 'good',
-              'text-error-500': delta.tone === 'bad',
-              'text-grey-600': delta.tone === 'flat',
-            }"
-          />
-          <p class="text-xs font-medium leading-4 text-grey-600">
-            <span
-              :class="{
-                'text-leaf-500': delta.tone === 'good',
-                'text-error-500': delta.tone === 'bad',
-                'text-grey-600': delta.tone === 'flat',
-              }"
-            >{{ delta.pct }}</span>
-            {{ ' ' }}{{ comparisonLabel }}
-          </p>
+        <!-- The comparison gets a line to itself, always — so it reads the same on every
+             card and keeps its "vs prev." label. -->
+        <div v-if="showDelta" class="flex min-w-0 items-center gap-2">
+          <div v-if="delta" class="flex min-w-0 items-center gap-2">
+            <Icon
+              v-if="delta.up || delta.down"
+              :name="delta.up ? 'TrendUp' : 'TrendDown'"
+              :size="16"
+              class="shrink-0"
+              :class="toneClass"
+            />
+            <!-- The "vs prev. N days" label is dropped when a supporting figure shares
+                 this line: both together overflow a 4-up card and truncating leaves an
+                 ellipsis that reads as breakage. The percentage is the data; the period is
+                 in the date picker and repeated on every other card. -->
+            <p class="truncate text-xs font-medium leading-4 text-grey-600">
+              <span :class="toneClass">{{ delta.pct }}</span>
+              {{ ' ' }}{{ comparisonLabel }}
+            </p>
+          </div>
         </div>
       </div>
   </article>

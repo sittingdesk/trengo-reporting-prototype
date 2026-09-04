@@ -20,6 +20,9 @@ export interface EmptyStateConfig {
 export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   first_response_time: { noun: 'customer tickets', icon: 'Inbox' },
   resolution_time_all: { noun: 'tickets', icon: 'Inbox' },
+  sla_compliance: { noun: 'measured tickets', icon: 'Inbox' },
+  first_response_compliance: { noun: 'tickets with a first-response target', icon: 'Inbox' },
+  resolution_compliance: { noun: 'measured tickets', icon: 'Inbox' },
   conversations_by_hour: { noun: 'tickets', icon: 'Inbox' },
   avg_csat: { noun: 'ratings', icon: 'EmotionSmile' },
   win_rate: { noun: 'decided deals', icon: 'Target' },
@@ -42,7 +45,7 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   conversations_by_channel: { noun: 'tickets', icon: 'Inbox' },
   new_contacts_by_channel: { noun: 'contacts', icon: 'Users' },
   new_vs_returning: { noun: 'contacts', icon: 'Users' },
-  calls_by_hour: { noun: 'calls', icon: 'Phone' },
+  voip_calls_by_day_hour: { noun: 'calls', icon: 'Phone' },
   call_volume: { noun: 'calls', icon: 'Phone' },
   deal_stage_funnel: { noun: 'deals', icon: 'Target' },
   avg_deal_size: { noun: 'deals', icon: 'Target' },
@@ -54,8 +57,11 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
 /** Copy template — the ONLY place empty/error-state wording lives. */
 export const COPY = {
   empty: {
+    // One line only. "Try a wider date range" used to sit under every empty card — 8× on
+    // Overview, 11× on Operate — and it was often wrong anyway (the range may already be
+    // months, or the real cause is an active channel/team filter). The title says what
+    // happened; the date picker is at the top of the page.
     title: (c: EmptyStateConfig) => `No ${c.noun ?? 'data'} in this period`,
-    subline: () => 'Try a wider date range',
   },
   // Error is an UNKNOWN, not a fact — never claim "none", never show a number.
   error: {

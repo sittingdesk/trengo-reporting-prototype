@@ -27,6 +27,9 @@ export interface MetricWidget {
   /** Width in the 12-column grid (1–12). Defaults by result type; the future
    *  drag-to-resize hook writes this. */
   span?: number
+  /** Force this widget to start a new row. Without it the grid backfills a trailing
+   *  gap with whatever fits — which drags a tall chart up beside short KPI cards. */
+  newRow?: boolean
 }
 
 /** A template widget is either a (mock) placeholder or a real metric widget. */
@@ -103,23 +106,25 @@ export const TEMPLATES: Template[] = [
     description: 'At-a-glance health and KPIs.',
     recommended: true,
     widgets: [
-      // Three even 3-up KPI rows, grouped by domain, via the value-card default
-      // (span 4). The heatmap takes its own full-width row (span 12 by default) so a
-      // tall chart never sits beside short KPIs.
+      // 4-up KPI rows via the value-card default (span 3) — the same card width Operate
+      // uses. Grouped by domain, and at this width the groups land on their own rows:
+      // four support KPIs, then the two voice ones, then the full-width heatmap, then
+      // sales. The two-slot gap beside Missed calls is the deliberate trailing gap — it
+      // sits on a domain boundary, and it's where "+ Add widget" will go.
       // Support
       { metricId: 'open_tickets' },
       { metricId: 'assigned_tickets' },
       { metricId: 'first_response_time' },
-      // Support + voice
       { metricId: 'resolution_time_all' },
+      // Voice
       { metricId: 'calls_volume' },
       { metricId: 'missed_calls' },
-      { metricId: 'calls_by_hour' }, // day × hour heatmap (replaced Tickets by hour)
-      // Sales — 4 cards at span 3 so the row fills (default span 4 would leave an orphan).
-      { metricId: 'win_rate', span: 3 },
-      { metricId: 'avg_deal_size', span: 3 },
-      { metricId: 'pipeline_value', span: 3 },
-      { metricId: 'average_sales_cycle', span: 3 },
+      { metricId: 'voip_calls_by_day_hour' }, // day × hour heatmap (replaced Tickets by hour)
+      // Sales
+      { metricId: 'win_rate' },
+      { metricId: 'avg_deal_size' },
+      { metricId: 'pipeline_value' },
+      { metricId: 'average_sales_cycle' },
     ],
   },
   {
@@ -142,18 +147,31 @@ export const TEMPLATES: Template[] = [
     description: 'Live operational performance.',
     recommended: true,
     widgets: [
-      // ONE card width for the whole page (span 3), not per-row tuning. Under
-      // drag-and-drop + resize you can't guarantee rows fill, so gaps have to look
+      // KPIs take the value-card default (span 3 → 4-up), same as every other page.
+      // Under drag-and-drop + resize you can't guarantee rows fill, so gaps have to look
       // deliberate rather than broken — a consistent column rhythm gives predictable
       // snap targets, and the trailing empty slot is where "+ Add widget" will live.
-      { metricId: 'first_response_time', span: 3 },
-      { metricId: 'resolution_time_all', span: 3 },
-      { metricId: 'time_to_answer', span: 3 },
-      { metricId: 'longest_wait_time', span: 3 },
-      { metricId: 'avg_call_duration', span: 3 },
-      { metricId: 'shortest_call_duration', span: 3 },
-      { metricId: 'longest_call_duration', span: 3 },
-      { metricId: 'created_vs_closed', span: 6 }, // 50/50 with wait-time-by-team
+      // SLA compliance is only present when the capability is on (metric
+      // `requires: 'sla'`). It leads the row deliberately: it's the verdict on the two
+      // timers that follow it. With SLA off the page is exactly as before; with it on,
+      // the 7 KPIs become 8 and the two rows fill completely.
+      { metricId: 'sla_compliance' },
+      // Temporarily hidden — bring back later. They split the strict headline into which
+      // promise broke, each with its own denominator (AI-only tickets have no
+      // first-response target). Metrics, mock and the shared verdict set all stay, so
+      // restoring is just uncommenting these two lines.
+      // { metricId: 'first_response_compliance' },
+      // { metricId: 'resolution_compliance' },
+      { metricId: 'first_response_time' },
+      { metricId: 'resolution_time_all' },
+      { metricId: 'time_to_answer' },
+      { metricId: 'longest_wait_time' },
+      { metricId: 'avg_call_duration' },
+      { metricId: 'shortest_call_duration' },
+      { metricId: 'longest_call_duration' },
+      // Starts a new row: the KPI block above leaves a trailing gap, and without this the
+      // grid would pull this 274px chart up beside two 160px cards.
+      { metricId: 'created_vs_closed', span: 6, newRow: true }, // 50/50 with wait-time-by-team
       { metricId: 'wait_time', span: 6 }, // avg queue wait (by team / over time)
       { metricId: 'workload_by_agent' },
       { metricId: 'performance_by_channel' },
