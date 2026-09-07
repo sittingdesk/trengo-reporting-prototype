@@ -51,6 +51,10 @@ export interface MetricSample {
   legendBelow?: boolean // render the line-chart legend below the chart (not header)
   /** Dashed reference line on a time chart (e.g. the period average). */
   referenceValue?: number
+  /** A qualifier for the whole widget, shown top-right in the card header — how
+   *  representative the number is, rather than another measurement. Header rather than a
+   *  footnote so it costs the card no height. */
+  note?: string
 }
 
 /** Mock agent roster for the "Workload by agent" table (large, to show scale). */
@@ -212,7 +216,10 @@ export function metricValue(
   def: MetricDef,
   signature: string,
   dateRange?: { start?: DateValue; end?: DateValue },
-  dimensionId?: string,
+  // Unused while no metric declares break-downs (the by-team wait-time view was the last
+  // one). Kept because the measure/break-down model is intact — any multi-view metric
+  // starts passing this again.
+  _dimensionId?: string,
 ): MetricSample {
   const seed = hashString(`${def.id}|${signature}`)
   const rng = mulberry32(seed)
@@ -244,17 +251,17 @@ export function metricValue(
     return { value, previous }
   }
 
-  // Average wait time, broken down by DATE. Same measure as the per-team view — only
-  // the group-by differs (that's the whole point of dimensions). Durations don't scale
-  // with the range length, so buckets only jitter around the base.
-  if (def.id === 'wait_time' && dimensionId === 'time') {
+  // Time to answer, per day. Durations don't scale with the range length, so buckets only
+  // jitter around the base. The base MUST match `time_to_answer` — this is the same
+  // measure at a finer grain, so a visible gap between the KPI and the chart would be a
+  // contradiction, not a nuance. (An earlier 0.65 factor modelled the registry's ~35% gap
+  // against the by-team view, which no longer exists.)
+  if (def.id === 'time_to_answer_over_time') {
     const bucketed = timeSeriesBuckets(dateRange?.start, dateRange?.end)
     const labels = bucketed.labels.length ? bucketed.labels : ['—']
-    const tsRng = mulberry32(hashString(`${def.id}|time|${signature}`))
-    // Queue wait only (VoIP1+2) vs the team view's 5-component total wait — the registry
-    // sizes that gap at ~35%, so show it rather than pretending the views agree.
+    const tsRng = mulberry32(hashString(`${def.id}|${signature}`))
     const data = labels.map(() =>
-      Math.max(5, Math.round(base * 0.65 * tmFactor * jitter(tsRng, 0.45))),
+      Math.max(5, Math.round(base * tmFactor * jitter(tsRng, 0.45))),
     )
     const avg = Math.round(data.reduce((a, b) => a + b, 0) / data.length)
     return {
@@ -375,22 +382,35 @@ export function metricValue(
     return { value: total, previous: total * jitter(rng, 0.2), labels, lines }
   }
 
+  // CSAT: the distribution IS the metric — the rate and the bars come from one set of
+  // responses so they can't disagree. Shape is deliberately realistic: mostly 5s and 4s
+  // with a small unhappy tail, which is the case a bare average hides.
+  if (def.id === 'avg_csat') {
+    const responses = Math.max(1, Math.round(120 * Math.sqrt(days / 7) * chFactor * tmFactor))
+    // Share of responses per rating, 5★ → 1★. Sums to 1.
+    const shape = [0.62, 0.21, 0.08, 0.05, 0.04].map((w) => Math.max(0.01, w * jitter(rng, 0.25)))
+    const sum = shape.reduce((a, b) => a + b, 0)
+    const counts = shape.map((w) => Math.max(0, Math.round((w / sum) * responses)))
+    const total = counts.reduce((a, b) => a + b, 0) || 1
+    const satisfied = counts[0] + counts[1] // 5★ + 4★
+    // Response rate = answered ÷ surveys SENT — a different denominator from the
+    // satisfaction rate above (answered ÷ answered-and-rated), which is why it sits in the
+    // header rather than on the same line: two denominators side by side read as one.
+    // ⚠️ registry `csat_response_rate` is SAFE_DIVIDE(..., <OFFERED_COUNT_TBD>) — the
+    // denominator is undefined, so this figure is illustrative only.
+    const offered = Math.max(total, Math.round(total / Math.min(0.9, Math.max(0.15, 0.34 * jitter(rng, 0.2)))))
+    return {
+      value: satisfied / total,
+      previous: (satisfied / total) * jitter(rng, 0.05),
+      secondary: `${fmtCount(satisfied)} of ${fmtCount(total)} responses`,
+      note: `Response rate ${fmtPercent(total / offered)}`,
+      labels: ['5 ★', '4 ★', '3 ★', '2 ★', '1 ★'],
+      series: counts,
+    }
+  }
+
   // Breakdown bars: one bar per channel category (WhatsApp / Live chat / Email / Voice).
   if (def.resultType === 'breakdown') {
-    // Avg queue wait (seconds) per team — durations don't scale by subset (the
-    // per-signature seed varies them by filter); team filter narrows which teams show.
-    if (def.id === 'wait_time') {
-      const teams = tm === 'all' ? TEAMS : TEAMS.filter((t) => tm.split(',').includes(t.id))
-      const rows = teams
-        .map((t) => ({ label: t.label, value: Math.max(5, Math.round(base * jitter(rng, 0.5))) }))
-        .sort((a, b) => b.value - a.value) // longest wait first — the operational signal
-      return {
-        value: rows.reduce((a, r) => a + r.value, 0),
-        previous: 0,
-        labels: rows.map((r) => r.label),
-        series: rows.map((r) => r.value),
-      }
-    }
     const labels = CATALOG.map((c) => c.label)
     const perChannel = (base * chFactor * tmFactor * Math.sqrt(days / 7)) / labels.length
     const series = labels.map(() => Math.max(0, Math.round(perChannel * jitter(rng, 0.5))))

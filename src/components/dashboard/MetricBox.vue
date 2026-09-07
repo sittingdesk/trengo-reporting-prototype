@@ -180,6 +180,14 @@ const resolvedState = computed<CardState>(() => {
   return noEvents && !isCount ? 'empty' : 'value'
 })
 
+/** Header decorations — legends, per-series totals, the widget note — describe a body
+ *  that is present and real. An errored card renders none of them: a failed load showing
+ *  "Inbound 28 · Outbound 64 · Total 92" above "Couldn't load this widget" is the exact
+ *  thing the error state exists to prevent. */
+const showHeaderExtras = computed(
+  () => resolvedState.value === 'value' && !loading.value && !errored.value,
+)
+
 /** A value card with nothing to show — rendered in place, not swapped out. */
 const emptyValueCard = computed(
   () => resultType.value === 'value' && resolvedState.value === 'empty',
@@ -304,8 +312,15 @@ const skeletonBars = computed(() =>
           </span>
         </Tooltip>
       </div>
+      <!-- Widget-level qualifier (e.g. CSAT's response rate): how representative the
+           number is, not another measurement. Sits where chart legends sit, so it costs
+           no card height and reads as metadata rather than a second headline. -->
+      <span
+        v-if="sample?.note && showHeaderExtras"
+        class="shrink-0 text-xs leading-5 text-grey-600 tabular-nums"
+      >{{ sample.note }}</span>
       <div
-        v-if="resultType === 'histogram' && resolvedState === 'value' && !loading"
+        v-if="resultType === 'histogram' && showHeaderExtras"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-leaf-400" /> Today</span>
@@ -313,7 +328,7 @@ const skeletonBars = computed(() =>
       </div>
       <!-- Stacked time-series (e.g. Call volume): legend enriched with per-series totals + Total -->
       <div
-        v-else-if="resultType === 'time_series' && metric.stacked && resolvedState === 'value' && seriesTotals && !loading"
+        v-else-if="resultType === 'time_series' && metric.stacked && seriesTotals && showHeaderExtras"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span v-for="item in seriesTotals.items" :key="item.name" class="flex items-center gap-1.5">
@@ -323,7 +338,7 @@ const skeletonBars = computed(() =>
         <span class="flex items-center gap-1.5">Total <span class="font-semibold tabular-nums text-grey-900">{{ fmtCount(seriesTotals.total) }}</span></span>
       </div>
       <div
-        v-else-if="resultType === 'time_series' && !metric.stacked && resolvedState === 'value' && sample?.lines && sample.lines.length > 1 && !sample?.legendBelow && !loading"
+        v-else-if="resultType === 'time_series' && !metric.stacked && sample?.lines && sample.lines.length > 1 && !sample?.legendBelow && showHeaderExtras"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span v-for="l in sample.lines" :key="l.name" class="flex items-center gap-1.5">
@@ -422,7 +437,7 @@ const skeletonBars = computed(() =>
       <!-- Time series — line by default, or stacked bars (e.g. Call volume) -->
       <div v-else-if="resultType === 'time_series'" class="flex flex-1 flex-col">
         <BarChart
-          v-if="(metric.stacked || dimension?.viz === 'bar') && sample?.lines && sample?.labels"
+          v-if="(metric.stacked || (dimension?.viz ?? metric.viz) === 'bar') && sample?.lines && sample?.labels"
           :labels="sample.labels"
           :series="sample.lines"
           :legend="false"
@@ -447,6 +462,15 @@ const skeletonBars = computed(() =>
 
       <!-- Breakdown (bar chart: one bar per category, or two series over time) -->
       <div v-else-if="resultType === 'breakdown'" class="flex flex-1 flex-col">
+        <!-- A breakdown can carry a headline: the rate you glance at, with the spread
+             underneath explaining it. Rendered only when the mock supplies a supporting
+             figure, so every other breakdown chart is unchanged.
+             The chart gives back exactly what the headline takes (40px number + 12px gap
+             = 52), so the card still measures 274px and can sit beside any other chart. -->
+        <div v-if="sample?.secondary" class="mb-3 flex flex-wrap items-baseline gap-x-2">
+          <span class="whitespace-nowrap text-[36px] font-bold leading-[40px] text-grey-900 tabular-nums">{{ formatted }}</span>
+          <span class="text-xs font-medium leading-4 text-grey-600 tabular-nums">{{ sample.secondary }}</span>
+        </div>
         <BarChart
           v-if="sample?.labels && (sample?.series || sample?.lines)"
           :labels="sample.labels"
@@ -455,7 +479,7 @@ const skeletonBars = computed(() =>
           :legend="false"
           :unit="metric.unit === 'seconds' ? 'duration' : 'count'"
           :show-all-labels="true"
-          :height="CHART_HEIGHT"
+          :height="sample?.secondary ? CHART_HEIGHT - 52 : CHART_HEIGHT"
         />
         <p v-if="metric.footnote" class="mt-2 text-xs text-grey-500">{{ metric.footnote }}</p>
       </div>

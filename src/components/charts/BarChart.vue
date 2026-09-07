@@ -30,6 +30,8 @@ const props = withDefaults(
   }>(),
   {
     height: CHART_HEIGHT,
+    // Only meaningful on the hour-of-day histogram, which pairs it with `average`.
+    // Never shown for a single-series chart (see the tooltip callback).
     seriesLabel: 'Today',
     averageLabel: 'Average',
     legend: true,
@@ -148,7 +150,14 @@ function build() {
           boxPadding: 4,
           padding: 10,
           callbacks: {
-            label: (ctx: any) => `${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${fmtVal(ctx.parsed.y)}`,
+            // Only name the series when there's more than one to tell apart. A single
+            // dataset inherited `seriesLabel`'s default and rendered "Today: 195" on
+            // every categorical bar — wrong twice over: it isn't today, it's the total
+            // for the selected range, and the category is already the tooltip's title.
+            label: (ctx: any) => {
+              const named = ctx.chart.data.datasets.length > 1 && ctx.dataset.label
+              return `${named ? ctx.dataset.label + ': ' : ''}${fmtVal(ctx.parsed.y)}`
+            },
           },
         },
       },

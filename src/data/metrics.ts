@@ -77,6 +77,10 @@ export interface MetricDef {
   footnote?: string
   /** Render a time_series as stacked bars (e.g. Inbound vs Outbound) instead of lines. */
   stacked?: boolean
+  /** Picks the rendering when a result type supports more than one — a time series can be
+   *  bars or a line. Same field as `MetricDimension.viz`, at the measure level for a
+   *  metric that has no break-downs. */
+  viz?: 'bar' | 'line'
   /** CSV header names for breakdown widgets (dimension + measure columns). */
   csvColumns?: { dimension: string; measure: string }
   /** Break-downs this measure supports. >1 renders a switcher in the card header;
@@ -188,14 +192,30 @@ export const METRICS: MetricDef[] = [
   },
   {
     // registry: csat_average_score (no pages tag) — we place it on Improve
+    // registry: needs TWO small entries, both derived from csat_ticket_rating on
+    // trengodb__csat_tickets (which exists — no new events, unlike the SLA asks):
+    //   headline → SAFE_DIVIDE(COUNTIF(csat_ticket_rating >= 4), COUNT(*))
+    //   bars     → COUNT(*) GROUP BY csat_ticket_rating
+    //
+    // Replaced a value card showing "92%", which was csat_average_score (AVG of the raw
+    // rating) rescaled to look like a percentage. The registry is explicit that it is an
+    // "average rating on the native CSAT scale, NOT a row count" — so the old card
+    // borrowed the credibility of a rate for a different calculation. Every support tool
+    // headlines a rate and supports it with the spread; nobody headlines a raw average.
+    //
+    // ⚠️ ASSUMES A 1–5 SCALE. The registry only says "raw scale as stored in Trengo" and
+    // never says what it is; 1–5 is what the original copy spec stated. If it's 1–10 or
+    // thumbs, the 4–5 bucketing and the bar count both change.
     id: 'avg_csat',
-    label: 'Average CSAT',
+    label: 'Customer satisfaction',
     unit: 'percentage',
-    resultType: 'value',
+    resultType: 'breakdown',
     status: 'ready',
     category: 'quality',
-    base: 0.92,
-    caveat: 'Average rating from CSAT surveys answered in this period, shown as a percentage of the maximum score.',
+    base: 0.83, // share rated 4–5
+    caveat:
+      'Share of answered surveys rated 4 or 5 out of 5. The bars show every rating, so a good average with a tail of unhappy customers is still visible.',
+    csvColumns: { dimension: 'rating', measure: 'responses' },
   },
   {
     // registry: win_rate [Overview]
@@ -221,7 +241,8 @@ export const METRICS: MetricDef[] = [
   },
   // --- Operate page ---
   {
-    // registry: voip_avg_wait_time_suite [Operate] — ⚠️ its registry LABEL is 'Average wait time', which collides with our wait_time card
+    // registry: voip_avg_wait_time_suite [Operate] — its registry LABEL is 'Average wait
+    // time'; nothing in our UI carries that name any more, so the collision is display-side only
     // registry: voip_avg_wait_time_suite [Operate] — the entry itself says it "serves the
     // Operate page's 'Time to answer' row". Renamed from "Call wait time", which was
     // indistinguishable from the Average wait time card on the same page.
@@ -234,7 +255,7 @@ export const METRICS: MetricDef[] = [
     base: 42, // ~42s
     lowerIsBetter: true,
     caveat:
-      "Average queue wait before an agent picks up. Doesn't include IVR or transfer time — see Average wait time for that.",
+      "Average queue wait before an agent picks up, across answered calls. Doesn't include IVR or transfer time — see Average wait time for that.",
   },
   {
     // registry: voip_longest_wait_time [Operate] — now page-tagged, closing the "which
@@ -249,7 +270,7 @@ export const METRICS: MetricDef[] = [
     base: 380, // ~6m20s — well above the 42s average so the pair reads sensibly
     lowerIsBetter: true,
     caveat:
-      'Longest single queue wait in this period. One unusual call can dominate this number.',
+      "Longest single queue wait before a caller was answered. Callers who hung up aren't counted, and one unusual call can dominate this number.",
   },
   {
     // Registry: voip_avg_duration (pages: [Operate]). NOTE: that entry lists no filters
@@ -329,38 +350,25 @@ export const METRICS: MetricDef[] = [
     caveat: 'The same metrics for every channel, side by side. Low-volume channels can look volatile.',
   },
   {
-    // One MEASURE, two break-downs — each backed by its OWN registry entry, which is
-    // why each carries its own caveat: the two cover different populations and the
-    // registry sizes the gap at ~35%.
-    //   team → average_wait_time_by_team    (5-component total wait, VoIP2, incl. abandoned)
-    //   time → voip_wait_time_by_day_suite  (queue wait only, VoIP1 + VoIP2)
-    id: 'wait_time',
-    label: 'Average wait time',
+    // registry: voip_wait_time_by_day_suite — "same population as voip_avg_wait_time,
+    // bucketed by day", i.e. the Time to answer KPI at a finer grain. Hence the name and
+    // the matching base: they are one measure, and must never disagree on screen.
+    //
+    // The former "By team" view (average_wait_time_by_team) was REMOVED 2026-09-07 on the
+    // data engineer's recommendation — Flow 1 / Flow 2 complexity. The registry backs it:
+    // that metric is VoIP2 only "doubly so" (team-attribution gap, plus
+    // voip_call_total_wait_time doesn't exist for VoIP1 at all), so a by-team number would
+    // silently drop every VoIP1 call.
+    id: 'time_to_answer_over_time',
+    label: 'Time to answer over time',
     unit: 'seconds',
-    resultType: 'breakdown', // fallback; the active dimension overrides it
+    resultType: 'time_series',
+    viz: 'bar',
     status: 'ready',
     category: 'voice',
-    base: 120, // ~2m average queue wait
+    base: 42, // matches time_to_answer — same measure, finer grain
     lowerIsBetter: true,
-    caveat: 'Average time callers wait before being answered.',
-    csvColumns: { dimension: 'team', measure: 'avg_wait_seconds' },
-    dimensions: [
-      {
-        id: 'team',
-        label: 'By team',
-        resultType: 'breakdown',
-        caveat:
-          'Total wait — queue, IVR, forward and transfer — grouped by the answering agent\'s team, including calls the caller abandoned. Runs higher than the Over time view, which counts queue time only.',
-      },
-      {
-        id: 'time',
-        label: 'Over time',
-        resultType: 'time_series',
-        viz: 'bar',
-        caveat:
-          'Average queue wait per day. Counts queue time only, so it runs lower than the By team view.',
-      },
-    ],
+    caveat: 'Average queue wait per day. Same measure as Time to answer, shown day by day.',
   },
   // --- Understand page ---
   {

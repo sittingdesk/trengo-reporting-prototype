@@ -171,8 +171,8 @@ export const TEMPLATES: Template[] = [
       { metricId: 'longest_call_duration' },
       // Starts a new row: the KPI block above leaves a trailing gap, and without this the
       // grid would pull this 274px chart up beside two 160px cards.
-      { metricId: 'created_vs_closed', span: 6, newRow: true }, // 50/50 with wait-time-by-team
-      { metricId: 'wait_time', span: 6 }, // avg queue wait (by team / over time)
+      { metricId: 'created_vs_closed', span: 6, newRow: true }, // 50/50 with the wait-time trend
+      { metricId: 'time_to_answer_over_time', span: 6 }, // the Time to answer KPI, per day
       { metricId: 'workload_by_agent' },
       { metricId: 'performance_by_channel' },
     ],
@@ -184,7 +184,7 @@ export const TEMPLATES: Template[] = [
     recommended: true,
     // Quality signals live here: avg_csat is our only `quality`-category metric, and
     // Overview is otherwise volume/efficiency/voice/sales.
-    widgets: [{ metricId: 'avg_csat' }],
+    widgets: [{ metricId: 'avg_csat', span: 6 }],
   },
   {
     id: 'automate',
