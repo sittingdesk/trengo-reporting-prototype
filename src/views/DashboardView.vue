@@ -5,9 +5,9 @@
 // widgets. Resolves both route params and owns every route concern; the header, tab row
 // and grid are all pure components.
 //
-// Header + tab row are pinned as ONE block: filters that scroll away are unreachable
-// exactly when you're looking at the widgets they govern, and a tab row that scrolls
-// while the header stays would separate two halves of the same chrome.
+// No container and no sticky positioning: all three sit directly on the page background
+// and scroll with the widgets, so the dashboard reads as one page rather than as chrome
+// wrapped around content.
 import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkspace } from '@/composables/useWorkspace'
@@ -34,10 +34,8 @@ watch(
 
 <template>
   <div v-if="dashboard && tab" class="flex min-h-full flex-col">
-    <div class="sticky top-0 z-10 bg-white">
-      <DashboardHeader :dashboard="dashboard" />
-      <TabRow :dashboard="dashboard" :active-tab-id="tab.id" />
-    </div>
+    <DashboardHeader :dashboard="dashboard" />
+    <TabRow :dashboard="dashboard" :active-tab-id="tab.id" />
     <WidgetGrid :widgets="tab.widgets" :tab-name="tab.name" />
   </div>
 </template>

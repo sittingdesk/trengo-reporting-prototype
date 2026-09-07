@@ -6,6 +6,9 @@
 // width. Deliberately no count badges — those earn their place when a tab holds
 // countable items (contacts, notes), but a widget count tells the user nothing.
 //
+// The hairline is the one line kept when the header's container was removed: the active
+// underline has to sit on something, or it floats.
+//
 // Read-only in this step. Add / rename / remove arrive in steps 11–13.
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'

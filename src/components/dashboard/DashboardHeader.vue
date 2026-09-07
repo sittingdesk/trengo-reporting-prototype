@@ -6,8 +6,8 @@
 // the tab, and tabs inherit them.
 //
 // The "Filters changed" marker, Reset and Save arrive in step 9 — this step is
-// identification plus the filters themselves. Sticky positioning belongs to
-// DashboardView, which pins this and the tab row together.
+// identification plus the filters themselves. No background of its own: it sits on the
+// page, not in a bar.
 import { computed } from 'vue'
 import DateRangeFilter from '@/components/layout/filters/DateRangeFilter.vue'
 import ChannelFilter from '@/components/layout/filters/ChannelFilter.vue'
@@ -31,7 +31,7 @@ const ownerLine = computed(() => {
 </script>
 
 <template>
-  <header class="px-8 pb-4 pt-5">
+  <header class="px-8 pb-4 pt-6">
     <div class="flex items-start justify-between gap-4">
       <!-- Identity -->
       <div class="min-w-0">
