@@ -19,6 +19,7 @@ import {
   DEFAULT_SCOPE,
   type Dashboard,
   type DashboardTab,
+  type SavedScope,
 } from '@/data/dashboards'
 
 /** Kept as an alias so existing consumers read naturally. */
@@ -191,6 +192,14 @@ export function useWorkspace() {
     }
   }
 
+  /** Write the working filters onto a dashboard. Refused on the read-only default —
+   *  step 14 turns that into an offer to duplicate it first. */
+  function saveScope(dashboardId: string, scope: SavedScope) {
+    const d = getDashboard(dashboardId)
+    if (!d || d.readonly) return
+    d.scope = scope
+  }
+
   /** Remove a whole dashboard. The Trengo default can't be removed. */
   function removeDashboard(id: string) {
     const d = getDashboard(id)
@@ -251,6 +260,7 @@ export function useWorkspace() {
     firstTabOf,
     dashboardPath,
     tabPath,
+    saveScope,
     removeDashboard,
     createFromTemplate,
     removeTab,

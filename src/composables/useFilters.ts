@@ -139,6 +139,11 @@ export function useFilters() {
     setPreset(scope.presetId)
   }
 
+  /** True while the date comes from the calendar rather than a preset. A saved scope
+   *  can only hold a preset — an absolute range would freeze the day it was saved — so
+   *  this is what gates "Save to dashboard". */
+  const isCustomRange = computed(() => presetId.value === null)
+
   /** The working state as a savable scope. Normalised: "everything" is stored as an
    *  empty list, never as a full one, so two equivalent scopes compare equal. */
   function currentScope(): SavedScope {
@@ -148,6 +153,20 @@ export function useFilters() {
         state.channelIds.length === CHANNEL_INSTANCE_IDS.length ? [] : [...state.channelIds],
       teamIds: state.teamIds.length === TEAMS.length ? [] : [...state.teamIds],
     }
+  }
+
+  /** Does the working state differ from a dashboard's saved scope? A custom range is
+   *  always a difference: no saved scope can hold one, so it can't match. */
+  function isDirty(saved: SavedScope): boolean {
+    if (isCustomRange.value) return true
+    const cur = currentScope()
+    const same = (a: string[], b: string[]) =>
+      a.length === b.length && [...a].sort().join() === [...b].sort().join()
+    return (
+      cur.presetId !== saved.presetId ||
+      !same(cur.channelIds, saved.channelIds) ||
+      !same(cur.teamIds, saved.teamIds)
+    )
   }
 
   const setChannels = (ids: string[]) => (state.channelIds = ids)
@@ -181,5 +200,7 @@ export function useFilters() {
     setRange,
     applyScope,
     currentScope,
+    isCustomRange,
+    isDirty,
   }
 }
