@@ -21,7 +21,7 @@ import { TEMPLATES } from '@/config/templates'
 import { useWorkspace } from '@/composables/useWorkspace'
 
 const router = useRouter()
-const { galleryOpen, createFromTemplate, closeGallery } = useWorkspace()
+const { galleryOpen, createFromTemplate, closeGallery, tabPath } = useWorkspace()
 
 // Per-template leading icon + accent tint (presentation only).
 const META: Record<string, { icon: string; tint: string }> = {
@@ -70,7 +70,7 @@ function onOpenChange(open: boolean) {
 function create() {
   const tab = createFromTemplate(selectedId.value)
   closeGallery()
-  router.push(`/d/${tab.id}`)
+  router.push(tabPath(tab.id))
 }
 </script>
 

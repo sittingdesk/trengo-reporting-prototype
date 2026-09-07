@@ -21,6 +21,7 @@ const {
   allowScenarioToggle,
   openGallery,
   removeTab,
+  tabPath,
   setScenario,
   setIteration,
 } = useWorkspace()
@@ -40,7 +41,7 @@ const dataStates: { id: DataState; label: string }[] = [
 
 // After changing scenario/iteration, land on the first visible tab (or welcome).
 function goToFirstTab() {
-  router.push(tabs.value.length ? `/d/${tabs.value[0].id}` : '/welcome')
+  router.push(tabs.value.length ? tabPath(tabs.value[0].id) : '/welcome')
 }
 
 function switchScenario(id: Scenario) {
@@ -74,7 +75,7 @@ function changeIteration(id: string) {
       <RouterLink
         v-for="tab in tabs"
         :key="tab.id"
-        :to="`/d/${tab.id}`"
+        :to="tabPath(tab.id)"
         class="group flex items-center gap-2 rounded-base px-2.5 py-2 text-sm font-medium text-grey-700 transition-colors hover:bg-grey-200"
         active-class="!bg-grey-200 !text-grey-900"
       >
