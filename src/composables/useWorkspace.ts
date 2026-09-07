@@ -135,6 +135,20 @@ export function useWorkspace() {
     return state.dashboards.find((d) => d.tabs.some((t) => t.id === tabId))
   }
 
+  /** A dashboard's first tab that the current iteration doesn't hide. */
+  function firstTabOf(dashboardId: string): DashboardTab | undefined {
+    const d = getDashboard(dashboardId)
+    if (!d) return undefined
+    const allowed = new Set(tabs.value.map((t) => t.id))
+    return d.tabs.find((t) => allowed.has(t.id))
+  }
+
+  /** Route to a dashboard — lands on its first visible tab. */
+  function dashboardPath(dashboardId: string): string {
+    const t = firstTabOf(dashboardId)
+    return t ? `/d/${dashboardId}/${t.id}` : '/welcome'
+  }
+
   /** Route to a tab — the one place that knows the URL shape. */
   function tabPath(tabId: string): string {
     const d = dashboardOf(tabId)
@@ -171,6 +185,13 @@ export function useWorkspace() {
     if (!d.readonly && d.tabs.length === 0) {
       state.dashboards = state.dashboards.filter((x) => x.id !== d.id)
     }
+  }
+
+  /** Remove a whole dashboard. The Trengo default can't be removed. */
+  function removeDashboard(id: string) {
+    const d = getDashboard(id)
+    if (!d || d.readonly) return
+    state.dashboards = state.dashboards.filter((x) => x.id !== id)
   }
 
   /** Switch demo scenario — persists and applies its starting state. */
@@ -223,7 +244,10 @@ export function useWorkspace() {
     getDashboard,
     getTab,
     dashboardOf,
+    firstTabOf,
+    dashboardPath,
     tabPath,
+    removeDashboard,
     createFromTemplate,
     removeTab,
     setScenario,

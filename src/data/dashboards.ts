@@ -12,6 +12,8 @@
 // ⚠️ Mock: there is no backend. The Trengo default is rebuilt from the templates on every
 // load so template edits keep flowing into it; user dashboards are snapshots.
 import { getTemplate, QUESTION_LED_TEMPLATE_IDS, type Widget } from '@/config/templates'
+import { DATE_PRESETS, TEAMS } from '@/data/filters'
+import { CHANNEL_INSTANCE_IDS } from '@/data/channelData'
 
 /** Date presets a scope may store. A preset re-resolves every day, so a saved scope can
  *  never go stale — which is why a scope stores a preset id and never two dates. */
@@ -58,6 +60,24 @@ export interface Dashboard {
   tabs: DashboardTab[]
   /** The Trengo default can't be edited — adding a tab offers to duplicate it first. */
   readonly: boolean
+}
+
+/** Human-readable saved scope for the sidebar subtitle — "Last 7 days", or
+ *  "Last 30 days · 2 channels" when something is actually narrowed.
+ *
+ *  Only mentions filters that NARROW the view. "Last 7 days · All channels · All teams"
+ *  truncates in a 240px sidebar and spends its width on the two words that carry no
+ *  information; the date is the part that always matters. */
+export function scopeLabel(scope: SavedScope): string {
+  const parts = [DATE_PRESETS.find((p) => p.id === scope.presetId)?.label ?? 'Custom range']
+  // Empty means "all"; so does a full selection, since that's how useFilters starts out.
+  const nCh = scope.channelIds.length
+  const nTm = scope.teamIds.length
+  if (nCh > 0 && nCh < CHANNEL_INSTANCE_IDS.length) {
+    parts.push(`${nCh} ${nCh === 1 ? 'channel' : 'channels'}`)
+  }
+  if (nTm > 0 && nTm < TEAMS.length) parts.push(`${nTm} ${nTm === 1 ? 'team' : 'teams'}`)
+  return parts.join(' · ')
 }
 
 export const TRENGO_DASHBOARD_ID = 'trengo'

@@ -1,18 +1,24 @@
 <script setup lang="ts">
-// TabsSidebar — the second left sidebar: the user's dashboard TABS.
+// TabsSidebar — the second left sidebar: the user's DASHBOARDS.
 //
-// Tabs are user content (created from templates), so they're text-only (no
-// icons) and the active one is highlighted. "+ New" opens the template gallery.
+// Two groups: "Trengo" (the default, read-only) and "Your dashboards". Each row shows
+// its saved scope as a subtitle, so two dashboards are told apart by what they actually
+// look at rather than by name alone. Clicking one opens its first tab; the tabs
+// themselves live in the tab row inside the dashboard, not here.
 // At the bottom sits a clearly-labelled PROTOTYPE scenario switcher to demo the
 // "existing customer" (seeded) vs "new customer" (empty) onboarding states.
-import { RouterLink, useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/Icon.vue'
 import { useWorkspace, type Scenario } from '@/composables/useWorkspace'
 import { useSettings, type DataState } from '@/composables/useSettings'
 import { SELECTABLE_ITERATIONS } from '@/config/iterations'
+import { scopeLabel } from '@/data/dashboards'
 
+const route = useRoute()
 const router = useRouter()
 const {
+  dashboards,
   tabs,
   scenario,
   iterationId,
@@ -20,11 +26,21 @@ const {
   allowRemoveDashboard,
   allowScenarioToggle,
   openGallery,
-  removeTab,
+  removeDashboard,
+  dashboardPath,
   tabPath,
   setScenario,
   setIteration,
 } = useWorkspace()
+
+/** The dashboard currently open, straight from the route. */
+const activeId = computed(() => String(route.params.dashboardId ?? ''))
+
+// "Trengo" is whatever the workspace ships as the default; everything else is the
+// user's. Splitting on `readonly` rather than on id keeps this true if there's ever
+// more than one shipped dashboard.
+const trengoDashboards = computed(() => dashboards.value.filter((d) => d.readonly))
+const userDashboards = computed(() => dashboards.value.filter((d) => !d.readonly))
 const { slaEnabled, toggleSla, dataState, setDataState } = useSettings()
 
 const scenarios: { id: Scenario; label: string }[] = [
@@ -70,35 +86,65 @@ function changeIteration(id: string) {
       </button>
     </div>
 
-    <!-- Tab list (text only, no icons) -->
-    <nav class="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 scroll-thin">
-      <RouterLink
-        v-for="tab in tabs"
-        :key="tab.id"
-        :to="tabPath(tab.id)"
-        class="group flex items-center gap-2 rounded-base px-2.5 py-2 text-sm font-medium text-grey-700 transition-colors hover:bg-grey-200"
-        active-class="!bg-grey-200 !text-grey-900"
-      >
-        <span class="flex-1 truncate">{{ tab.name }}</span>
-        <!-- Remove on hover -->
-        <button
-          v-if="allowRemoveDashboard"
-          class="hidden size-5 items-center justify-center rounded-sm text-grey-500 hover:bg-grey-300 hover:text-grey-900 group-hover:flex"
-          title="Remove dashboard"
-          @click.prevent.stop="removeTab(tab.id)"
+    <!-- Dashboard list, in two groups -->
+    <nav class="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-1 scroll-thin" aria-label="Dashboards">
+      <div v-if="trengoDashboards.length">
+        <div class="px-2.5 pb-1 text-xs font-semibold text-grey-600">Trengo</div>
+        <RouterLink
+          v-for="d in trengoDashboards"
+          :key="d.id"
+          :to="dashboardPath(d.id)"
+          class="flex flex-col gap-0.5 rounded-base px-2.5 py-2 transition-colors hover:bg-grey-200"
+          :class="d.id === activeId ? 'bg-grey-200' : ''"
         >
-          <Icon name="cross" :size="14" />
-        </button>
-      </RouterLink>
+          <span
+            class="truncate text-sm font-medium"
+            :class="d.id === activeId ? 'text-grey-900' : 'text-grey-700'"
+          >{{ d.name }}</span>
+          <span class="truncate text-xs text-grey-600">{{ scopeLabel(d.scope) }}</span>
+        </RouterLink>
+      </div>
 
-      <!-- Add another -->
-      <button
-        v-if="allowNewDashboard"
-        class="mt-1 flex items-center gap-2 rounded-base px-2.5 py-2 text-sm font-medium text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900"
-        @click="openGallery()"
-      >
-        <span class="text-base leading-none">+</span> New dashboard
-      </button>
+      <div>
+        <div class="px-2.5 pb-1 text-xs font-semibold text-grey-600">Your dashboards</div>
+        <RouterLink
+          v-for="d in userDashboards"
+          :key="d.id"
+          :to="dashboardPath(d.id)"
+          class="group flex items-center gap-2 rounded-base px-2.5 py-2 transition-colors hover:bg-grey-200"
+          :class="d.id === activeId ? 'bg-grey-200' : ''"
+        >
+          <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span
+              class="truncate text-sm font-medium"
+              :class="d.id === activeId ? 'text-grey-900' : 'text-grey-700'"
+            >{{ d.name }}</span>
+            <span class="truncate text-xs text-grey-600">{{ scopeLabel(d.scope) }}</span>
+          </span>
+          <!-- Remove on hover -->
+          <button
+            v-if="allowRemoveDashboard"
+            class="hidden size-5 shrink-0 items-center justify-center rounded-sm text-grey-500 hover:bg-grey-300 hover:text-grey-900 group-hover:flex"
+            title="Remove dashboard"
+            @click.prevent.stop="removeDashboard(d.id)"
+          >
+            <Icon name="cross" :size="14" />
+          </button>
+        </RouterLink>
+
+        <p v-if="!userDashboards.length" class="px-2.5 py-1 text-xs text-grey-600">
+          None yet.
+        </p>
+
+        <!-- New dashboard sits at the bottom of the list -->
+        <button
+          v-if="allowNewDashboard"
+          class="mt-1 flex w-full items-center gap-2 rounded-base px-2.5 py-2 text-sm font-medium text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900"
+          @click="openGallery()"
+        >
+          <span class="text-base leading-none">+</span> New dashboard
+        </button>
+      </div>
     </nav>
 
     <!-- Prototype-only controls -->
