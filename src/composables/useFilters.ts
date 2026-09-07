@@ -1,7 +1,13 @@
-// useFilters — the global filter state (channel / team / date range).
+// useFilters — the WORKING filter state (channel / team / date range).
 //
-// Module-level reactive singleton, mirroring useWorkspace. The top-bar filters
-// read and write this.
+// Module-level reactive singleton, mirroring useWorkspace. The dashboard header's
+// filters read and write this.
+//
+// A dashboard owns a SAVED scope; this is the working copy. Opening a dashboard calls
+// `applyScope`, and from then on the two can diverge — which is what step 9's "Filters
+// changed" marker reports. `currentScope()` reads the working state back out in savable
+// form, and normalises "everything selected" to an empty array so a saved scope has one
+// canonical shape.
 //
 // ⚠️ Visual only: nothing actually filters data yet. The date range can be set
 // from a preset (Last 7 days, This month, …) or by picking start/end on the
@@ -16,8 +22,9 @@ import {
   getLocalTimeZone,
   type DateValue,
 } from '@internationalized/date'
-import { DATE_PRESETS } from '@/data/filters'
+import { DATE_PRESETS, TEAMS } from '@/data/filters'
 import { CHANNEL_INSTANCE_IDS } from '@/data/channelData'
+import type { SavedScope, DatePresetId } from '@/data/dashboards'
 
 export interface DateRange {
   start: DateValue | undefined
@@ -124,6 +131,25 @@ export function useFilters() {
     return `vs prev. ${n} ${n === 1 ? 'day' : 'days'}`
   })
 
+  /** Apply a dashboard's saved scope — called when one opens. An empty list in the
+   *  scope means "all", which the working state represents as every id selected. */
+  function applyScope(scope: SavedScope) {
+    state.channelIds = scope.channelIds.length ? [...scope.channelIds] : [...CHANNEL_INSTANCE_IDS]
+    state.teamIds = scope.teamIds.length === TEAMS.length ? [] : [...scope.teamIds]
+    setPreset(scope.presetId)
+  }
+
+  /** The working state as a savable scope. Normalised: "everything" is stored as an
+   *  empty list, never as a full one, so two equivalent scopes compare equal. */
+  function currentScope(): SavedScope {
+    return {
+      presetId: (presetId.value ?? 'last7') as DatePresetId,
+      channelIds:
+        state.channelIds.length === CHANNEL_INSTANCE_IDS.length ? [] : [...state.channelIds],
+      teamIds: state.teamIds.length === TEAMS.length ? [] : [...state.teamIds],
+    }
+  }
+
   const setChannels = (ids: string[]) => (state.channelIds = ids)
   const toggleTeam = (id: string) => (state.teamIds = toggleId(state.teamIds, id))
   const clearTeams = () => (state.teamIds = [])
@@ -153,5 +179,7 @@ export function useFilters() {
     clearTeams,
     setPreset,
     setRange,
+    applyScope,
+    currentScope,
   }
 }

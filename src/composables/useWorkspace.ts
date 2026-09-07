@@ -96,9 +96,12 @@ function allTabs(): DashboardTab[] {
   return state.dashboards.flatMap((d) => d.tabs)
 }
 
-/** Ensure a unique tab name ("Voice", "Voice 2", …) across every dashboard. */
-function uniqueName(base: string): string {
-  const existing = new Set(allTabs().map((t) => t.name))
+/** Ensure a unique tab name ("Voice", "Voice 2", …) WITHIN one dashboard.
+ *  Global uniqueness was a holdover from when a tab *was* a dashboard: it made a new
+ *  dashboard from the Understand template come out as "Understand 2", because Trengo
+ *  already had a tab by that name. Two dashboards may each have an "Overview". */
+function uniqueName(base: string, within: DashboardTab[]): string {
+  const existing = new Set(within.map((t) => t.name))
   if (!existing.has(base)) return base
   let n = 2
   while (existing.has(`${base} ${n}`)) n += 1
@@ -162,7 +165,8 @@ export function useWorkspace() {
    */
   function createFromTemplate(templateId: string, name?: string): DashboardTab {
     const t = getTemplate(templateId)
-    const tabName = uniqueName(name?.trim() || t?.name || templateId)
+    // A brand-new dashboard has no tabs, so nothing to de-duplicate against.
+    const tabName = uniqueName(name?.trim() || t?.name || templateId, [])
     const tab = tabFromTemplate(templateId, makeId(templateId), tabName)
     state.dashboards.push({
       id: makeId('dash'),

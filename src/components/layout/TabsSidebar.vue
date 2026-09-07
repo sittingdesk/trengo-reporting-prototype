@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // TabsSidebar — the second left sidebar: the user's DASHBOARDS.
 //
-// Two groups: "Trengo" (the default, read-only) and "Your dashboards". Each row shows
-// its saved scope as a subtitle, so two dashboards are told apart by what they actually
-// look at rather than by name alone. Clicking one opens its first tab; the tabs
-// themselves live in the tab row inside the dashboard, not here.
+// One list: the shipped default first, then the user's own, separated by a gap rather
+// than by headings — with two entries, "Trengo" and "Your dashboards" labelled more than
+// they organised. Each row shows its saved scope as a subtitle, so two dashboards are
+// told apart by what they actually look at rather than by name alone. Clicking one opens
+// its first tab; the tabs themselves live in the tab row inside the dashboard, not here.
 // At the bottom sits a clearly-labelled PROTOTYPE scenario switcher to demo the
 // "existing customer" (seeded) vs "new customer" (empty) onboarding states.
 import { computed } from 'vue'
@@ -89,7 +90,6 @@ function changeIteration(id: string) {
     <!-- Dashboard list, in two groups -->
     <nav class="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-1 scroll-thin" aria-label="Dashboards">
       <div v-if="trengoDashboards.length">
-        <div class="px-2.5 pb-1 text-xs font-semibold text-grey-600">Trengo</div>
         <RouterLink
           v-for="d in trengoDashboards"
           :key="d.id"
@@ -106,7 +106,6 @@ function changeIteration(id: string) {
       </div>
 
       <div>
-        <div class="px-2.5 pb-1 text-xs font-semibold text-grey-600">Your dashboards</div>
         <RouterLink
           v-for="d in userDashboards"
           :key="d.id"
@@ -131,10 +130,6 @@ function changeIteration(id: string) {
             <Icon name="cross" :size="14" />
           </button>
         </RouterLink>
-
-        <p v-if="!userDashboards.length" class="px-2.5 py-1 text-xs text-grey-600">
-          None yet.
-        </p>
 
         <!-- New dashboard sits at the bottom of the list -->
         <button
