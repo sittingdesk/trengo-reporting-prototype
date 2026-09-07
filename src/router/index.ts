@@ -6,7 +6,7 @@
 // Dashboards and tabs exist at runtime, so these routes are dynamic.
 // Hash history so the single-file build also works from file://.
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
-import DashboardTab from '@/views/DashboardTab.vue'
+import DashboardView from '@/views/DashboardView.vue'
 import Welcome from '@/views/Welcome.vue'
 import { useWorkspace } from '@/composables/useWorkspace'
 
@@ -19,7 +19,7 @@ const routes: RouteRecordRaw[] = [
     },
   },
   { path: '/welcome', name: 'welcome', component: Welcome },
-  { path: '/d/:dashboardId/:tabId', name: 'tab', component: DashboardTab },
+  { path: '/d/:dashboardId/:tabId', name: 'tab', component: DashboardView },
   // Links saved before dashboards existed still resolve.
   {
     path: '/d/:tabId',

@@ -54,7 +54,7 @@ const activeConfigLabel = computed(() =>
   dimensions.value.length > 1 ? dimension.value?.label : undefined,
 )
 
-/** Same capability rule as the widget gate in DashboardTab, one level down: a column
+/** Same capability rule as the widget gate in WidgetGrid, one level down: a column
  *  measuring something the workspace can't have is absent, not blank. */
 const tableColumns = computed(
   () => sample.value?.table?.columns.filter((c) => c.requires !== 'sla' || slaEnabled.value) ?? [],

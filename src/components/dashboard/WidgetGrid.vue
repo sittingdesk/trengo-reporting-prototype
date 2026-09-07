@@ -114,50 +114,53 @@ function spanClass(widget: Widget) {
 </script>
 
 <template>
-  <!-- Empty tab: nothing added yet. -->
-  <div
-    v-if="visible.length === 0"
-    class="flex h-full flex-col items-center justify-center gap-3 px-6 text-center"
-  >
-    <div class="flex size-12 items-center justify-center rounded-circle bg-grey-200 text-grey-600">
-      <Icon name="Grid" :size="22" />
+  <div class="flex flex-1 flex-col">
+    <!-- Empty tab: nothing added yet. Flexes so it centres in whatever height is left
+         below the dashboard header. -->
+    <div
+      v-if="visible.length === 0"
+      class="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center"
+    >
+      <div class="flex size-12 items-center justify-center rounded-circle bg-grey-200 text-grey-600">
+        <Icon name="Grid" :size="22" />
+      </div>
+      <h2 class="text-base font-semibold text-grey-900">This dashboard is empty</h2>
+      <p class="max-w-sm text-sm text-grey-600">
+        Add widgets to start tracking the metrics that matter for “{{ tabName }}”.
+      </p>
+      <Button variant="secondary" size="sm" class="mt-1">
+        <Icon name="Grid" :size="16" />
+        Manage widgets
+      </Button>
     </div>
-    <h2 class="text-base font-semibold text-grey-900">This dashboard is empty</h2>
-    <p class="max-w-sm text-sm text-grey-600">
-      Add widgets to start tracking the metrics that matter for “{{ tabName }}”.
-    </p>
-    <Button variant="secondary" size="sm" class="mt-1">
-      <Icon name="Grid" :size="16" />
-      Manage widgets
-    </Button>
-  </div>
 
-  <div v-else class="px-8 py-6">
-    <div :class="gridClass">
-      <template v-for="(widget, i) in visible" :key="widgetKey(widget, i)">
-        <!-- Real metric widget -->
-        <MetricBox
-          v-if="isMetricWidget(widget)"
-          :metric-id="widget.metricId"
-          :class="spanClass(widget)"
-        />
-        <!-- Mock placeholder (templates not yet wired to the registry) -->
-        <article
-          v-else
-          class="flex min-h-[140px] flex-col rounded-lg border border-grey-300 bg-white p-4"
-          :class="spanClass(widget)"
-        >
-          <header class="mb-1 flex items-start justify-between gap-2">
-            <h3 class="text-sm font-semibold text-grey-900">{{ widget.name }}</h3>
-            <span class="shrink-0 rounded-full bg-grey-200 px-2 py-0.5 text-xs font-medium text-grey-600">
-              {{ KIND_LABEL[widget.kind] }}
-            </span>
-          </header>
-          <div class="mt-2 flex flex-1 items-center justify-center rounded-base border border-dashed border-grey-300 bg-grey-100">
-            <span class="text-xs text-grey-400">Metric box coming soon</span>
-          </div>
-        </article>
-      </template>
+    <div v-else class="px-8 py-6">
+      <div :class="gridClass">
+        <template v-for="(widget, i) in visible" :key="widgetKey(widget, i)">
+          <!-- Real metric widget -->
+          <MetricBox
+            v-if="isMetricWidget(widget)"
+            :metric-id="widget.metricId"
+            :class="spanClass(widget)"
+          />
+          <!-- Mock placeholder (templates not yet wired to the registry) -->
+          <article
+            v-else
+            class="flex min-h-[140px] flex-col rounded-lg border border-grey-300 bg-white p-4"
+            :class="spanClass(widget)"
+          >
+            <header class="mb-1 flex items-start justify-between gap-2">
+              <h3 class="text-sm font-semibold text-grey-900">{{ widget.name }}</h3>
+              <span class="shrink-0 rounded-full bg-grey-200 px-2 py-0.5 text-xs font-medium text-grey-600">
+                {{ KIND_LABEL[widget.kind] }}
+              </span>
+            </header>
+            <div class="mt-2 flex flex-1 items-center justify-center rounded-base border border-dashed border-grey-300 bg-grey-100">
+              <span class="text-xs text-grey-400">Metric box coming soon</span>
+            </div>
+          </article>
+        </template>
+      </div>
     </div>
   </div>
 </template>
