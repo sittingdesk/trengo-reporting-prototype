@@ -211,6 +211,17 @@ export function useWorkspace() {
     state.dashboards = state.dashboards.filter((x) => x.id !== id)
   }
 
+  /**
+   * Put the workspace back to its first-load state for the active scenario — prototype
+   * only. Dashboards can be created and removed now and nothing persists, so a demo
+   * needs one click back to the starting point instead of rebuilding it by hand.
+   * Returns the first report so the caller can navigate.
+   */
+  function resetPrototype(): Report | undefined {
+    applyScenario(state.scenario)
+    return allReports()[0]
+  }
+
   /** Switch demo scenario — persists and applies its starting state. */
   function setScenario(next: Scenario) {
     state.scenario = next
@@ -270,6 +281,7 @@ export function useWorkspace() {
     saveScope,
     removeDashboard,
     createDashboard,
+    resetPrototype,
     setScenario,
     setIteration,
     chooseStart,

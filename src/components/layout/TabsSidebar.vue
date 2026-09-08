@@ -12,6 +12,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/Icon.vue'
 import { useWorkspace, type Scenario } from '@/composables/useWorkspace'
 import { useSettings, type DataState } from '@/composables/useSettings'
+import { useFilters } from '@/composables/useFilters'
 import { SELECTABLE_ITERATIONS } from '@/config/iterations'
 import { scopeLabel } from '@/data/dashboards'
 
@@ -28,15 +29,36 @@ const {
   openNewDashboard,
   removeDashboard,
   dashboardPath,
+  dashboardOf,
   reportPath,
   setScenario,
   setIteration,
+  resetPrototype: resetWorkspace,
 } = useWorkspace()
 
 /** The dashboard currently open, straight from the route. */
 const activeId = computed(() => String(route.params.dashboardId ?? ''))
 
-const { slaEnabled, toggleSla, dataState, setDataState } = useSettings()
+const { slaEnabled, toggleSla, setSla, dataState, setDataState } = useSettings()
+const { applyScope } = useFilters()
+
+/**
+ * Back to first load: the seeded dashboard, its default filters, SLA off, Normal data.
+ * Everything in this panel AND the workspace — "the starting point" means the whole demo,
+ * and a switch you wanted on is one click to restore, whereas a dashboard you removed and
+ * a scope you saved over are not.
+ */
+function resetPrototype() {
+  const first = resetWorkspace()
+  setSla(false)
+  setDataState('normal')
+  // The reseeded dashboard keeps its slug id, so DashboardView's scope watcher — keyed on
+  // that id — won't refire. Apply the fresh scope here or the old filters would survive a
+  // reset, which is the one thing it must not do.
+  const d = first ? dashboardOf(first.id) : undefined
+  if (d) applyScope(d.scope)
+  router.push(first ? reportPath(first.id) : '/welcome')
+}
 
 const scenarios: { id: Scenario; label: string }[] = [
   { id: 'existing', label: 'Existing customer' },
@@ -122,6 +144,18 @@ function changeIteration(id: string) {
 
     <!-- Prototype-only controls -->
     <div class="space-y-3 border-t border-grey-300 p-3">
+      <!-- Names the block, and gives the reset somewhere to live. The group labels below
+           ("Features", "Data state") had nothing above them saying what they belonged to. -->
+      <div class="flex items-center justify-between">
+        <div class="text-xs font-semibold text-grey-700">Prototype</div>
+        <button
+          class="flex size-6 items-center justify-center rounded-base text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          title="Reset to the starting point"
+          @click="resetPrototype()"
+        >
+          <Icon name="RotateCcw" :size="14" />
+        </button>
+      </div>
       <!-- Iteration (feature-flag set) — temporarily hidden, bring back later.
            The active iteration still applies; only the picker is hidden. -->
       <div v-if="false">
