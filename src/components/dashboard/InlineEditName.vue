@@ -26,6 +26,9 @@ const props = withDefaults(
     /** Flip true to open the editor from outside — used when a report is created, so you
      *  can type its name immediately instead of hunting for a rename control. */
     autoEdit?: boolean
+    /** Pad the trailing edge so a control positioned OVER the pill (the report bar's
+     *  remove ×) has room and the label can't run under it. */
+    reserveTrailing?: boolean
   }>(),
   { editable: true, variant: 'heading' },
 )
@@ -111,7 +114,12 @@ const SHAPE = {
   },
 } as const
 
-const shape = computed(() => SHAPE[props.variant])
+const shape = computed(() => {
+  const s = SHAPE[props.variant]
+  if (!props.reserveTrailing) return s
+  // pr-7 = 28px: a 4px inset, a 20px control, and 4px clearance from the text.
+  return { rest: `${s.rest} pr-7`, plain: `${s.plain} pr-7`, edit: `${s.edit} pr-7` }
+})
 </script>
 
 <template>

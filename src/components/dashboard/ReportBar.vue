@@ -89,10 +89,12 @@ watch(
 const GAP = 8
 const ADD_W = 34 // the pinned "+"
 const MORE_W = 40 // the "+N" trigger
-/** What a pill's remove button adds while editing: a 4px gap plus a 20px button. The
- *  mirror row measures pills WITHOUT it, so the arithmetic adds it rather than the
- *  measurement — one measured value, adjusted, instead of two to keep in step. */
-const REMOVE_W = 24
+/** What a pill grows by while editing. The × sits INSIDE the pill, over its trailing
+ *  edge, so the cost is the extra right padding (pr-7, 28px) less the 8px the pill
+ *  already had. The mirror row measures pills WITHOUT it, so the arithmetic adds it
+ *  rather than the measurement — one measured value, adjusted, instead of two to keep
+ *  in step. */
+const REMOVE_W = 20
 
 /** Can this report be removed? Not the last one — see `removeReport`. */
 const removable = computed(() => props.editing && props.dashboard.reports.length > 1)
@@ -202,11 +204,14 @@ const INACTIVE_PILL =
       class="-m-1 flex min-w-0 flex-1 items-center gap-2 overflow-hidden p-1"
       aria-label="Reports"
     >
-      <!-- Pill, then its remove button beside it while editing. Adjacent rather than
-           inside: a button nested in the navigation link would be invalid markup and a
-           coin-toss click target at this size. Navigation keeps working in edit mode —
-           you often want to arrange one report, then the next. -->
-      <span v-for="r in shownReports" :key="r.id" class="inline-flex shrink-0 items-center gap-1">
+      <!-- The × sits INSIDE the pill — positioned over its trailing edge, but as a
+           SIBLING of the link rather than a child of it. Nesting a button inside the
+           navigation link would be invalid markup and a coin-toss click target; a sibling
+           on top takes the clicks that land on it and leaves the rest of the pill
+           navigating, which also keeps the link a real link (middle-click still works).
+           The pill reserves the room via `reserveTrailing`, so the label can't run under
+           it. -->
+      <span v-for="r in shownReports" :key="r.id" class="relative inline-flex shrink-0 items-center">
         <!-- The active one is a rename target, not a link to where you already are. -->
         <InlineEditName
           v-if="r.id === activeReportId"
@@ -214,20 +219,28 @@ const INACTIVE_PILL =
           :name="r.name"
           :editable="!dashboard.readonly"
           :auto-edit="r.id === autoEditId"
+          :reserve-trailing="removable"
           label="Report name"
           @rename="renameReport(dashboard.id, r.id, $event)"
         />
-        <RouterLink v-else :to="reportPath(dashboard.id, r.id)" :class="INACTIVE_PILL">
+        <RouterLink
+          v-else
+          :to="reportPath(dashboard.id, r.id)"
+          :class="[INACTIVE_PILL, removable ? 'pr-7' : '']"
+        >
           {{ r.name }}
         </RouterLink>
+        <!-- No border or fill of its own: inside a 34px pill a bordered mini-button reads
+             as a second chip. Just the glyph, with a hover ground so the target is
+             legible. -->
         <button
           v-if="removable"
           type="button"
-          class="inline-flex size-5 shrink-0 items-center justify-center rounded-sm border border-grey-300 bg-white text-grey-600 transition-colors hover:border-error-500 hover:bg-error-500 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          class="absolute right-1 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-grey-600 transition-colors hover:bg-grey-300 hover:text-error-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           :aria-label="`Remove ${r.name}`"
           @click="remove(r.id)"
         >
-          <Icon name="Cross" :size="12" />
+          <Icon name="Cross" :size="14" />
         </button>
       </span>
 
