@@ -86,15 +86,19 @@ function cancel() {
 // the two states never appear side by side.
 const SHAPE = {
   heading: {
-    // -ml-2 cancels the padding, so the name stays aligned with whatever sits under it
-    // and the outline is what extends past the text.
-    rest: '-ml-2 inline-block max-w-full truncate rounded-md border border-transparent px-2 py-0.5 text-left text-h3 font-bold text-grey-900 transition-colors hover:border-grey-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    // -ml-2 cancels the LEFT padding only, so the name lines up with whatever sits under
+    // it while the outline extends past the text. Not -mx-2: pulling the right side too
+    // would let the box reach 8px into the filters beside it. -my-0.5 does the same job
+    // vertically: the 2px exists only to reserve room for the outline, and without the
+    // negative margin it spent real layout space — which is why every gap around the
+    // title measured 3px larger on screen than the number in the CSS.
+    rest: '-ml-2 -my-0.5 inline-block max-w-full truncate rounded-md border border-transparent px-2 py-0.5 text-left text-h3 font-bold text-grey-900 transition-colors hover:border-grey-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
     // Same box as `rest` — padding, border width, -ml-2 — so a dashboard whose name
     // can't be edited sits at exactly the same height as one whose name can. Without
     // this, switching between Trengo and your own shifted everything below by 6px.
     plain:
-      '-ml-2 block max-w-full truncate rounded-md border border-transparent px-2 py-0.5 text-h3 font-bold text-grey-900',
-    edit: '-ml-2 min-w-[6ch] max-w-full rounded-md border border-leaf-500 bg-white px-2 py-0.5 text-h3 font-bold text-grey-900 shadow-focus outline-none field-sizing-content',
+      '-ml-2 -my-0.5 block max-w-full truncate rounded-md border border-transparent px-2 py-0.5 text-h3 font-bold text-grey-900',
+    edit: '-ml-2 -my-0.5 min-w-[6ch] max-w-full rounded-md border border-leaf-500 bg-white px-2 py-0.5 text-h3 font-bold text-grey-900 shadow-focus outline-none field-sizing-content',
   },
   pill: {
     // The active report's pill: white on a grey-400 hairline, per the Figma bar.

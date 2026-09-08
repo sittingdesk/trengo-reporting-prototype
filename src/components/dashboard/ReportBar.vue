@@ -153,7 +153,11 @@ const INACTIVE_PILL =
 </script>
 
 <template>
-  <div class="flex items-center px-8 py-2">
+  <!-- One component owns each vertical gap: the header owns 24px above the title,
+       this owns 12px above the pills, and WidgetGrid's py-6 owns 24px below them. It
+       contributes NOTHING below on purpose — its old py-2 was adding to the grid's py-6
+       for a 32px gap that isn't on design.md's scale and that neither component chose. -->
+  <div class="flex items-center px-8 pb-0 pt-3">
     <!-- `-m-1 p-1` pads the clip box out by 4px on every side and takes the space back
          with negative margin, so the row still measures 34px. Without it `overflow-hidden`
          sat flush against pills that are exactly the nav's height, and a focus ring — 2px,
