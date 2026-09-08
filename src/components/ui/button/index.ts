@@ -1,4 +1,8 @@
 // shadcn-vue Button — variant definitions.
+//
+// Radius is `pill` (24px) per design.md §7.5 — "Shared: padding 6px 12px, border-radius
+// 24px …" — and §4, which names the `pill` token for "Pill buttons, toolbars, toggle
+// controls". The sizes have to repeat it because cva's size classes come after the base.
 // `buttonVariants` is a cva() helper: it returns the right Tailwind classes for
 // a given variant + size. This is the standard shadcn-vue pattern; new buttons
 // are added with `npx shadcn-vue@latest add <component>`.
@@ -7,7 +11,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 export { default as Button } from './Button.vue'
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-pill text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
   {
     variants: {
       variant: {
@@ -23,8 +27,8 @@ export const buttonVariants = cva(
       },
       size: {
         default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-md px-3',
-        lg: 'h-11 rounded-md px-8',
+        sm: 'h-9 rounded-pill px-3',
+        lg: 'h-11 rounded-pill px-8',
         icon: 'h-10 w-10',
       },
     },

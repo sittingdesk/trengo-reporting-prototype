@@ -68,7 +68,7 @@ function choose(kind: 'new' | 'old' | 'later') {
               {{ name }}
             </li>
           </ul>
-          <Button variant="default" class="mt-auto w-full rounded-pill" @click="choose('new')">
+          <Button variant="default" class="mt-auto w-full" @click="choose('new')">
             Start with the new reports
           </Button>
         </article>

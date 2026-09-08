@@ -154,9 +154,14 @@ const INACTIVE_PILL =
 
 <template>
   <div class="flex items-center px-8 py-2">
+    <!-- `-m-1 p-1` pads the clip box out by 4px on every side and takes the space back
+         with negative margin, so the row still measures 34px. Without it `overflow-hidden`
+         sat flush against pills that are exactly the nav's height, and a focus ring — 2px,
+         outside the border box — was clipped on all four sides. The cost is that an
+         overflowing pill shows 4px before it clips, which is not worth noticing. -->
     <nav
       ref="stripEl"
-      class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden"
+      class="-m-1 flex min-w-0 flex-1 items-center gap-2 overflow-hidden p-1"
       aria-label="Reports"
     >
       <template v-for="r in shownReports" :key="r.id">
