@@ -23,7 +23,8 @@ import InlineEditName from '@/components/dashboard/InlineEditName.vue'
 import Icon from '@/components/Icon.vue'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useWorkspace } from '@/composables/useWorkspace'
-import type { Dashboard } from '@/data/dashboards'
+import type { Dashboard, Report } from '@/data/dashboards'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -98,6 +99,42 @@ const REMOVE_W = 20
 
 /** Can this report be removed? Not the last one — see `removeReport`. */
 const removable = computed(() => props.editing && props.dashboard.reports.length > 1)
+
+/**
+ * Ask before removing a report that holds anything. An empty report is a name and
+ * nothing else — a confirm there is a nag, and nags are what teach people to click
+ * through the dialog that mattered. A report with widgets takes its whole configuration
+ * with it and there is no undo, so that one asks.
+ */
+const pendingRemoval = ref<Report | null>(null)
+
+const removalCopy = computed(() => {
+  const r = pendingRemoval.value
+  if (!r) return null
+  const n = r.widgets.length
+  return {
+    title: `Remove \u201c${r.name}\u201d?`,
+    // Whole clause per branch, not a pluralised noun dropped into one sentence: the verb
+    // has to agree too, and "Its 1 widget go with it" is what that shortcut produces.
+    description:
+      (n === 1 ? 'Its 1 widget goes with it.' : `Its ${n} widgets go with it.`) +
+      ' This can\u2019t be undone.',
+  }
+})
+
+function askRemove(report: Report) {
+  if (report.widgets.length === 0) {
+    remove(report.id)
+    return
+  }
+  pendingRemoval.value = report
+}
+
+function confirmRemoval() {
+  const r = pendingRemoval.value
+  pendingRemoval.value = null
+  if (r) remove(r.id)
+}
 
 /**
  * Remove a report. If it's the one you're on, NAVIGATE AWAY FIRST, then delete — order
@@ -238,7 +275,7 @@ const INACTIVE_PILL =
           type="button"
           class="absolute right-1 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-grey-600 transition-colors hover:bg-grey-300 hover:text-error-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           :aria-label="`Remove ${r.name}`"
-          @click="remove(r.id)"
+          @click="askRemove(r)"
         >
           <Icon name="Cross" :size="14" />
         </button>
@@ -250,7 +287,7 @@ const INACTIVE_PILL =
         <PopoverTrigger as-child>
           <button
             type="button"
-            :aria-label="`Show ${hiddenReports.length} more reports`"
+            :aria-label="`Show ${hiddenReports.length} more ${hiddenReports.length === 1 ? 'report' : 'reports'}`"
             class="inline-flex shrink-0 items-center rounded-base border border-transparent bg-grey-200 px-2 py-1.5 text-sm font-medium text-grey-700 transition-colors hover:bg-grey-300 hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-grey-300"
           >
             +{{ hiddenReports.length }}
@@ -304,5 +341,14 @@ const INACTIVE_PILL =
       >{{ r.name }}</span>
     </div>
 
+    <ConfirmDialog
+      v-if="removalCopy"
+      :open="!!pendingRemoval"
+      :title="removalCopy.title"
+      :description="removalCopy.description"
+      confirm-label="Remove report"
+      @update:open="(o: boolean) => { if (!o) pendingRemoval = null }"
+      @confirm="confirmRemoval()"
+    />
   </div>
 </template>
