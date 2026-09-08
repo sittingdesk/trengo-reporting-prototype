@@ -9,12 +9,17 @@
 // subtitle uses. Only a filter that actually excludes something earns the emphasis, so
 // "All channels" stays quiet while "8 channels" doesn't.
 //
+// The inactive surface is FIELD_SURFACE, shared with the Button's `field` variant — so
+// the secondary buttons beside these chips (Edit, the ⋯ menu) can't drift away from
+// them. Only the radius differs there: buttons stay `pill`.
+//
 // `iconOnly` drops the label when the bar is too narrow to afford it. Reports are
 // navigation and filters are refinement, so the filters are what gives way. It needs more
 // than hiding text: the label is an unnamed slot sitting between two gaps, so an empty
 // slot would leave 16px of dead space, and the chip has no accessible name of its own —
 // hence `label` / `value` feeding aria-label and title.
 import Icon from '@/components/Icon.vue'
+import { FIELD_SURFACE } from '@/components/ui/button'
 
 const props = withDefaults(
   defineProps<{
@@ -45,12 +50,12 @@ const describe = () => {
     type="button"
     :aria-label="iconOnly ? describe() : undefined"
     :title="iconOnly ? describe() : undefined"
-    class="inline-flex h-8 items-center rounded-base border px-2 text-sm font-medium shadow-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    class="inline-flex h-8 items-center rounded-base px-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     :class="[
       iconOnly ? 'gap-0.5' : 'gap-2',
       active
-        ? 'border-leaf-300 bg-leaf-100 text-leaf-600 hover:border-leaf-400 data-[state=open]:border-leaf-400'
-        : 'border-grey-400 bg-white text-grey-800 hover:bg-grey-100 data-[state=open]:bg-grey-100',
+        ? 'border border-leaf-300 bg-leaf-100 text-leaf-600 shadow-100 hover:border-leaf-400 data-[state=open]:border-leaf-400'
+        : FIELD_SURFACE,
     ]"
   >
     <!-- Both icons inherit the chip's colour, which is what makes the active state a

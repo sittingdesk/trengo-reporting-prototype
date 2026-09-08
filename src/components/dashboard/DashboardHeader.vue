@@ -28,6 +28,8 @@ import SelectFilter from '@/components/layout/filters/SelectFilter.vue'
 import InlineEditName from '@/components/dashboard/InlineEditName.vue'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import Icon from '@/components/Icon.vue'
 import { useFilters } from '@/composables/useFilters'
 import { useWorkspace } from '@/composables/useWorkspace'
@@ -38,7 +40,7 @@ const props = defineProps<{ dashboard: Dashboard }>()
 
 const { teamIds, toggleTeam, clearTeams, applyScope, currentScope, isCustomRange, isDirty } =
   useFilters()
-const { saveScope, renameDashboard, editing, setEditing } = useWorkspace()
+const { saveScope, renameDashboard, editing, setEditing, removeDashboard } = useWorkspace()
 
 // Full-width filters cost 432px. Below this the title would be left under ~140px — less
 // than the ~185px a name like "My dashboard" needs — so Channel and Team drop their
@@ -67,6 +69,56 @@ const compactFilters = computed(() => rowW.value > 0 && rowW.value < COMPACT_ROW
  * both down to a 1024px viewport.
  */
 const toggleEdit = () => setEditing(!editing.value, props.dashboard.id)
+
+/**
+ * The ⋯ menu beside Edit — dashboard-level actions that aren't frequent enough to spend
+ * a button on. It holds Remove for now, which is the one such action that exists;
+ * Duplicate is the obvious neighbour and needs its own piece of work.
+ *
+ * Absent on Trengo for the same reason Edit is: every action in it would refuse.
+ */
+const menuOpen = ref(false)
+const confirmRemove = ref(false)
+
+const removalCopy = computed(() => {
+  const d = props.dashboard
+  const reports = d.reports.length
+  const widgets = d.reports.reduce((n, r) => n + r.widgets.length, 0)
+  return {
+    title: `Remove \u201c${d.name}\u201d?`,
+    description:
+      `Its ${reports} ${reports === 1 ? 'report' : 'reports'} and ` +
+      `${widgets} ${widgets === 1 ? 'widget' : 'widgets'} go with it. This can\u2019t be undone.`,
+  }
+})
+
+/**
+ * Closing a popover returns focus to its trigger, and that restore lands AFTER the
+ * confirm dialog has parked focus on Cancel — so the dialog opened with focus back out
+ * on the ⋯ button, which is exactly the "a stray Enter can't be the destructive answer"
+ * guarantee gone. Suppress the restore for this one transition only: an Escape or a
+ * click outside still gets it, or focus would be left nowhere.
+ */
+const handOffFocus = ref(false)
+
+function askRemove() {
+  handOffFocus.value = true
+  menuOpen.value = false
+  confirmRemove.value = true
+}
+
+function onMenuCloseFocus(event: Event) {
+  if (!handOffFocus.value) return
+  handOffFocus.value = false
+  event.preventDefault()
+}
+
+function doRemove() {
+  confirmRemove.value = false
+  // The route stops resolving the moment this dashboard is gone; DashboardView's guard
+  // catches that and replaces the route, so there is nothing to navigate here.
+  removeDashboard(props.dashboard.id)
+}
 
 const dirty = computed(() => isDirty(props.dashboard.scope))
 
@@ -124,10 +176,14 @@ const save = () => {
           <!-- Absent on Trengo, not disabled: there is nothing to edit, and a control
                that refuses is worse than no control. Drops its label when the row is
                tight, on the same signal the filters use — one rule, "when space runs
-               short, controls lose their words before navigation does". -->
+               short, controls lose their words before navigation does".
+               `field`, not `outline`: it wears the same surface as the chips it sits
+               beside, so the row reads as one set of controls, and only the radius
+               differs (buttons stay `pill`, per design.md §7.5). In edit mode it goes
+               dark — the one state that should NOT look like a filter. -->
           <Button
             v-if="!dashboard.readonly"
-            :variant="editing ? 'default' : 'outline'"
+            :variant="editing ? 'default' : 'field'"
             :size="compactFilters ? 'icon' : 'sm'"
             :aria-label="compactFilters ? (editing ? 'Done editing' : 'Edit dashboard') : undefined"
             :title="compactFilters ? (editing ? 'Done editing' : 'Edit dashboard') : undefined"
@@ -136,6 +192,27 @@ const save = () => {
             <Icon :name="editing ? 'Check' : 'Edit'" :size="20" />
             <span v-if="!compactFilters">{{ editing ? 'Done' : 'Edit' }}</span>
           </Button>
+
+          <!-- Dashboard actions. 32×32 on the same surface, so at `pill` radius it reads
+               as the circular button design.md §3.3 documents. It keeps its label off
+               screen at every width: a ⋯ has no words to lose. -->
+          <Popover v-if="!dashboard.readonly" v-model:open="menuOpen">
+            <PopoverTrigger as-child>
+              <Button variant="field" size="icon" aria-label="Dashboard actions">
+                <Icon name="MoreHoriz" :size="20" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" class="w-52" @close-auto-focus="onMenuCloseFocus">
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm text-grey-900 transition-colors hover:bg-grey-100 hover:text-error-500 focus:outline-none focus-visible:bg-grey-100"
+                @click="askRemove()"
+              >
+                <Icon name="Trash" :size="16" />
+                <span class="truncate">Remove dashboard</span>
+              </button>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <!-- Only present while the working view differs from the saved one. Sits under the
@@ -168,5 +245,14 @@ const save = () => {
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="confirmRemove"
+      :title="removalCopy.title"
+      :description="removalCopy.description"
+      confirm-label="Remove dashboard"
+      @update:open="confirmRemove = $event"
+      @confirm="doRemove()"
+    />
   </header>
 </template>
