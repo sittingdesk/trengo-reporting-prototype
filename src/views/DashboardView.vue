@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // DashboardView — the route view for `/d/:dashboardId/:reportId`.
 //
-// Composes the dashboard: header (identity + filters) → tab row → the active report's
-// widgets. Resolves both route params and owns every route concern; the header, tab row
+// Composes the dashboard: header (identity) → report bar (report pills + filters) → the
+// active report's widgets. Resolves both route params and owns every route concern; the header, tab row
 // and grid are all pure components.
 //
 // No container and no sticky positioning: all three sit directly on the page background
@@ -16,7 +16,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useWorkspace } from '@/composables/useWorkspace'
 import { useFilters } from '@/composables/useFilters'
 import DashboardHeader from '@/components/dashboard/DashboardHeader.vue'
-import TabRow from '@/components/dashboard/TabRow.vue'
+import ReportBar from '@/components/dashboard/ReportBar.vue'
 import WidgetGrid from '@/components/dashboard/WidgetGrid.vue'
 
 const route = useRoute()
@@ -56,7 +56,7 @@ watch(
 <template>
   <div v-if="dashboard && report" class="flex min-h-full flex-col">
     <DashboardHeader :dashboard="dashboard" />
-    <TabRow :dashboard="dashboard" :active-report-id="report.id" />
+    <ReportBar :dashboard="dashboard" :active-report-id="report.id" />
     <WidgetGrid :widgets="report.widgets" :report-name="report.name" />
   </div>
 </template>

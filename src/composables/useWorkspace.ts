@@ -224,6 +224,38 @@ export function useWorkspace() {
     d.scope = scope
   }
 
+  /** Add a blank report and return it, so the caller can navigate and let the user name
+   *  it straight away. Refused on Trengo. */
+  function addReport(dashboardId: string): Report | undefined {
+    const d = getDashboard(dashboardId)
+    if (!d || d.readonly) return undefined
+    const name = uniqueName(
+      'New report',
+      d.reports.map((r) => r.name),
+    )
+    const report = blankReport(
+      uniqueId(slugify(name), new Set(d.reports.map((r) => r.id))),
+      name,
+    )
+    d.reports.push(report)
+    return report
+  }
+
+  /** Rename a report. Its id stays put for the same reason a dashboard's does — the id
+   *  is in the URL. Names de-duplicate within the dashboard only; two dashboards may
+   *  each have an "Overview". */
+  function renameReport(dashboardId: string, reportId: string, name: string) {
+    const d = getDashboard(dashboardId)
+    const next = name.trim()
+    if (!d || d.readonly || !next) return
+    const r = d.reports.find((x) => x.id === reportId)
+    if (!r) return
+    r.name = uniqueName(
+      next,
+      d.reports.filter((x) => x.id !== reportId).map((x) => x.name),
+    )
+  }
+
   /** Rename a dashboard. Its id — and so its URL — is deliberately UNCHANGED: an id that
    *  tracked the name would break every saved link the moment someone renamed. */
   function renameDashboard(id: string, name: string) {
@@ -313,6 +345,8 @@ export function useWorkspace() {
     reportPath,
     saveScope,
     renameDashboard,
+    addReport,
+    renameReport,
     removeDashboard,
     createDashboard,
     resetPrototype,
