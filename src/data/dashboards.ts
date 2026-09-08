@@ -9,11 +9,14 @@
 // copy of another report that then diverges. (The old model resolved a report's template live,
 // which can express neither.)
 //
-// Every dashboard is the user's: editable, savable, removable. There is no read-only
-// fixture — "Trengo's recommended set" is a STARTING POINT you instantiate, not a
-// dashboard you're given. A created dashboard is therefore a snapshot: later template
-// improvements don't flow into it. `Report.templateId` records where it came from, so an
-// opt-in "this report has an update" stays possible.
+// TRENGO is always there and can't be touched: not renamed, not removed, and its saved
+// scope can't be written. It's the reference copy every workspace has.
+//
+// Everything else is the user's, and the way to get an editable version of Trengo is to
+// create your own from the "Trengo recommended" starting set. That copy is a SNAPSHOT —
+// later template improvements don't flow into it — while the Trengo dashboard itself is
+// rebuilt from the templates on every load, so it always reflects the current definitions.
+// `Report.templateId` records provenance either way.
 //
 // ⚠️ Mock: there is no backend, so nothing survives a reload.
 import { getTemplate, type Widget } from '@/config/templates'
@@ -61,6 +64,11 @@ export interface Dashboard {
   teamId?: string
   scope: SavedScope
   reports: Report[]
+  /** True only for the Trengo dashboard. Blocks rename, remove and save-scope, and hides
+   *  the affordances for all three — the copy route is New dashboard → Trengo
+   *  recommended. One flag rather than a second `visibility` state: the owner line reads
+   *  off this too. */
+  readonly: boolean
 }
 
 /** Human-readable saved scope for the sidebar subtitle — "Last 7 days", or
@@ -101,9 +109,13 @@ export function blankReport(id: string, name = 'Untitled report'): Report {
   return { id, name, widgets: [] }
 }
 
+/** The reference dashboard every workspace has. Name doubles as its slug id ("trengo"). */
+export const TRENGO_DASHBOARD_NAME = 'Trengo'
+export const TRENGO_OWNER = 'Trengo'
+
 /** URL-safe id from a display name. Ids are part of the URL, so a slug keeps deep links
- *  readable ("/d/my-dashboard/overview") and — for the seeded dashboard — stable across
- *  reloads, which also means an HMR patch doesn't lose your place while developing. */
+ *  readable ("/d/trengo/overview") and stable across reloads, which also means an HMR
+ *  patch doesn't lose your place while developing. */
 export function slugify(name: string): string {
   return (
     name

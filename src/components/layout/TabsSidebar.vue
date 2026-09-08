@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // TabsSidebar — the second left sidebar: the user's DASHBOARDS.
 //
-// One flat list — there is no read-only default to separate out any more, so there is
-// nothing to group. Each row shows its saved scope as a subtitle, so two dashboards are
+// Trengo leads, then the user's own, separated by a gap rather than by headings — with
+// two groups, "Trengo" and "Your dashboards" labelled more than they organised. Each row
+// shows its saved scope as a subtitle, so two dashboards are
 // told apart by what they actually look at rather than by name alone. Clicking one opens
 // its first report; the reports themselves live in the tab row inside the dashboard, not here.
 // At the bottom sits a clearly-labelled PROTOTYPE scenario switcher to demo the
@@ -35,6 +36,11 @@ const {
 
 /** The dashboard currently open, straight from the route. */
 const activeId = computed(() => String(route.params.dashboardId ?? ''))
+
+// Split on `readonly` rather than on id, so it stays right if more than one dashboard is
+// ever shipped as a default.
+const defaultDashboards = computed(() => dashboards.value.filter((d) => d.readonly))
+const userDashboards = computed(() => dashboards.value.filter((d) => !d.readonly))
 
 const { slaEnabled, toggleSla, setSla, dataState, setDataState } = useSettings()
 const { applyScope } = useFilters()
@@ -100,10 +106,27 @@ function changeIteration(id: string) {
     </div>
 
     <!-- Dashboard list -->
-    <nav class="flex flex-1 flex-col overflow-y-auto px-2 py-1 scroll-thin" aria-label="Dashboards">
+    <nav class="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-1 scroll-thin" aria-label="Dashboards">
+      <!-- Trengo. Navigation only — no remove, and its name isn't editable either. -->
+      <div v-if="defaultDashboards.length">
+        <RouterLink
+          v-for="d in defaultDashboards"
+          :key="d.id"
+          :to="dashboardPath(d.id)"
+          class="flex flex-col gap-0.5 rounded-base px-2.5 py-2 transition-colors hover:bg-grey-200"
+          :class="d.id === activeId ? 'bg-grey-200' : ''"
+        >
+          <span
+            class="truncate text-sm font-medium"
+            :class="d.id === activeId ? 'text-grey-900' : 'text-grey-700'"
+          >{{ d.name }}</span>
+          <span class="truncate text-xs text-grey-600">{{ scopeLabel(d.scope) }}</span>
+        </RouterLink>
+      </div>
+
       <div>
         <RouterLink
-          v-for="d in dashboards"
+          v-for="d in userDashboards"
           :key="d.id"
           :to="dashboardPath(d.id)"
           class="group flex items-center gap-2 rounded-base px-2.5 py-2 transition-colors hover:bg-grey-200"

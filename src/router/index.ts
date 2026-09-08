@@ -1,5 +1,5 @@
 // Router.
-//   /                        → first report if any, else /welcome
+//   /                        → the welcome step if a choice is pending, else Trengo
 //   /welcome                 → empty state (new customer)
 //   /d/:dashboardId/:reportId   → one report of one dashboard (looked up in the workspace)
 //   /d/:reportId                → old shape; redirects into its dashboard
@@ -14,7 +14,10 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     redirect: () => {
-      const { dashboards, dashboardPath } = useWorkspace()
+      const { dashboards, dashboardPath, needsChoice } = useWorkspace()
+      // needsChoice first: Trengo now always exists, so without this the existing-customer
+      // welcome step could never be reached — the root would always resolve to a dashboard.
+      if (needsChoice.value) return '/welcome'
       return dashboards.value.length ? dashboardPath(dashboards.value[0].id) : '/welcome'
     },
   },

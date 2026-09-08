@@ -16,7 +16,10 @@
 import { nextTick, ref, watch } from 'vue'
 import { Tooltip } from '@/components/ui/tooltip'
 
-const props = defineProps<{ name: string; label?: string }>()
+const props = withDefaults(
+  defineProps<{ name: string; label?: string; editable?: boolean }>(),
+  { editable: true },
+)
 const emit = defineEmits<{ rename: [name: string] }>()
 
 const editing = ref(false)
@@ -59,8 +62,14 @@ function cancel() {
 <template>
   <!-- -ml-2 cancels the horizontal padding so the text still lines up with whatever sits
        under it; the outline is what extends past the text, exactly as in the reference. -->
+  <!-- Not editable: plain text, no button, no hover outline, no tooltip. A control that
+       looks interactive and then refuses is worse than no control — and the copy route is
+       New dashboard → Trengo recommended, not this heading. -->
+  <span v-if="!editable" class="block max-w-full truncate text-h3 font-bold text-grey-900">
+    {{ name }}
+  </span>
   <input
-    v-if="editing"
+    v-else-if="editing"
     ref="input"
     v-model="draft"
     type="text"

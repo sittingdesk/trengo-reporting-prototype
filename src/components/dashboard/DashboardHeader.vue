@@ -34,6 +34,7 @@ const { saveScope, renameDashboard } = useWorkspace()
 /** Who owns this and who can see it — one quiet line under the name. */
 const ownerLine = computed(() => {
   const d = props.dashboard
+  if (d.readonly) return `${d.owner} · Default dashboard`
   const team = d.teamId ? TEAMS.find((t) => t.id === d.teamId)?.label : undefined
   const where = d.visibility === 'team' ? `Shared with ${team ?? 'a team'}` : 'Private'
   return `${d.owner} · ${where}`
@@ -49,6 +50,9 @@ const dirty = computed(() => isDirty(props.dashboard.scope))
  * gone.
  */
 const blockedReason = computed(() => {
+  // Names the way out, since Trengo offers no duplicate action of its own.
+  if (props.dashboard.readonly)
+    return 'The Trengo dashboard can’t be changed. Make your own from New dashboard.'
   // A saved scope holds a preset, never two dates — an absolute range would freeze on
   // the day it was saved and quietly go stale.
   if (isCustomRange.value) return 'Pick a relative range like Last 30 days to save it.'
@@ -72,6 +76,7 @@ const save = () => {
         <h1 class="min-w-0">
           <InlineEditName
             :name="dashboard.name"
+            :editable="!dashboard.readonly"
             label="Dashboard name"
             @rename="renameDashboard(dashboard.id, $event)"
           />

@@ -21,6 +21,8 @@ import {
   blankReport,
   reportFromTemplate,
   slugify,
+  TRENGO_DASHBOARD_NAME,
+  TRENGO_OWNER,
   DEFAULT_SCOPE,
   type Dashboard,
   type Report,
@@ -81,7 +83,11 @@ function uniqueId(base: string, taken: Set<string>): string {
  * could reach zero visible reports — whose own sidebar row then navigated away from it.
  * The flag means "which templates this rollout offers", so creation is where it belongs.
  */
-function buildDashboard(setId: StartingSetId, name?: string): Dashboard {
+function buildDashboard(
+  setId: StartingSetId,
+  name?: string,
+  opts: { owner?: string; readonly?: boolean } = {},
+): Dashboard {
   const set = getStartingSet(setId)
   const hidden = getIteration(state.iterationId)?.hiddenTemplateIds ?? []
   const templateIds = (set?.templateIds ?? []).filter((t) => !hidden.includes(t))
@@ -95,8 +101,9 @@ function buildDashboard(setId: StartingSetId, name?: string): Dashboard {
   return {
     id: uniqueId(slugify(label), new Set(state.dashboards.map((d) => d.id))),
     name: uniqueName(label, state.dashboards.map((d) => d.name)),
-    owner: DEMO_USER,
+    owner: opts.owner ?? DEMO_USER,
     visibility: 'private',
+    readonly: opts.readonly ?? false,
     scope: { ...DEFAULT_SCOPE },
     // An empty set — or one whose every template this rollout hides — still gives you a
     // dashboard you can work in, rather than an unreachable empty one.
@@ -106,16 +113,24 @@ function buildDashboard(setId: StartingSetId, name?: string): Dashboard {
   }
 }
 
-/** Apply a scenario's starting state: new → seeded from the recommended set;
- *  existing → ask first. */
+/** The Trengo dashboard: always present, never editable. Built fresh from the templates
+ *  each time, so it reflects their current definitions rather than a snapshot — which is
+ *  exactly what a user's own copy from the same set is NOT. */
+function buildTrengoDashboard(): Dashboard {
+  return buildDashboard(SEED_SET_ID, TRENGO_DASHBOARD_NAME, {
+    owner: TRENGO_OWNER,
+    readonly: true,
+  })
+}
+
+/** Apply a scenario's starting state. Trengo is seeded FIRST either way, so it always
+ *  exists and always leads the sidebar; `existing` additionally asks how to start. */
 function applyScenario(scenario: Scenario) {
+  // Clear BEFORE building: buildDashboard de-duplicates its name and id against
+  // state.dashboards, so building into the old array made a reset produce "Trengo 2".
   state.dashboards = []
-  if (scenario === 'new') {
-    state.dashboards.push(buildDashboard(SEED_SET_ID))
-    state.needsChoice = false
-  } else {
-    state.needsChoice = true
-  }
+  state.dashboards.push(buildTrengoDashboard())
+  state.needsChoice = scenario !== 'new'
 }
 
 // Iterations that lock the scenario always show the seeded ("filled") dashboard.
@@ -201,11 +216,11 @@ export function useWorkspace() {
     return d
   }
 
-  /** Write the working filters onto a dashboard. Every dashboard is the user's now, so
-   *  there is nothing left to refuse. */
+  /** Write the working filters onto a dashboard. Refused on Trengo — browsing its
+   *  filters is fine, keeping them isn't; make your own copy for that. */
   function saveScope(dashboardId: string, scope: SavedScope) {
     const d = getDashboard(dashboardId)
-    if (!d) return
+    if (!d || d.readonly) return
     d.scope = scope
   }
 
@@ -214,7 +229,7 @@ export function useWorkspace() {
   function renameDashboard(id: string, name: string) {
     const d = getDashboard(id)
     const next = name.trim()
-    if (!d || !next) return
+    if (!d || d.readonly || !next) return
     d.name = uniqueName(
       next,
       state.dashboards.filter((x) => x.id !== id).map((x) => x.name),
@@ -224,6 +239,7 @@ export function useWorkspace() {
   /** Remove a whole dashboard. Gated in the composable, not only in the sidebar. */
   function removeDashboard(id: string) {
     if (!allowRemoveDashboard.value) return
+    if (getDashboard(id)?.readonly) return
     state.dashboards = state.dashboards.filter((x) => x.id !== id)
   }
 
@@ -258,22 +274,23 @@ export function useWorkspace() {
 
   /**
    * Resolve the existing-customer welcome step.
-   *  - 'new'   → seeded from the recommended set
-   *  - 'old'   → the legacy reports, rebuilt as one dashboard
-   *  - 'later' → nothing (generic empty state)
-   * Returns the first report so the caller can navigate.
+   *  - 'new'   → just Trengo
+   *  - 'old'   → Trengo plus "My reports", the legacy reports rebuilt
+   *  - 'later' → just Trengo
+   * Returns the dashboard to land on — the one they chose.
    *
-   * It replaces the list, which is safe: this step is only reachable when the workspace
-   * is empty (the 'existing' scenario seeds nothing and asks first). And nothing is lost
-   * either way — both sets are permanent options in the New dashboard dialog, so the
-   * choice is a starting point rather than a commitment.
+   * Trengo is re-seeded either way, so the choice can no longer discard anything: "keep
+   * my current reports" ADDS My reports beside it rather than replacing the list. That
+   * finally makes this step's own "nothing is lost" promise true.
    */
   function chooseStart(kind: 'new' | 'old' | 'later'): Dashboard | undefined {
+    // Clear before building, for the same reason as applyScenario.
     state.dashboards = []
-    if (kind === 'new') state.dashboards.push(buildDashboard('recommended'))
-    else if (kind === 'old') state.dashboards.push(buildDashboard('current-reports'))
+    state.dashboards.push(buildTrengoDashboard())
+    if (kind === 'old') state.dashboards.push(buildDashboard('current-reports'))
     state.needsChoice = false
-    return state.dashboards[0]
+    // Land on what they picked: their rebuilt reports, or Trengo itself.
+    return state.dashboards[state.dashboards.length - 1]
   }
 
   const openNewDashboard = () => (state.newDashboardOpen = true)
