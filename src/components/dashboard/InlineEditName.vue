@@ -79,15 +79,21 @@ function cancel() {
 // One shape per variant, in three states. Written out as full literal strings because
 // Tailwind's JIT can't see a class name built from a variable.
 //
-// Every state of a variant shares its box: same padding, same border WIDTH (transparent
-// where the design shows none), so revealing a hover outline or swapping in the input
-// never moves the text by a pixel.
+// ALL THREE states of a variant share one box: same padding, same border width
+// (transparent where nothing should show), same negative margin. So nothing moves by a
+// pixel when a hover outline appears, when the input swaps in, OR when you switch to a
+// dashboard whose name can't be edited at all — that last one is easy to miss, because
+// the two states never appear side by side.
 const SHAPE = {
   heading: {
     // -ml-2 cancels the padding, so the name stays aligned with whatever sits under it
     // and the outline is what extends past the text.
     rest: '-ml-2 inline-block max-w-full truncate rounded-md border border-transparent px-2 py-0.5 text-left text-h3 font-bold text-grey-900 transition-colors hover:border-grey-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-    plain: 'block max-w-full truncate text-h3 font-bold text-grey-900',
+    // Same box as `rest` — padding, border width, -ml-2 — so a dashboard whose name
+    // can't be edited sits at exactly the same height as one whose name can. Without
+    // this, switching between Trengo and your own shifted everything below by 6px.
+    plain:
+      '-ml-2 block max-w-full truncate rounded-md border border-transparent px-2 py-0.5 text-h3 font-bold text-grey-900',
     edit: '-ml-2 min-w-[6ch] max-w-full rounded-md border border-leaf-500 bg-white px-2 py-0.5 text-h3 font-bold text-grey-900 shadow-focus outline-none field-sizing-content',
   },
   pill: {

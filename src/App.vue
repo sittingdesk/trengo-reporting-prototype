@@ -20,7 +20,12 @@ import NewDashboardDialog from '@/components/dashboard/NewDashboardDialog.vue'
 
     <!-- Scrollable content -->
     <div class="flex min-w-0 flex-1 flex-col">
-      <main class="scroll-thin flex-1 overflow-y-auto bg-grey-100">
+      <!-- scrollbar-gutter reserves the 6px `scroll-thin` scrollbar whether or not it's
+           needed. Styling ::-webkit-scrollbar turns it into a classic scrollbar that takes
+           layout space, so without this a short dashboard (one blank report, nothing to
+           scroll) widened the content by 6px and everything shifted sideways when you
+           switched to it. -->
+      <main class="scroll-thin flex-1 overflow-y-auto bg-grey-100 [scrollbar-gutter:stable]">
         <router-view />
       </main>
     </div>
