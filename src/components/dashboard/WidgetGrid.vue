@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// WidgetGrid — renders one tab's widgets, in order, on the 12-column grid.
+// WidgetGrid — renders one report's widgets, in order, on the 12-column grid.
 //
 // Pure: it takes the widget list as a prop and knows nothing about routes or
 // dashboards. Metric-bound widgets render a real MetricBox; the remaining (mock)
@@ -14,8 +14,8 @@ import MetricBox from '@/components/dashboard/MetricBox.vue'
 
 const props = defineProps<{
   widgets: Widget[]
-  /** Only used in the empty-tab copy. */
-  tabName: string
+  /** Only used in the empty-report copy. */
+  reportName: string
 }>()
 
 const { slaEnabled } = useSettings()
@@ -115,7 +115,7 @@ function spanClass(widget: Widget) {
 
 <template>
   <div class="flex flex-1 flex-col">
-    <!-- Empty tab: nothing added yet. Flexes so it centres in whatever height is left
+    <!-- Empty report: nothing added yet. Flexes so it centres in whatever height is left
          below the dashboard header. -->
     <div
       v-if="visible.length === 0"
@@ -124,9 +124,9 @@ function spanClass(widget: Widget) {
       <div class="flex size-12 items-center justify-center rounded-circle bg-grey-200 text-grey-600">
         <Icon name="Grid" :size="22" />
       </div>
-      <h2 class="text-base font-semibold text-grey-900">This dashboard is empty</h2>
+      <h2 class="text-base font-semibold text-grey-900">This report is empty</h2>
       <p class="max-w-sm text-sm text-grey-600">
-        Add widgets to start tracking the metrics that matter for “{{ tabName }}”.
+        Add widgets to start tracking the metrics that matter for “{{ reportName }}”.
       </p>
       <Button variant="secondary" size="sm" class="mt-1">
         <Icon name="Grid" :size="16" />

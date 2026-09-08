@@ -4,12 +4,12 @@
 //   [ RailSidebar (icon rail) ][ TabsSidebar (dashboards) ][ content ]
 // The content region swaps per route via <router-view>. A dashboard renders its own
 // header (identity + filters) — there is no app-level top bar, because both of those
-// belong to the dashboard rather than to the shell. The TemplateGallery dialog is
+// belong to the dashboard rather than to the shell. The NewDashboardDialog dialog is
 // mounted here at app level so it can open from anywhere.
 // RailSidebar is the portable copy-paste component (see components/rail/README.md).
 import { RailSidebar } from '@/components/rail'
 import TabsSidebar from '@/components/layout/TabsSidebar.vue'
-import TemplateGallery from '@/components/dashboard/TemplateGallery.vue'
+import NewDashboardDialog from '@/components/dashboard/NewDashboardDialog.vue'
 </script>
 
 <template>
@@ -26,6 +26,6 @@ import TemplateGallery from '@/components/dashboard/TemplateGallery.vue'
     </div>
 
     <!-- App-level template picker (opened from the sidebar / empty state) -->
-    <TemplateGallery />
+    <NewDashboardDialog />
   </div>
 </template>

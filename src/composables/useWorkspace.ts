@@ -1,11 +1,11 @@
 // useWorkspace — the prototype's workspace state.
 //
-// Dashboard → Tab → Widget (see src/data/dashboards.ts). A module-level reactive
+// Dashboard → Report → Widget (see src/data/dashboards.ts). A module-level reactive
 // singleton: import it anywhere and you share the same state (no Pinia needed for a
 // prototype this size). Holds the dashboards, the demo "scenario", and whether the
 // template gallery is open.
 //
-// `tabs` is still exposed as a FLAT list across every dashboard so the sidebar, router
+// `reports` is still exposed as a FLAT list across every dashboard so the sidebar, router
 // and header keep working while the dashboard UI lands one surface at a time.
 //
 // ⚠️ Persistence is mocked: the chosen scenario is saved to localStorage and reseeds
@@ -15,15 +15,13 @@ import { getTemplate, LEGACY_REPORT_TEMPLATE_IDS } from '@/config/templates'
 import { getIteration, DEFAULT_ITERATION_ID } from '@/config/iterations'
 import {
   buildTrengoDashboard,
-  tabFromTemplate,
+  reportFromTemplate,
   DEFAULT_SCOPE,
   type Dashboard,
-  type DashboardTab,
+  type Report,
   type SavedScope,
 } from '@/data/dashboards'
 
-/** Kept as an alias so existing consumers read naturally. */
-export type Tab = DashboardTab
 
 /** Demo onboarding scenarios (prototype-only). */
 export type Scenario = 'existing' | 'new'
@@ -54,7 +52,7 @@ const state = reactive({
   // anything is seeded. New customers skip it. Not persisted, so the demo
   // re-shows it on reload / scenario toggle.
   needsChoice: false,
-  galleryOpen: false,
+  newDashboardOpen: false,
 })
 
 let counter = 0
@@ -63,7 +61,7 @@ function makeId(prefix: string) {
   return `${prefix}-${counter}`
 }
 
-/** The legacy reports, rebuilt — one user dashboard holding the four old tabs. */
+/** The legacy reports, rebuilt — one user dashboard holding the four old reports. */
 function buildLegacyDashboard(): Dashboard {
   return {
     id: makeId('legacy'),
@@ -71,7 +69,7 @@ function buildLegacyDashboard(): Dashboard {
     owner: DEMO_USER,
     visibility: 'private',
     scope: { ...DEFAULT_SCOPE },
-    tabs: LEGACY_REPORT_TEMPLATE_IDS.map((t) => tabFromTemplate(t, makeId(t))),
+    reports: LEGACY_REPORT_TEMPLATE_IDS.map((t) => reportFromTemplate(t, makeId(t))),
     readonly: false,
   }
 }
@@ -93,15 +91,15 @@ if (getIteration(state.iterationId)?.allowScenarioToggle === false) state.scenar
 // Initialise from the (possibly forced) scenario.
 applyScenario(state.scenario)
 
-function allTabs(): DashboardTab[] {
-  return state.dashboards.flatMap((d) => d.tabs)
+function allReports(): Report[] {
+  return state.dashboards.flatMap((d) => d.reports)
 }
 
-/** Ensure a unique tab name ("Voice", "Voice 2", …) WITHIN one dashboard.
- *  Global uniqueness was a holdover from when a tab *was* a dashboard: it made a new
+/** Ensure a unique report name ("Voice", "Voice 2", …) WITHIN one dashboard.
+ *  Global uniqueness was a holdover from when a report *was* a dashboard: it made a new
  *  dashboard from the Understand template come out as "Understand 2", because Trengo
- *  already had a tab by that name. Two dashboards may each have an "Overview". */
-function uniqueName(base: string, within: DashboardTab[]): string {
+ *  already had a report by that name. Two dashboards may each have an "Overview". */
+function uniqueName(base: string, within: Report[]): string {
   const existing = new Set(within.map((t) => t.name))
   if (!existing.has(base)) return base
   let n = 2
@@ -112,10 +110,10 @@ function uniqueName(base: string, within: DashboardTab[]): string {
 export function useWorkspace() {
   const dashboards = computed(() => state.dashboards)
 
-  // Every tab, flat, minus the pages the current iteration hides (by template provenance).
-  const tabs = computed(() => {
+  // Every report, flat, minus the pages the current iteration hides (by template provenance).
+  const reports = computed(() => {
     const hidden = getIteration(state.iterationId)?.hiddenTemplateIds ?? []
-    const all = allTabs()
+    const all = allReports()
     return hidden.length ? all.filter((t) => !t.templateId || !hidden.includes(t.templateId)) : all
   })
   const scenario = computed(() => state.scenario)
@@ -124,72 +122,61 @@ export function useWorkspace() {
   const allowRemoveDashboard = computed(() => getIteration(state.iterationId)?.allowRemoveDashboard ?? true)
   const allowScenarioToggle = computed(() => getIteration(state.iterationId)?.allowScenarioToggle ?? true)
   const needsChoice = computed(() => state.needsChoice)
-  const galleryOpen = computed(() => state.galleryOpen)
+  const newDashboardOpen = computed(() => state.newDashboardOpen)
 
   function getDashboard(id: string): Dashboard | undefined {
     return state.dashboards.find((d) => d.id === id)
   }
 
-  function getTab(id: string): DashboardTab | undefined {
-    return allTabs().find((t) => t.id === id)
+  function getReport(id: string): Report | undefined {
+    return allReports().find((t) => t.id === id)
   }
 
-  /** The dashboard a tab belongs to. */
-  function dashboardOf(tabId: string): Dashboard | undefined {
-    return state.dashboards.find((d) => d.tabs.some((t) => t.id === tabId))
+  /** The dashboard a report belongs to. */
+  function dashboardOf(reportId: string): Dashboard | undefined {
+    return state.dashboards.find((d) => d.reports.some((t) => t.id === reportId))
   }
 
-  /** A dashboard's first tab that the current iteration doesn't hide. */
-  function firstTabOf(dashboardId: string): DashboardTab | undefined {
+  /** A dashboard's first report that the current iteration doesn't hide. */
+  function firstReportOf(dashboardId: string): Report | undefined {
     const d = getDashboard(dashboardId)
     if (!d) return undefined
-    const allowed = new Set(tabs.value.map((t) => t.id))
-    return d.tabs.find((t) => allowed.has(t.id))
+    const allowed = new Set(reports.value.map((t) => t.id))
+    return d.reports.find((t) => allowed.has(t.id))
   }
 
-  /** Route to a dashboard — lands on its first visible tab. */
+  /** Route to a dashboard — lands on its first visible report. */
   function dashboardPath(dashboardId: string): string {
-    const t = firstTabOf(dashboardId)
+    const t = firstReportOf(dashboardId)
     return t ? `/d/${dashboardId}/${t.id}` : '/welcome'
   }
 
-  /** Route to a tab — the one place that knows the URL shape. */
-  function tabPath(tabId: string): string {
-    const d = dashboardOf(tabId)
-    return d ? `/d/${d.id}/${tabId}` : '/welcome'
+  /** Route to a report — the one place that knows the URL shape. */
+  function reportPath(reportId: string): string {
+    const d = dashboardOf(reportId)
+    return d ? `/d/${d.id}/${reportId}` : '/welcome'
   }
 
   /**
-   * "New dashboard" from the gallery: a private user dashboard holding one tab copied
-   * from the template. Returns the tab (the caller navigates to it). An optional `name`
+   * "New dashboard" from the gallery: a private user dashboard holding one report copied
+   * from the template. Returns the report (the caller navigates to it). An optional `name`
    * lets the picker use a user-typed name; names are de-duplicated either way.
    */
-  function createFromTemplate(templateId: string, name?: string): DashboardTab {
+  function createFromTemplate(templateId: string, name?: string): Report {
     const t = getTemplate(templateId)
-    // A brand-new dashboard has no tabs, so nothing to de-duplicate against.
-    const tabName = uniqueName(name?.trim() || t?.name || templateId, [])
-    const tab = tabFromTemplate(templateId, makeId(templateId), tabName)
+    // A brand-new dashboard has no reports, so nothing to de-duplicate against.
+    const reportName = uniqueName(name?.trim() || t?.name || templateId, [])
+    const report = reportFromTemplate(templateId, makeId(templateId), reportName)
     state.dashboards.push({
       id: makeId('dash'),
-      name: tabName,
+      name: reportName,
       owner: DEMO_USER,
       visibility: 'private',
       scope: { ...DEFAULT_SCOPE },
-      tabs: [tab],
+      reports: [report],
       readonly: false,
     })
-    return tab
-  }
-
-  /** Remove a tab. A user dashboard left with no tabs goes with it — a tab used to BE
-   *  the dashboard, so this keeps today's behaviour until step 17 adds an empty state. */
-  function removeTab(id: string) {
-    const d = dashboardOf(id)
-    if (!d) return
-    d.tabs = d.tabs.filter((t) => t.id !== id)
-    if (!d.readonly && d.tabs.length === 0) {
-      state.dashboards = state.dashboards.filter((x) => x.id !== d.id)
-    }
+    return report
   }
 
   /** Write the working filters onto a dashboard. Refused on the read-only default —
@@ -230,44 +217,43 @@ export function useWorkspace() {
    *  - 'new'   → the Trengo default dashboard
    *  - 'old'   → the legacy reports, rebuilt as one user dashboard
    *  - 'later' → nothing (generic empty state)
-   * Returns the first tab so the caller can navigate. Non-destructive: every
+   * Returns the first report so the caller can navigate. Non-destructive: every
    * template stays available in the gallery regardless of choice.
    */
-  function chooseStart(kind: 'new' | 'old' | 'later'): DashboardTab | undefined {
+  function chooseStart(kind: 'new' | 'old' | 'later'): Report | undefined {
     if (kind === 'new') state.dashboards = [buildTrengoDashboard()]
     else if (kind === 'old') state.dashboards = [buildLegacyDashboard()]
     else state.dashboards = []
     state.needsChoice = false
-    return allTabs()[0]
+    return allReports()[0]
   }
 
-  const openGallery = () => (state.galleryOpen = true)
-  const closeGallery = () => (state.galleryOpen = false)
+  const openNewDashboard = () => (state.newDashboardOpen = true)
+  const closeNewDashboard = () => (state.newDashboardOpen = false)
 
   return {
     dashboards,
-    tabs,
+    reports,
     scenario,
     iterationId,
     allowNewDashboard,
     allowRemoveDashboard,
     allowScenarioToggle,
     needsChoice,
-    galleryOpen,
+    newDashboardOpen,
     getDashboard,
-    getTab,
+    getReport,
     dashboardOf,
-    firstTabOf,
+    firstReportOf,
     dashboardPath,
-    tabPath,
+    reportPath,
     saveScope,
     removeDashboard,
     createFromTemplate,
-    removeTab,
     setScenario,
     setIteration,
     chooseStart,
-    openGallery,
-    closeGallery,
+    openNewDashboard,
+    closeNewDashboard,
   }
 }

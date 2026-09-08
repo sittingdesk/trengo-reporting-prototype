@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// TemplateGallery — the "New dashboard" picker dialog.
+// NewDashboardDialog — the "New dashboard" picker dialog.
 //
 // Compact, list-based: a single-select list of rows grouped into "Recommended"
 // (the question-led templates) and "Reports" (the detailed ones), with a disabled
 // "Start from scratch" row above them. Pick one, then "Create dashboard".
-// (The new tab is named after its template; renaming happens on the dashboard.)
+// (The new report is named after its template; renaming happens on the dashboard.)
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -21,7 +21,7 @@ import { TEMPLATES } from '@/config/templates'
 import { useWorkspace } from '@/composables/useWorkspace'
 
 const router = useRouter()
-const { galleryOpen, createFromTemplate, closeGallery, tabPath } = useWorkspace()
+const { newDashboardOpen, createFromTemplate, closeNewDashboard, reportPath } = useWorkspace()
 
 // Per-template leading icon + accent tint (presentation only).
 const META: Record<string, { icon: string; tint: string }> = {
@@ -56,7 +56,7 @@ const reports = TEMPLATES.filter((t) => !t.recommended)
 // Selection state — reset to the default (Overview) each time the picker opens.
 const selectedId = ref('overview')
 watch(
-  galleryOpen,
+  newDashboardOpen,
   (open) => {
     if (open) selectedId.value = 'overview'
   },
@@ -64,18 +64,18 @@ watch(
 )
 
 function onOpenChange(open: boolean) {
-  if (!open) closeGallery()
+  if (!open) closeNewDashboard()
 }
 
 function create() {
-  const tab = createFromTemplate(selectedId.value)
-  closeGallery()
-  router.push(tabPath(tab.id))
+  const report = createFromTemplate(selectedId.value)
+  closeNewDashboard()
+  router.push(reportPath(report.id))
 }
 </script>
 
 <template>
-  <Dialog :open="galleryOpen" @update:open="onOpenChange">
+  <Dialog :open="newDashboardOpen" @update:open="onOpenChange">
     <DialogContent class="max-w-lg gap-0 p-0">
       <!-- Header (compact) -->
       <DialogHeader class="gap-1 p-4 pb-3">
@@ -179,7 +179,7 @@ function create() {
 
       <!-- Footer -->
       <div class="flex items-center justify-end gap-2 border-t border-grey-200 p-4 pt-3">
-        <Button variant="outline" @click="closeGallery()">Cancel</Button>
+        <Button variant="outline" @click="closeNewDashboard()">Cancel</Button>
         <Button variant="default" @click="create()">Create dashboard</Button>
       </div>
     </DialogContent>

@@ -5,7 +5,7 @@
 // than by headings — with two entries, "Trengo" and "Your dashboards" labelled more than
 // they organised. Each row shows its saved scope as a subtitle, so two dashboards are
 // told apart by what they actually look at rather than by name alone. Clicking one opens
-// its first tab; the tabs themselves live in the tab row inside the dashboard, not here.
+// its first report; the reports themselves live in the tab row inside the dashboard, not here.
 // At the bottom sits a clearly-labelled PROTOTYPE scenario switcher to demo the
 // "existing customer" (seeded) vs "new customer" (empty) onboarding states.
 import { computed } from 'vue'
@@ -20,16 +20,16 @@ const route = useRoute()
 const router = useRouter()
 const {
   dashboards,
-  tabs,
+  reports,
   scenario,
   iterationId,
   allowNewDashboard,
   allowRemoveDashboard,
   allowScenarioToggle,
-  openGallery,
+  openNewDashboard,
   removeDashboard,
   dashboardPath,
-  tabPath,
+  reportPath,
   setScenario,
   setIteration,
 } = useWorkspace()
@@ -56,19 +56,19 @@ const dataStates: { id: DataState; label: string }[] = [
   { id: 'error', label: 'Error' },
 ]
 
-// After changing scenario/iteration, land on the first visible tab (or welcome).
-function goToFirstTab() {
-  router.push(tabs.value.length ? tabPath(tabs.value[0].id) : '/welcome')
+// After changing scenario/iteration, land on the first visible report (or welcome).
+function goToFirstReport() {
+  router.push(reports.value.length ? reportPath(reports.value[0].id) : '/welcome')
 }
 
 function switchScenario(id: Scenario) {
   setScenario(id)
-  goToFirstTab()
+  goToFirstReport()
 }
 
 function changeIteration(id: string) {
   setIteration(id)
-  goToFirstTab()
+  goToFirstReport()
 }
 </script>
 
@@ -81,7 +81,7 @@ function changeIteration(id: string) {
         v-if="allowNewDashboard"
         class="flex size-7 items-center justify-center rounded-base text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900"
         title="New dashboard"
-        @click="openGallery()"
+        @click="openNewDashboard()"
       >
         <span class="text-lg leading-none">+</span>
       </button>
@@ -135,7 +135,7 @@ function changeIteration(id: string) {
         <button
           v-if="allowNewDashboard"
           class="mt-1 flex w-full items-center gap-2 rounded-base px-2.5 py-2 text-sm font-medium text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900"
-          @click="openGallery()"
+          @click="openNewDashboard()"
         >
           <span class="text-base leading-none">+</span> New dashboard
         </button>

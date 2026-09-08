@@ -1,7 +1,7 @@
 // The template catalog.
 //
 // A TEMPLATE is a named, ordered collection of widgets — the blueprint a user
-// picks when creating a new dashboard tab.
+// picks when creating a new report.
 //
 // ⚠️ Mock: the widgets below are placeholder display names + a "kind", NOT real
 // metrics. They render as empty placeholder cards for now; the real "metric box"

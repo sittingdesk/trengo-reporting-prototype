@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // DashboardHeader — identifies the dashboard you're looking at and holds its filters.
 //
-// Replaces TopBar, which showed the *tab* name and the global filters. Both belong to
+// Replaces TopBar, which showed the active report's name and the global filters. Both belong to
 // the dashboard now: filters are a property of the dashboard (its saved scope), not of
-// the tab, and tabs inherit them.
+// the report, and reports inherit them.
 //
 // No background of its own: it sits on the page, not in a bar.
 //
@@ -66,7 +66,7 @@ const save = () => saveScope(props.dashboard.id, currentScope())
         <p class="mt-0.5 truncate text-xs font-medium text-grey-600">{{ ownerLine }}</p>
       </div>
 
-      <!-- The dashboard's filters. Tabs inherit them; there is no per-tab filtering. -->
+      <!-- The dashboard's filters. Reports inherit them; there is no per-report filtering. -->
       <div class="flex shrink-0 items-center gap-2">
         <DateRangeFilter />
         <ChannelFilter />

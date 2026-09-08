@@ -16,14 +16,14 @@ import {
 } from '@/config/templates'
 
 const router = useRouter()
-const { chooseStart, tabPath } = useWorkspace()
+const { chooseStart, reportPath } = useWorkspace()
 
 const newNames = QUESTION_LED_TEMPLATE_IDS.map((id) => getTemplate(id)?.name ?? id)
 const oldNames = LEGACY_REPORT_TEMPLATE_IDS.map((id) => getTemplate(id)?.name ?? id)
 
 function choose(kind: 'new' | 'old' | 'later') {
-  const tab = chooseStart(kind)
-  router.push(tab ? tabPath(tab.id) : '/welcome')
+  const report = chooseStart(kind)
+  router.push(report ? reportPath(report.id) : '/welcome')
 }
 </script>
 

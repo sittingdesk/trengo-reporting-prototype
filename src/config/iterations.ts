@@ -4,11 +4,11 @@
 export interface Iteration {
   id: string
   label: string
-  /** Template ids hidden in this iteration (pages removed from the tab list). */
+  /** Template ids hidden in this iteration (pages removed from the report list). */
   hiddenTemplateIds: string[]
   /** Whether the "New dashboard" triggers are available. */
   allowNewDashboard: boolean
-  /** Whether pages can be removed (the per-tab remove control). */
+  /** Whether pages can be removed (the per-dashboard remove control). */
   allowRemoveDashboard: boolean
   /** Whether the prototype scenario (existing/new customer) can be toggled. */
   allowScenarioToggle: boolean

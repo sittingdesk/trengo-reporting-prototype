@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// DashboardView — the route view for `/d/:dashboardId/:tabId`.
+// DashboardView — the route view for `/d/:dashboardId/:reportId`.
 //
-// Composes the dashboard: header (identity + filters) → tab row → the active tab's
+// Composes the dashboard: header (identity + filters) → tab row → the active report's
 // widgets. Resolves both route params and owns every route concern; the header, tab row
 // and grid are all pure components.
 //
@@ -9,8 +9,8 @@
 // and scroll with the widgets, so the dashboard reads as one page rather than as chrome
 // wrapped around content.
 //
-// Opening a dashboard applies its saved scope. Keyed on the dashboard id, not the tab,
-// because tabs inherit the dashboard's filters — switching tabs must not reset them.
+// Opening a dashboard applies its saved scope. Keyed on the dashboard id, not the report,
+// because reports inherit the dashboard's filters — switching reports must not reset them.
 import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkspace } from '@/composables/useWorkspace'
@@ -21,15 +21,15 @@ import WidgetGrid from '@/components/dashboard/WidgetGrid.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { getDashboard, getTab } = useWorkspace()
+const { getDashboard, getReport } = useWorkspace()
 const { applyScope } = useFilters()
 
 const dashboard = computed(() => getDashboard(String(route.params.dashboardId)))
-const tab = computed(() => getTab(String(route.params.tabId)))
+const report = computed(() => getReport(String(route.params.reportId)))
 
 // If either id doesn't resolve (e.g. after a scenario reseed), bounce home.
 watch(
-  [dashboard, tab],
+  [dashboard, report],
   ([d, t]) => {
     if (!d || !t) router.replace('/')
   },
@@ -49,9 +49,9 @@ watch(
 </script>
 
 <template>
-  <div v-if="dashboard && tab" class="flex min-h-full flex-col">
+  <div v-if="dashboard && report" class="flex min-h-full flex-col">
     <DashboardHeader :dashboard="dashboard" />
-    <TabRow :dashboard="dashboard" :active-tab-id="tab.id" />
-    <WidgetGrid :widgets="tab.widgets" :tab-name="tab.name" />
+    <TabRow :dashboard="dashboard" :active-report-id="report.id" />
+    <WidgetGrid :widgets="report.widgets" :report-name="report.name" />
   </div>
 </template>

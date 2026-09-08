@@ -1,12 +1,12 @@
-// Dashboards — the layer above tabs.
+// Dashboards — the layer above reports.
 //
-//   Dashboard → Tab → Widget
+//   Dashboard → Report → Widget
 //
 // A dashboard has a name, an owner, a visibility, a SAVED filter scope and an ordered
-// list of tabs. A tab has a name and an ordered list of widgets — the metric cards that
-// already exist. Widgets are OWNED by the tab, copied from a template at creation: a
-// template is a starting point, not a live link. That is what lets a tab be blank, or a
-// copy of another tab that then diverges. (The old model resolved a tab's template live,
+// list of reports. A report has a name and an ordered list of widgets — the metric cards that
+// already exist. Widgets are OWNED by the report, copied from a template at creation: a
+// template is a starting point, not a live link. That is what lets a report be blank, or a
+// copy of another report that then diverges. (The old model resolved a report's template live,
 // which can express neither.)
 //
 // ⚠️ Mock: there is no backend. The Trengo default is rebuilt from the templates on every
@@ -35,12 +35,12 @@ export interface SavedScope {
   teamIds: string[]
 }
 
-export interface DashboardTab {
+export interface Report {
   id: string
   name: string
-  /** Owned by the tab (see header comment). */
+  /** Owned by the report (see header comment). */
   widgets: Widget[]
-  /** Provenance only: which template this tab started from. Drives the iteration
+  /** Provenance only: which template this report started from. Drives the iteration
    *  picker's page hiding and the "Copy of …" label — never used to resolve widgets. */
   templateId?: string
 }
@@ -57,8 +57,8 @@ export interface Dashboard {
   /** Only when `visibility === 'team'`. */
   teamId?: string
   scope: SavedScope
-  tabs: DashboardTab[]
-  /** The Trengo default can't be edited — adding a tab offers to duplicate it first. */
+  reports: Report[]
+  /** The Trengo default can't be edited — adding a report offers to duplicate it first. */
   readonly: boolean
 }
 
@@ -86,8 +86,8 @@ export const TRENGO_OWNER = 'Trengo'
 /** What every new dashboard opens with until its owner saves something else. */
 export const DEFAULT_SCOPE: SavedScope = { presetId: 'last7', channelIds: [], teamIds: [] }
 
-/** A tab whose widgets are a fresh copy of a template's. */
-export function tabFromTemplate(templateId: string, id: string, name?: string): DashboardTab {
+/** A report whose widgets are a fresh copy of a template's. */
+export function reportFromTemplate(templateId: string, id: string, name?: string): Report {
   const t = getTemplate(templateId)
   return {
     id,
@@ -109,8 +109,8 @@ export function buildTrengoDashboard(): Dashboard {
     owner: TRENGO_OWNER,
     visibility: 'everyone',
     scope: { ...DEFAULT_SCOPE },
-    tabs: QUESTION_LED_TEMPLATE_IDS.map((templateId) =>
-      tabFromTemplate(templateId, `${TRENGO_DASHBOARD_ID}-${templateId}`),
+    reports: QUESTION_LED_TEMPLATE_IDS.map((templateId) =>
+      reportFromTemplate(templateId, `${TRENGO_DASHBOARD_ID}-${templateId}`),
     ),
     readonly: true,
   }
