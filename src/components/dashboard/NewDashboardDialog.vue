@@ -1,11 +1,16 @@
 <script setup lang="ts">
-// NewDashboardDialog — the "New dashboard" picker dialog.
+// NewDashboardDialog — "New dashboard".
 //
-// Compact, list-based: a single-select list of rows grouped into "Recommended"
-// (the question-led templates) and "Reports" (the detailed ones), with a disabled
-// "Start from scratch" row above them. Pick one, then "Create dashboard".
-// (The new report is named after its template; renaming happens on the dashboard.)
-import { ref, watch } from 'vue'
+// Offers STARTING SETS, not templates: a name field plus three rows — Trengo
+// recommended · My current reports · Start from scratch.
+//
+// It used to list all nine report templates, which mixed two grains: picking "Overview"
+// gave you a dashboard named Overview holding one report named Overview. The nine
+// templates are report-shaped, so they belong in "Add report". Here the only question is
+// which SET of reports you begin with, and "Start from scratch" is the empty set — which
+// is why it can finally be enabled, rather than carrying a "Coming soon" badge while
+// picking the empty Automate template did the very same thing.
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Dialog,
@@ -16,49 +21,47 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import Icon from '@/components/Icon.vue'
-import { TEMPLATES } from '@/config/templates'
+import { STARTING_SETS, type StartingSetId } from '@/config/startingSets'
 import { useWorkspace } from '@/composables/useWorkspace'
 
 const router = useRouter()
 const { newDashboardOpen, createDashboard, closeNewDashboard, reportPath } = useWorkspace()
 
-// Per-template leading icon + accent tint (presentation only).
-const META: Record<string, { icon: string; tint: string }> = {
-  overview: { icon: 'Apperture', tint: 'leaf' },
-  understand: { icon: 'Bulb', tint: 'purple' },
-  operate: { icon: 'Activity', tint: 'sky' },
-  improve: { icon: 'TrendUp', tint: 'peach' },
-  automate: { icon: 'Lightning', tint: 'sun' },
-  dashboard: { icon: 'Grid', tint: 'leaf' },
-  'workload-management': { icon: 'Layers', tint: 'sky' },
-  'agent-performance': { icon: 'Users', tint: 'purple' },
-  'customer-satisfaction': { icon: 'Heart', tint: 'peach' },
+// Per-set leading icon + accent tint (presentation only). Full class strings so
+// Tailwind's JIT keeps them — never build a class name from a variable.
+const META: Record<StartingSetId, { icon?: string; tint: string }> = {
+  recommended: { icon: 'Apperture', tint: 'leaf' },
+  'current-reports': { icon: 'Grid', tint: 'sky' },
+  // No icon: a literal "+" says "nothing here yet" better than any glyph.
+  scratch: { tint: 'grey' },
 }
-// Full class strings so Tailwind's JIT keeps them (no dynamic class names).
 const TINT_CLASS: Record<string, string> = {
   leaf: 'bg-leaf-100 text-leaf-600',
-  purple: 'bg-purple-100 text-purple-600',
   sky: 'bg-sky-100 text-sky-600',
-  peach: 'bg-peach-100 text-peach-600',
-  sun: 'bg-sun-100 text-sun-600',
-}
-function tintClass(id: string) {
-  return TINT_CLASS[META[id]?.tint] ?? TINT_CLASS.leaf
-}
-function iconName(id: string) {
-  return META[id]?.icon ?? 'Grid'
+  grey: 'bg-grey-200 text-grey-700',
 }
 
-const recommended = TEMPLATES.filter((t) => t.recommended)
-const reports = TEMPLATES.filter((t) => !t.recommended)
+const selectedId = ref<StartingSetId>('recommended')
+const selectedSet = computed(() => STARTING_SETS.find((s) => s.id === selectedId.value))
 
-// Selection state — reset to the default (Overview) each time the picker opens.
-const selectedId = ref('overview')
+// The name follows the selected set until the user types — then their name wins, so
+// changing your mind about the set never silently overwrites what you wrote.
+const name = ref('')
+const nameDirty = ref(false)
+watch(selectedSet, (s) => {
+  if (!nameDirty.value) name.value = s?.defaultName ?? ''
+})
+
+// Reset on every open, so a cancelled attempt doesn't leak into the next one.
 watch(
   newDashboardOpen,
   (open) => {
-    if (open) selectedId.value = 'overview'
+    if (!open) return
+    selectedId.value = 'recommended'
+    nameDirty.value = false
+    name.value = STARTING_SETS.find((s) => s.id === 'recommended')?.defaultName ?? ''
   },
   { immediate: true },
 )
@@ -70,7 +73,7 @@ function onOpenChange(open: boolean) {
 function create() {
   // undefined when the active iteration doesn't allow new dashboards — the triggers are
   // hidden in that case, so this is belt-and-braces rather than a reachable path.
-  const report = createDashboard('recommended')
+  const report = createDashboard(selectedId.value, name.value)
   closeNewDashboard()
   if (report) router.push(reportPath(report.id))
 }
@@ -79,7 +82,6 @@ function create() {
 <template>
   <Dialog :open="newDashboardOpen" @update:open="onOpenChange">
     <DialogContent class="max-w-lg gap-0 p-0">
-      <!-- Header (compact) -->
       <DialogHeader class="gap-1 p-4 pb-3">
         <div class="flex items-center gap-2.5">
           <span class="flex size-8 shrink-0 items-center justify-center rounded-base bg-grey-100 text-grey-700">
@@ -88,98 +90,68 @@ function create() {
           <DialogTitle class="text-base">New dashboard</DialogTitle>
         </div>
         <DialogDescription class="text-xs">
-          Start from scratch or pick a template to get going.
+          Name it, then choose which reports to start with. You can add more later.
         </DialogDescription>
       </DialogHeader>
 
-      <!-- Selectable list -->
-      <div class="max-h-[56vh] space-y-3 overflow-y-auto border-t border-grey-200 px-4 py-3 scroll-thin" role="radiogroup" aria-label="Template">
-        <!-- Start from scratch (deferred) -->
-        <div>
-          <div class="mb-1.5 text-xs font-semibold text-grey-600">New</div>
-          <div
-            class="flex cursor-not-allowed items-center gap-2.5 rounded-lg border border-dashed border-grey-300 bg-grey-100 p-2.5 opacity-80"
-            title="Custom dashboards are coming in a later release"
-            aria-disabled="true"
+      <div class="space-y-3 border-t border-grey-200 px-4 py-3">
+        <!-- Name. A dashboard is a container the user sees in the sidebar from now on,
+             so it gets named here rather than inheriting a template's name. -->
+        <div class="space-y-1.5">
+          <label for="dashboard-name" class="block text-xs font-semibold text-grey-600">
+            Dashboard name
+          </label>
+          <Input
+            id="dashboard-name"
+            v-model="name"
+            placeholder="My dashboard"
+            @input="nameDirty = true"
+          />
+        </div>
+
+        <div class="space-y-1.5" role="radiogroup" aria-label="Start with">
+          <div class="text-xs font-semibold text-grey-600">Start with</div>
+          <label
+            v-for="s in STARTING_SETS"
+            :key="s.id"
+            class="flex cursor-pointer items-center gap-2.5 rounded-lg border p-2.5 transition-colors"
+            :class="
+              selectedId === s.id
+                ? 'border-leaf-500 bg-leaf-100/40'
+                : 'border-grey-300 bg-white hover:bg-grey-100'
+            "
           >
-            <span class="flex size-8 shrink-0 items-center justify-center rounded-base bg-grey-200 text-grey-400 text-base leading-none">+</span>
+            <input
+              type="radio"
+              name="starting-set"
+              class="sr-only"
+              :checked="selectedId === s.id"
+              @change="selectedId = s.id"
+            />
+            <span
+              class="flex size-8 shrink-0 items-center justify-center rounded-base"
+              :class="TINT_CLASS[META[s.id].tint]"
+            >
+              <Icon v-if="META[s.id].icon" :name="META[s.id].icon!" :size="16" />
+              <span v-else class="text-base leading-none">+</span>
+            </span>
             <div class="min-w-0 flex-1">
-              <div class="text-sm font-semibold text-grey-700">Start from scratch</div>
-              <p class="truncate text-xs text-grey-600">Add widgets one by one and arrange them yourself.</p>
+              <div class="flex items-center gap-2">
+                <span class="truncate text-sm font-semibold text-grey-900">{{ s.name }}</span>
+                <Badge v-if="s.recommended" variant="recommended">Recommended</Badge>
+              </div>
+              <p class="truncate text-xs text-grey-600">{{ s.description }}</p>
             </div>
-            <Badge variant="muted">Coming soon</Badge>
-          </div>
-        </div>
-
-        <!-- Recommended -->
-        <div>
-          <div class="mb-1.5 text-xs font-semibold text-grey-600">Recommended</div>
-          <div class="space-y-1.5">
-            <label
-              v-for="t in recommended"
-              :key="t.id"
-              class="flex cursor-pointer items-center gap-2.5 rounded-lg border p-2.5 transition-colors"
-              :class="
-                selectedId === t.id
-                  ? 'border-leaf-500 bg-leaf-100/40'
-                  : 'border-grey-300 bg-white hover:bg-grey-100'
-              "
+            <span
+              class="flex size-4 shrink-0 items-center justify-center rounded-circle border"
+              :class="selectedId === s.id ? 'border-leaf-500' : 'border-grey-300'"
             >
-              <input type="radio" name="template" class="sr-only" :checked="selectedId === t.id" @change="selectedId = t.id" />
-              <span class="flex size-8 shrink-0 items-center justify-center rounded-base" :class="tintClass(t.id)">
-                <Icon :name="iconName(t.id)" :size="16" />
-              </span>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-2">
-                  <span class="truncate text-sm font-semibold text-grey-900">{{ t.name }}</span>
-                  <Badge variant="recommended">Recommended</Badge>
-                </div>
-                <p class="truncate text-xs text-grey-600">{{ t.description }}</p>
-              </div>
-              <span
-                class="flex size-4 shrink-0 items-center justify-center rounded-circle border"
-                :class="selectedId === t.id ? 'border-leaf-500' : 'border-grey-300'"
-              >
-                <span v-if="selectedId === t.id" class="size-2 rounded-circle bg-leaf-500" />
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Reports -->
-        <div>
-          <div class="mb-1.5 text-xs font-semibold text-grey-600">Reports</div>
-          <div class="space-y-1.5">
-            <label
-              v-for="t in reports"
-              :key="t.id"
-              class="flex cursor-pointer items-center gap-2.5 rounded-lg border p-2.5 transition-colors"
-              :class="
-                selectedId === t.id
-                  ? 'border-leaf-500 bg-leaf-100/40'
-                  : 'border-grey-300 bg-white hover:bg-grey-100'
-              "
-            >
-              <input type="radio" name="template" class="sr-only" :checked="selectedId === t.id" @change="selectedId = t.id" />
-              <span class="flex size-8 shrink-0 items-center justify-center rounded-base" :class="tintClass(t.id)">
-                <Icon :name="iconName(t.id)" :size="16" />
-              </span>
-              <div class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-semibold text-grey-900">{{ t.name }}</span>
-                <p class="truncate text-xs text-grey-600">{{ t.description }}</p>
-              </div>
-              <span
-                class="flex size-4 shrink-0 items-center justify-center rounded-circle border"
-                :class="selectedId === t.id ? 'border-leaf-500' : 'border-grey-300'"
-              >
-                <span v-if="selectedId === t.id" class="size-2 rounded-circle bg-leaf-500" />
-              </span>
-            </label>
-          </div>
+              <span v-if="selectedId === s.id" class="size-2 rounded-circle bg-leaf-500" />
+            </span>
+          </label>
         </div>
       </div>
 
-      <!-- Footer -->
       <div class="flex items-center justify-end gap-2 border-t border-grey-200 p-4 pt-3">
         <Button variant="outline" @click="closeNewDashboard()">Cancel</Button>
         <Button variant="default" @click="create()">Create dashboard</Button>
