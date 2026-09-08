@@ -18,6 +18,7 @@ import { computed } from 'vue'
 import DateRangeFilter from '@/components/layout/filters/DateRangeFilter.vue'
 import ChannelFilter from '@/components/layout/filters/ChannelFilter.vue'
 import SelectFilter from '@/components/layout/filters/SelectFilter.vue'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useFilters } from '@/composables/useFilters'
 import { useWorkspace } from '@/composables/useWorkspace'
 import { TEAMS } from '@/data/filters'
@@ -40,9 +41,11 @@ const ownerLine = computed(() => {
 const dirty = computed(() => isDirty(props.dashboard.scope))
 
 /**
- * Why saving isn't possible, or undefined when it is. Shown as text rather than tucked
- * into a tooltip on a disabled control: the reason is something the user has to act on
- * (pick a different range), so it can't be discoverable only on hover.
+ * Why saving isn't possible, or undefined when it is. Lives in a tooltip on Save rather
+ * than as visible text: the greyed button already says "not now", so a permanent
+ * sentence spent its width restating that for the whole time you browse a custom range.
+ * It's the only blocked reason left, and it's self-correcting — pick a preset and it's
+ * gone.
  */
 const blockedReason = computed(() => {
   // A saved scope holds a preset, never two dates — an absolute range would freeze on
@@ -52,7 +55,10 @@ const blockedReason = computed(() => {
 })
 
 const reset = () => applyScope(props.dashboard.scope)
-const save = () => saveScope(props.dashboard.id, currentScope())
+const save = () => {
+  if (blockedReason.value) return
+  saveScope(props.dashboard.id, currentScope())
+}
 </script>
 
 <template>
@@ -93,16 +99,19 @@ const save = () => saveScope(props.dashboard.id, currentScope())
           >
             Reset
           </button>
-          <button
-            type="button"
-            :disabled="!!blockedReason"
-            class="h-5 rounded-lg bg-grey-900 px-2 text-sm font-medium text-grey-100 transition-colors hover:bg-grey-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-grey-400"
-            @click="save()"
-          >
-            Save
-          </button>
-          <!-- Last, so it wraps to its own line before anything actionable does. -->
-          <span v-if="blockedReason" class="text-xs text-grey-600">{{ blockedReason }}</span>
+          <!-- aria-disabled, not disabled: a disabled button fires no pointer events
+               (so the tooltip would never open) and leaves the tab order (so a keyboard
+               user could never find out why Save is off). `save()` guards itself. -->
+          <Tooltip :text="blockedReason">
+            <button
+              type="button"
+              :aria-disabled="blockedReason ? true : undefined"
+              class="h-5 rounded-lg bg-grey-900 px-2 text-sm font-medium text-grey-100 transition-colors hover:bg-grey-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:bg-grey-400 aria-disabled:hover:bg-grey-400"
+              @click="save()"
+            >
+              Save
+            </button>
+          </Tooltip>
         </div>
       </div>
     </div>

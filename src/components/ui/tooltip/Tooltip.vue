@@ -2,6 +2,10 @@
 // Tooltip — a self-contained styled hover tooltip (reka-ui based).
 // Usage: <Tooltip text="Description…"><span>trigger</span></Tooltip>
 // Styling per design.md: dark (grey-900) surface, white 12px medium text.
+//
+// No text, no tooltip: the trigger still renders, it just doesn't open. That lets a
+// caller bind a conditional string (`:text="reasonOrUndefined"`) without an empty dark
+// box appearing on hover when there's nothing to say.
 import {
   TooltipProvider,
   TooltipRoot,
@@ -16,7 +20,7 @@ defineProps<{ text?: string }>()
 
 <template>
   <TooltipProvider :delay-duration="150">
-    <TooltipRoot>
+    <TooltipRoot :disabled="!text">
       <TooltipTrigger as-child>
         <slot />
       </TooltipTrigger>
