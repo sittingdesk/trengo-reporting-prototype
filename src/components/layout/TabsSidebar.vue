@@ -13,6 +13,7 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/Icon.vue'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useWorkspace, type Scenario } from '@/composables/useWorkspace'
 import { useSettings, type DataState } from '@/composables/useSettings'
 import { useFilters } from '@/composables/useFilters'
@@ -109,20 +110,39 @@ function changeIteration(id: string) {
 
     <!-- Dashboard list -->
     <nav class="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-1 scroll-thin" aria-label="Dashboards">
-      <!-- Trengo. Navigation only — no remove, and its name isn't editable either. -->
+      <!-- Trengo. Navigation only — no remove, and its name isn't editable either. Same
+           shape as a user row so the trailing slot lines up: the lock sits where the
+           remove ✕ does, and the right edge consistently means "this row's status or
+           action". The lock is the ONLY signal left that this dashboard is different,
+           now that the "Trengo · Default dashboard" line under the title is gone —
+           everything else about it is an absence. -->
       <div v-if="defaultDashboards.length">
         <RouterLink
           v-for="d in defaultDashboards"
           :key="d.id"
           :to="dashboardPath(d.id)"
-          class="flex flex-col gap-0.5 rounded-base px-2.5 py-2 transition-colors hover:bg-grey-200"
+          class="flex items-center gap-2 rounded-base px-2.5 py-2 transition-colors hover:bg-grey-200"
           :class="d.id === activeId ? 'bg-grey-200' : ''"
         >
-          <span
-            class="truncate text-sm font-medium"
-            :class="d.id === activeId ? 'text-grey-900' : 'text-grey-700'"
-          >{{ d.name }}</span>
-          <span class="truncate text-xs text-grey-600">{{ scopeLabel(d.scope) }}</span>
+          <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span
+              class="truncate text-sm font-medium"
+              :class="d.id === activeId ? 'text-grey-900' : 'text-grey-700'"
+            >{{ d.name }}</span>
+            <span class="truncate text-xs text-grey-600">{{ scopeLabel(d.scope) }}</span>
+          </span>
+          <!-- grey-600, not grey-500: that token is in neither design.md nor @theme, so
+               the class emitted nothing and the icon inherited grey-900 — full-strength
+               body text, which is the opposite of quiet. -->
+          <Tooltip text="Can’t be changed. Make your own from New dashboard.">
+            <span
+              class="flex size-5 shrink-0 items-center justify-center text-grey-600"
+              role="img"
+              aria-label="Read-only"
+            >
+              <Icon name="Lock" :size="12" />
+            </span>
+          </Tooltip>
         </RouterLink>
       </div>
 
@@ -144,7 +164,7 @@ function changeIteration(id: string) {
           <!-- Remove on hover -->
           <button
             v-if="allowRemoveDashboard"
-            class="hidden size-5 shrink-0 items-center justify-center rounded-sm text-grey-500 hover:bg-grey-300 hover:text-grey-900 group-hover:flex"
+            class="hidden size-5 shrink-0 items-center justify-center rounded-sm text-grey-600 hover:bg-grey-300 hover:text-grey-900 group-hover:flex"
             title="Remove dashboard"
             @click.prevent.stop="removeDashboard(d.id)"
           >
