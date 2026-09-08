@@ -11,13 +11,14 @@
 // ⚠️ Persistence is mocked: the chosen scenario is saved to localStorage and reseeds
 // on load. Real per-user persistence needs a backend DB (TECH_FOUNDATION §5).
 import { reactive, computed } from 'vue'
-import {
-  getTemplate,
-  LEGACY_REPORT_TEMPLATE_IDS,
-  QUESTION_LED_TEMPLATE_IDS,
-} from '@/config/templates'
 import { getIteration, DEFAULT_ITERATION_ID } from '@/config/iterations'
 import {
+  getStartingSet,
+  SEED_SET_ID,
+  type StartingSetId,
+} from '@/config/startingSets'
+import {
+  blankReport,
   reportFromTemplate,
   slugify,
   DEFAULT_SCOPE,
@@ -70,38 +71,47 @@ function uniqueId(base: string, taken: Set<string>): string {
   return `${base}-${n}`
 }
 
-/** A dashboard holding one report per template id — an ordinary user dashboard, whatever
- *  it was built from. `[]` gives a dashboard with no reports.
- *  Reports take their template id as their own, so deep links read well and stay stable
- *  for anything seeded (see `slugify`). */
-function buildDashboard(name: string, templateIds: string[]): Dashboard {
-  const takenIds = new Set(state.dashboards.map((d) => d.id))
+/**
+ * Build a dashboard from a starting set — an ordinary user dashboard, whatever it started
+ * from. Reports take their template id as their own id, so deep links read well and stay
+ * stable for anything seeded (see `slugify`).
+ *
+ * The iteration's `hiddenTemplateIds` is applied HERE rather than when rendering. Hiding
+ * at render time meant a report could vanish the instant a user added it, and a dashboard
+ * could reach zero visible reports — whose own sidebar row then navigated away from it.
+ * The flag means "which templates this rollout offers", so creation is where it belongs.
+ */
+function buildDashboard(setId: StartingSetId, name?: string): Dashboard {
+  const set = getStartingSet(setId)
+  const hidden = getIteration(state.iterationId)?.hiddenTemplateIds ?? []
+  const templateIds = (set?.templateIds ?? []).filter((t) => !hidden.includes(t))
+  const label = name?.trim() || set?.defaultName || 'My dashboard'
   const reportIds = new Set<string>()
+  const takeId = (base: string) => {
+    const id = uniqueId(base, reportIds)
+    reportIds.add(id)
+    return id
+  }
   return {
-    id: uniqueId(slugify(name), takenIds),
-    name: uniqueName(name, state.dashboards.map((d) => d.name)),
+    id: uniqueId(slugify(label), new Set(state.dashboards.map((d) => d.id))),
+    name: uniqueName(label, state.dashboards.map((d) => d.name)),
     owner: DEMO_USER,
     visibility: 'private',
     scope: { ...DEFAULT_SCOPE },
-    reports: templateIds.map((t) => {
-      const id = uniqueId(t, reportIds)
-      reportIds.add(id)
-      return reportFromTemplate(t, id)
-    }),
+    // An empty set — or one whose every template this rollout hides — still gives you a
+    // dashboard you can work in, rather than an unreachable empty one.
+    reports: templateIds.length
+      ? templateIds.map((t) => reportFromTemplate(t, takeId(t)))
+      : [blankReport(takeId('report'))],
   }
 }
-
-/** The name a freshly seeded workspace opens with. Deliberately not "Trengo": the
- *  dashboard is the user's from the moment it exists, and every customer is Trengo's
- *  customer, so "Trengo" would read as internal-speak on their own dashboard. */
-const SEED_NAME = 'My dashboard'
 
 /** Apply a scenario's starting state: new → seeded from the recommended set;
  *  existing → ask first. */
 function applyScenario(scenario: Scenario) {
   state.dashboards = []
   if (scenario === 'new') {
-    state.dashboards.push(buildDashboard(SEED_NAME, QUESTION_LED_TEMPLATE_IDS))
+    state.dashboards.push(buildDashboard(SEED_SET_ID))
     state.needsChoice = false
   } else {
     state.needsChoice = true
@@ -137,12 +147,9 @@ function uniqueName(base: string, existing: string[]): string {
 export function useWorkspace() {
   const dashboards = computed(() => state.dashboards)
 
-  // Every report, flat, minus the pages the current iteration hides (by template provenance).
-  const reports = computed(() => {
-    const hidden = getIteration(state.iterationId)?.hiddenTemplateIds ?? []
-    const all = allReports()
-    return hidden.length ? all.filter((t) => !t.templateId || !hidden.includes(t.templateId)) : all
-  })
+  // Every report, flat. No filtering: the iteration's hidden templates are applied when
+  // a dashboard is BUILT (see buildDashboard), so what exists is what shows.
+  const reports = computed(() => allReports())
   const scenario = computed(() => state.scenario)
   const iterationId = computed(() => state.iterationId)
   const allowNewDashboard = computed(() => getIteration(state.iterationId)?.allowNewDashboard ?? true)
@@ -160,12 +167,9 @@ export function useWorkspace() {
     return state.dashboards.find((d) => d.reports.some((t) => t.id === reportId))
   }
 
-  /** A dashboard's first report that the current iteration doesn't hide. */
+  /** A dashboard's first report. */
   function firstReportOf(dashboardId: string): Report | undefined {
-    const d = getDashboard(dashboardId)
-    if (!d) return undefined
-    const allowed = new Set(reports.value.map((t) => t.id))
-    return d.reports.find((t) => allowed.has(t.id))
+    return getDashboard(dashboardId)?.reports[0]
   }
 
   /** Route to a dashboard — lands on its first visible report. */
@@ -181,16 +185,14 @@ export function useWorkspace() {
   }
 
   /**
-   * "New dashboard" from the gallery: a private user dashboard holding one report copied
-   * from the template. Returns the report (the caller navigates to it). An optional `name`
-   * lets the picker use a user-typed name; names are de-duplicated either way.
+   * "New dashboard": a private dashboard from a starting set, with an optional user-typed
+   * name (de-duplicated either way). Returns its first report so the caller can navigate.
    */
-  function createFromTemplate(templateId: string, name?: string): Report | undefined {
+  function createDashboard(setId: StartingSetId, name?: string): Report | undefined {
     // Enforced here, not only in the sidebar's v-if: a UI-only guard is bypassed by the
     // next caller.
     if (!allowNewDashboard.value) return undefined
-    const t = getTemplate(templateId)
-    const d = buildDashboard(name?.trim() || t?.name || templateId, [templateId])
+    const d = buildDashboard(setId, name)
     state.dashboards.push(d)
     return d.reports[0]
   }
@@ -240,9 +242,8 @@ export function useWorkspace() {
    */
   function chooseStart(kind: 'new' | 'old' | 'later'): Report | undefined {
     state.dashboards = []
-    if (kind === 'new') state.dashboards.push(buildDashboard(SEED_NAME, QUESTION_LED_TEMPLATE_IDS))
-    else if (kind === 'old')
-      state.dashboards.push(buildDashboard('My reports', LEGACY_REPORT_TEMPLATE_IDS))
+    if (kind === 'new') state.dashboards.push(buildDashboard('recommended'))
+    else if (kind === 'old') state.dashboards.push(buildDashboard('current-reports'))
     state.needsChoice = false
     return allReports()[0]
   }
@@ -267,7 +268,7 @@ export function useWorkspace() {
     reportPath,
     saveScope,
     removeDashboard,
-    createFromTemplate,
+    createDashboard,
     setScenario,
     setIteration,
     chooseStart,

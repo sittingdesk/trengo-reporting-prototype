@@ -4,7 +4,8 @@
 export interface Iteration {
   id: string
   label: string
-  /** Template ids hidden in this iteration (pages removed from the report list). */
+  /** Report templates this iteration does NOT offer. Applied when a dashboard is built,
+   *  so a report that exists is always shown — see buildDashboard in useWorkspace. */
   hiddenTemplateIds: string[]
   /** Whether the "New dashboard" triggers are available. */
   allowNewDashboard: boolean

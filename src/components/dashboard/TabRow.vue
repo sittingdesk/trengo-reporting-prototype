@@ -18,14 +18,12 @@ import type { Dashboard } from '@/data/dashboards'
 
 const props = defineProps<{ dashboard: Dashboard; activeReportId: string }>()
 
-const { reports, reportPath } = useWorkspace()
+const { reportPath } = useWorkspace()
 
-// Reuse the store's iteration filtering rather than re-deriving it: `reports` is already
-// every visible report, flat, so intersecting keeps one rule in one place.
-const visibleReports = computed(() => {
-  const allowed = new Set(reports.value.map((t) => t.id))
-  return props.dashboard.reports.filter((t) => allowed.has(t.id))
-})
+// Just the dashboard's own reports, in order. There is nothing to filter: the iteration's
+// hidden templates are applied when a dashboard is built, so every report that exists
+// belongs on the row.
+const visibleReports = computed(() => props.dashboard.reports)
 </script>
 
 <template>

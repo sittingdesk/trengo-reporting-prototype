@@ -95,6 +95,12 @@ export function reportFromTemplate(templateId: string, id: string, name?: string
   }
 }
 
+/** A report with no widgets — what "Start from scratch" produces, and what a blank
+ *  report added to an existing dashboard will be. */
+export function blankReport(id: string, name = 'Untitled report'): Report {
+  return { id, name, widgets: [] }
+}
+
 /** URL-safe id from a display name. Ids are part of the URL, so a slug keeps deep links
  *  readable ("/d/my-dashboard/overview") and — for the seeded dashboard — stable across
  *  reloads, which also means an HMR patch doesn't lose your place while developing. */

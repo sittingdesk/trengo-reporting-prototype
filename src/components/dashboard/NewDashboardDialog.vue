@@ -21,7 +21,7 @@ import { TEMPLATES } from '@/config/templates'
 import { useWorkspace } from '@/composables/useWorkspace'
 
 const router = useRouter()
-const { newDashboardOpen, createFromTemplate, closeNewDashboard, reportPath } = useWorkspace()
+const { newDashboardOpen, createDashboard, closeNewDashboard, reportPath } = useWorkspace()
 
 // Per-template leading icon + accent tint (presentation only).
 const META: Record<string, { icon: string; tint: string }> = {
@@ -70,7 +70,7 @@ function onOpenChange(open: boolean) {
 function create() {
   // undefined when the active iteration doesn't allow new dashboards — the triggers are
   // hidden in that case, so this is belt-and-braces rather than a reachable path.
-  const report = createFromTemplate(selectedId.value)
+  const report = createDashboard('recommended')
   closeNewDashboard()
   if (report) router.push(reportPath(report.id))
 }
