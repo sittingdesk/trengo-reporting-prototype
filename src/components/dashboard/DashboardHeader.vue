@@ -18,6 +18,7 @@ import { computed } from 'vue'
 import DateRangeFilter from '@/components/layout/filters/DateRangeFilter.vue'
 import ChannelFilter from '@/components/layout/filters/ChannelFilter.vue'
 import SelectFilter from '@/components/layout/filters/SelectFilter.vue'
+import InlineEditName from '@/components/dashboard/InlineEditName.vue'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useFilters } from '@/composables/useFilters'
 import { useWorkspace } from '@/composables/useWorkspace'
@@ -28,7 +29,7 @@ const props = defineProps<{ dashboard: Dashboard }>()
 
 const { teamIds, toggleTeam, clearTeams, applyScope, currentScope, isCustomRange, isDirty } =
   useFilters()
-const { saveScope } = useWorkspace()
+const { saveScope, renameDashboard } = useWorkspace()
 
 /** Who owns this and who can see it — one quiet line under the name. */
 const ownerLine = computed(() => {
@@ -64,9 +65,17 @@ const save = () => {
 <template>
   <header class="px-8 pb-4 pt-6">
     <div class="flex items-start justify-between gap-4">
-      <!-- Identity -->
-      <div class="min-w-0">
-        <h1 class="truncate text-lg font-bold text-grey-900">{{ dashboard.name }}</h1>
+      <!-- Identity. The name is the page's h1 and is renamed in place — the heading
+           element stays an h1 (it IS the page title, and there's no h1/h2 above it to
+           nest under); "H3" is the type style it now carries. -->
+      <div class="min-w-0 flex-1">
+        <h1 class="min-w-0">
+          <InlineEditName
+            :name="dashboard.name"
+            label="Dashboard name"
+            @rename="renameDashboard(dashboard.id, $event)"
+          />
+        </h1>
         <p class="mt-0.5 truncate text-xs font-medium text-grey-600">{{ ownerLine }}</p>
       </div>
 

@@ -205,6 +205,18 @@ export function useWorkspace() {
     d.scope = scope
   }
 
+  /** Rename a dashboard. Its id — and so its URL — is deliberately UNCHANGED: an id that
+   *  tracked the name would break every saved link the moment someone renamed. */
+  function renameDashboard(id: string, name: string) {
+    const d = getDashboard(id)
+    const next = name.trim()
+    if (!d || !next) return
+    d.name = uniqueName(
+      next,
+      state.dashboards.filter((x) => x.id !== id).map((x) => x.name),
+    )
+  }
+
   /** Remove a whole dashboard. Gated in the composable, not only in the sidebar. */
   function removeDashboard(id: string) {
     if (!allowRemoveDashboard.value) return
@@ -279,6 +291,7 @@ export function useWorkspace() {
     dashboardPath,
     reportPath,
     saveScope,
+    renameDashboard,
     removeDashboard,
     createDashboard,
     resetPrototype,

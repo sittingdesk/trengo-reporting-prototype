@@ -19,6 +19,10 @@
   --text-base--line-height: 24px;
   --text-lg: 18px;
   --text-lg--line-height: 24px;
+  /* H3 — the DS Foundations heading style (Figma Typography/H3). Not in design.md,
+     whose scale stops at 18/700; confirmed with Jeff as 24/700/32. */
+  --text-h3: 24px;
+  --text-h3--line-height: 32px;
 
   /* Grey scale — design.md §1 */
   --color-grey-900: #111213;
