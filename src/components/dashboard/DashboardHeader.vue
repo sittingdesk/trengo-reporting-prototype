@@ -17,6 +17,10 @@
 //
 // The name is the page's h1 and is renamed in place. The element stays an h1 (it IS the
 // page title, and there's no h1/h2 above it to nest under); "H3" is the type style.
+//
+// No owner line: whose dashboard it is, and who can see it, is not what you came to this
+// page to read. `Dashboard.owner` / `visibility` / `teamId` still carry it — nothing in
+// the UI renders them now, and a sharing surface is where they'd resurface.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import DateRangeFilter from '@/components/layout/filters/DateRangeFilter.vue'
 import ChannelFilter from '@/components/layout/filters/ChannelFilter.vue'
@@ -33,15 +37,6 @@ const props = defineProps<{ dashboard: Dashboard }>()
 const { teamIds, toggleTeam, clearTeams, applyScope, currentScope, isCustomRange, isDirty } =
   useFilters()
 const { saveScope, renameDashboard } = useWorkspace()
-
-/** Who owns this and who can see it — one quiet line under the name. */
-const ownerLine = computed(() => {
-  const d = props.dashboard
-  if (d.readonly) return `${d.owner} · Default dashboard`
-  const team = d.teamId ? TEAMS.find((t) => t.id === d.teamId)?.label : undefined
-  const where = d.visibility === 'team' ? `Shared with ${team ?? 'a team'}` : 'Private'
-  return `${d.owner} · ${where}`
-})
 
 // Full-width filters cost 432px. Below this the title would be left under ~140px — less
 // than the ~185px a name like "My dashboard" needs — so Channel and Team drop their
@@ -84,19 +79,15 @@ const save = () => {
 
 <template>
   <header ref="rowEl" class="px-8 pt-6">
-    <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-      <!-- Identity -->
-      <div class="min-w-0 flex-1">
-        <h1 class="min-w-0">
-          <InlineEditName
-            :name="dashboard.name"
-            :editable="!dashboard.readonly"
-            label="Dashboard name"
-            @rename="renameDashboard(dashboard.id, $event)"
-          />
-        </h1>
-        <p class="mt-0.5 truncate text-xs font-medium text-grey-600">{{ ownerLine }}</p>
-      </div>
+    <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <h1 class="min-w-0 flex-1">
+        <InlineEditName
+          :name="dashboard.name"
+          :editable="!dashboard.readonly"
+          label="Dashboard name"
+          @rename="renameDashboard(dashboard.id, $event)"
+        />
+      </h1>
 
       <!-- Scope. A property of the dashboard, so it belongs on the dashboard's row. -->
       <div class="flex shrink-0 flex-col items-end gap-1">
