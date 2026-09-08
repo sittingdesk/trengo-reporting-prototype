@@ -98,9 +98,12 @@ const SHAPE = {
   },
   pill: {
     // The active report's pill: white on a grey-400 hairline, per the Figma bar.
-    rest: 'inline-block max-w-[14rem] truncate rounded-base border border-grey-400 bg-white px-2 py-1.5 text-left text-sm font-medium text-grey-800 shadow-100 transition-colors hover:border-grey-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-    plain: 'inline-block max-w-[14rem] truncate rounded-base border border-grey-400 bg-white px-2 py-1.5 text-sm font-medium text-grey-800 shadow-100',
-    edit: 'min-w-[6ch] max-w-[14rem] rounded-base border border-leaf-500 bg-white px-2 py-1.5 text-sm font-medium text-grey-800 shadow-focus outline-none field-sizing-content',
+    // shrink-0 on all three, matching INACTIVE_PILL. Without it the ACTIVE pill was the
+    // only one in the row allowed to shrink, and it collapsed to 18px under pressure —
+    // the one pill that must stay readable was the one that didn't.
+    rest: 'inline-block max-w-[14rem] shrink-0 truncate rounded-base border border-grey-400 bg-white px-2 py-1.5 text-left text-sm font-medium text-grey-800 shadow-100 transition-colors hover:border-grey-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    plain: 'inline-block max-w-[14rem] shrink-0 truncate rounded-base border border-grey-400 bg-white px-2 py-1.5 text-sm font-medium text-grey-800 shadow-100',
+    edit: 'min-w-[6ch] max-w-[14rem] shrink-0 rounded-base border border-leaf-500 bg-white px-2 py-1.5 text-sm font-medium text-grey-800 shadow-focus outline-none field-sizing-content',
   },
 } as const
 

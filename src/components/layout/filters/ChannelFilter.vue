@@ -14,6 +14,9 @@ import FilterChip from '@/components/layout/filters/FilterChip.vue'
 import { CATALOG, CHANNEL_INSTANCE_IDS, type ChannelCategory } from '@/data/channelData'
 import { useFilters } from '@/composables/useFilters'
 
+// `compact` comes from the bar, which is the only thing that knows how much room there is.
+const props = withDefaults(defineProps<{ compact?: boolean }>(), { compact: false })
+
 const { channelIds, setChannels } = useFilters()
 
 // Only categories that actually have instances (empty categories are hidden).
@@ -86,7 +89,13 @@ function focusLeft() {
 <template>
   <Popover>
     <PopoverTrigger as-child>
-      <FilterChip icon="InboxIn" :active="!allSelected">{{ triggerLabel }}</FilterChip>
+      <FilterChip
+        icon="InboxIn"
+        :active="!allSelected"
+        :icon-only="props.compact"
+        label="Channels"
+        :value="triggerLabel"
+      >{{ triggerLabel }}</FilterChip>
     </PopoverTrigger>
 
     <PopoverContent class="flex w-auto overflow-hidden p-0" :side-offset="6">

@@ -8,12 +8,17 @@ import Icon from '@/components/Icon.vue'
 import FilterChip from '@/components/layout/filters/FilterChip.vue'
 import type { FilterOption } from '@/data/filters'
 
-const props = defineProps<{
-  label: string
-  icon: string
-  options: FilterOption[]
-  selectedIds: string[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    label: string
+    icon: string
+    options: FilterOption[]
+    selectedIds: string[]
+    /** Collapse to icon-only — driven by the bar's measured width. */
+    compact?: boolean
+  }>(),
+  { compact: false },
+)
 
 const emit = defineEmits<{
   toggle: [id: string]
@@ -35,7 +40,13 @@ const triggerLabel = computed(() =>
 <template>
   <Popover>
     <PopoverTrigger as-child>
-      <FilterChip :icon="icon" :active="count > 0">{{ triggerLabel }}</FilterChip>
+      <FilterChip
+        :icon="icon"
+        :active="count > 0"
+        :icon-only="props.compact"
+        :label="label"
+        :value="triggerLabel"
+      >{{ triggerLabel }}</FilterChip>
     </PopoverTrigger>
 
     <PopoverContent>
