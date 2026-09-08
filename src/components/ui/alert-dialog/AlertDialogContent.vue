@@ -1,9 +1,18 @@
 <script setup lang="ts">
 // AlertDialogContent — the centered panel + dimmed overlay.
 //
-// Same panel and overlay as DialogContent, with one deliberate difference: there is NO
-// close (X). A confirm has exactly two answers and both are buttons; an X is a third,
-// silent one that reads as neither.
+// Same panel and overlay as DialogContent, with two deliberate differences.
+//
+// There is NO close (X): a confirm has exactly two answers and both are buttons, where an
+// X is a third, silent one that reads as neither.
+//
+// And `disableOutsidePointerEvents` is passed EXPLICITLY. reka's DialogContentModal
+// defaults it to true, but the AlertDialog chain spreads its own props on the way down and
+// Vue casts an absent Boolean prop to `false` — so the default never applied, the layer
+// never marked itself `pointer-events: auto`, and the panel sat inert under a body that
+// another layer had set to `pointer-events: none`. Every button in it was unclickable by
+// mouse while still responding to a scripted click, which is exactly the shape of bug that
+// passes a scripted check and fails a user.
 import {
   AlertDialogContent,
   type AlertDialogContentEmits,
@@ -32,6 +41,7 @@ const forwarded = useForwardPropsEmits(() => {
     />
     <AlertDialogContent
       v-bind="forwarded"
+      disable-outside-pointer-events
       :class="
         cn(
           'fixed left-1/2 top-1/2 z-50 grid w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-grey-300 bg-white p-6 shadow-500 focus:outline-none',

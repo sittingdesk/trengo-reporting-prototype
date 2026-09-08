@@ -10,7 +10,7 @@
 // its first report; the reports themselves live in the tab row inside the dashboard, not here.
 // At the bottom sits a clearly-labelled PROTOTYPE scenario switcher to demo the
 // "existing customer" (seeded) vs "new customer" (empty) onboarding states.
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/Icon.vue'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -18,8 +18,7 @@ import { useWorkspace, type Scenario } from '@/composables/useWorkspace'
 import { useSettings, type DataState } from '@/composables/useSettings'
 import { useFilters } from '@/composables/useFilters'
 import { SELECTABLE_ITERATIONS } from '@/config/iterations'
-import { scopeLabel, type Dashboard } from '@/data/dashboards'
-import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { scopeLabel } from '@/data/dashboards'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,10 +27,8 @@ const {
   scenario,
   iterationId,
   allowNewDashboard,
-  allowRemoveDashboard,
   allowScenarioToggle,
   openNewDashboard,
-  removeDashboard,
   dashboardPath,
   setScenario,
   setIteration,
@@ -40,36 +37,6 @@ const {
 
 /** The dashboard currently open, straight from the route. */
 const activeId = computed(() => String(route.params.dashboardId ?? ''))
-
-/**
- * Removing a dashboard takes its reports and every widget in them, and nothing in this
- * prototype can undo it — so it asks first. The × is a 20px control that only appears on
- * hover, right beside the row you click to NAVIGATE, which is exactly the geometry that
- * produces accidental hits.
- */
-const pendingRemoval = ref<Dashboard | null>(null)
-
-const removalCopy = computed(() => {
-  const d = pendingRemoval.value
-  if (!d) return null
-  const reports = d.reports.length
-  const widgets = d.reports.reduce((n, r) => n + r.widgets.length, 0)
-  return {
-    title: `Remove \u201c${d.name}\u201d?`,
-    // Both counts, because the reports are what you can see in the bar and the widgets
-    // are the work that actually disappears with them.
-    description:
-      `Its ${reports} ${reports === 1 ? 'report' : 'reports'} and ` +
-      `${widgets} ${widgets === 1 ? 'widget' : 'widgets'} go with it. ` +
-      `This can\u2019t be undone.`,
-  }
-})
-
-function confirmRemoval() {
-  const d = pendingRemoval.value
-  pendingRemoval.value = null
-  if (d) removeDashboard(d.id)
-}
 
 // Split on `readonly` rather than on id, so it stays right if more than one dashboard is
 // ever shipped as a default.
@@ -195,15 +162,10 @@ function changeIteration(id: string) {
             >{{ d.name }}</span>
             <span class="truncate text-xs text-grey-600">{{ scopeLabel(d.scope) }}</span>
           </span>
-          <!-- Remove on hover -->
-          <button
-            v-if="allowRemoveDashboard"
-            class="hidden size-5 shrink-0 items-center justify-center rounded-sm text-grey-600 hover:bg-grey-300 hover:text-grey-900 group-hover:flex"
-            title="Remove dashboard"
-            @click.prevent.stop="pendingRemoval = d"
-          >
-            <Icon name="cross" :size="14" />
-          </button>
+          <!-- No remove control here. It lives in the ⋯ menu on the dashboard's own
+               header, where it sits beside the dashboard it acts on and doesn't have to
+               be discovered by hovering. A hover-only ✕ two pixels from the row you
+               click to navigate was also the geometry that produced accidental hits. -->
         </RouterLink>
 
       </div>
@@ -300,13 +262,4 @@ function changeIteration(id: string) {
     </div>
   </aside>
 
-  <ConfirmDialog
-    v-if="removalCopy"
-    :open="!!pendingRemoval"
-    :title="removalCopy.title"
-    :description="removalCopy.description"
-    confirm-label="Remove dashboard"
-    @update:open="(o: boolean) => { if (!o) pendingRemoval = null }"
-    @confirm="confirmRemoval()"
-  />
 </template>
