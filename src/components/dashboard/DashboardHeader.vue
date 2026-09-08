@@ -31,7 +31,6 @@ const { saveScope } = useWorkspace()
 /** Who owns this and who can see it — one quiet line under the name. */
 const ownerLine = computed(() => {
   const d = props.dashboard
-  if (d.visibility === 'everyone') return `${d.owner} · Default dashboard`
   const team = d.teamId ? TEAMS.find((t) => t.id === d.teamId)?.label : undefined
   const where = d.visibility === 'team' ? `Shared with ${team ?? 'a team'}` : 'Private'
   return `${d.owner} · ${where}`
@@ -41,12 +40,10 @@ const dirty = computed(() => isDirty(props.dashboard.scope))
 
 /**
  * Why saving isn't possible, or undefined when it is. Shown as text rather than tucked
- * into a tooltip on a disabled control: both reasons are things the user has to act on
- * (pick a different range, or duplicate the dashboard), so neither can be discoverable
- * only on hover.
+ * into a tooltip on a disabled control: the reason is something the user has to act on
+ * (pick a different range), so it can't be discoverable only on hover.
  */
 const blockedReason = computed(() => {
-  if (props.dashboard.readonly) return 'The Trengo dashboard can’t be changed.'
   // A saved scope holds a preset, never two dates — an absolute range would freeze on
   // the day it was saved and quietly go stale.
   if (isCustomRange.value) return 'Pick a relative range like Last 30 days to save it.'

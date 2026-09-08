@@ -68,9 +68,11 @@ function onOpenChange(open: boolean) {
 }
 
 function create() {
+  // undefined when the active iteration doesn't allow new dashboards — the triggers are
+  // hidden in that case, so this is belt-and-braces rather than a reachable path.
   const report = createFromTemplate(selectedId.value)
   closeNewDashboard()
-  router.push(reportPath(report.id))
+  if (report) router.push(reportPath(report.id))
 }
 </script>
 

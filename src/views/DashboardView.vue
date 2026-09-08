@@ -21,11 +21,16 @@ import WidgetGrid from '@/components/dashboard/WidgetGrid.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { getDashboard, getReport } = useWorkspace()
+const { getDashboard } = useWorkspace()
 const { applyScope } = useFilters()
 
 const dashboard = computed(() => getDashboard(String(route.params.dashboardId)))
-const report = computed(() => getReport(String(route.params.reportId)))
+// Resolved WITHIN the dashboard, not from a flat list: looking it up globally meant
+// /d/<dashboardA>/<reportOfB> passed both checks and rendered A's tab row with nothing
+// active beside B's widgets.
+const report = computed(() =>
+  dashboard.value?.reports.find((r) => r.id === String(route.params.reportId)),
+)
 
 // If either id doesn't resolve (e.g. after a scenario reseed), bounce home.
 watch(

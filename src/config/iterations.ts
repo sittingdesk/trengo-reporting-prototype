@@ -29,11 +29,13 @@ export const ITERATIONS: Iteration[] = [
   {
     id: 'internal-test',
     label: 'Internal Testing + Selective Test Group',
-    // A locked-down test build: all five question-led pages, no scenario choice.
-    // Creating dashboards IS allowed — the dashboard layer is what's being tested.
+    // A locked-down test build: seeded with the recommended set, no scenario choice.
+    // Creating and removing dashboards IS allowed — that layer is what's being tested.
     hiddenTemplateIds: [],
     allowNewDashboard: true,
-    allowRemoveDashboard: false,
+    // Was belt-and-braces while the default dashboard was read-only anyway. Now it is
+    // the only way to clean up, including the seeded dashboard.
+    allowRemoveDashboard: true,
     allowScenarioToggle: false,
   },
 ]

@@ -9,9 +9,14 @@
 // copy of another report that then diverges. (The old model resolved a report's template live,
 // which can express neither.)
 //
-// ⚠️ Mock: there is no backend. The Trengo default is rebuilt from the templates on every
-// load so template edits keep flowing into it; user dashboards are snapshots.
-import { getTemplate, QUESTION_LED_TEMPLATE_IDS, type Widget } from '@/config/templates'
+// Every dashboard is the user's: editable, savable, removable. There is no read-only
+// fixture — "Trengo's recommended set" is a STARTING POINT you instantiate, not a
+// dashboard you're given. A created dashboard is therefore a snapshot: later template
+// improvements don't flow into it. `Report.templateId` records where it came from, so an
+// opt-in "this report has an update" stays possible.
+//
+// ⚠️ Mock: there is no backend, so nothing survives a reload.
+import { getTemplate, type Widget } from '@/config/templates'
 import { DATE_PRESETS, TEAMS } from '@/data/filters'
 import { CHANNEL_INSTANCE_IDS } from '@/data/channelData'
 
@@ -45,9 +50,7 @@ export interface Report {
   templateId?: string
 }
 
-/** `everyone` is the Trengo default: shared with the whole workspace, which is neither
- *  "private" nor "shared with a team". */
-export type Visibility = 'private' | 'team' | 'everyone'
+export type Visibility = 'private' | 'team'
 
 export interface Dashboard {
   id: string
@@ -58,8 +61,6 @@ export interface Dashboard {
   teamId?: string
   scope: SavedScope
   reports: Report[]
-  /** The Trengo default can't be edited — adding a report offers to duplicate it first. */
-  readonly: boolean
 }
 
 /** Human-readable saved scope for the sidebar subtitle — "Last 7 days", or
@@ -80,9 +81,6 @@ export function scopeLabel(scope: SavedScope): string {
   return parts.join(' · ')
 }
 
-export const TRENGO_DASHBOARD_ID = 'trengo'
-export const TRENGO_OWNER = 'Trengo'
-
 /** What every new dashboard opens with until its owner saves something else. */
 export const DEFAULT_SCOPE: SavedScope = { presetId: 'last7', channelIds: [], teamIds: [] }
 
@@ -97,21 +95,14 @@ export function reportFromTemplate(templateId: string, id: string, name?: string
   }
 }
 
-/**
- * The default dashboard: the five question-led pages, unchanged in content and order.
- * Built fresh from the templates on every call — never persisted — so it always reflects
- * the current template definitions.
- */
-export function buildTrengoDashboard(): Dashboard {
-  return {
-    id: TRENGO_DASHBOARD_ID,
-    name: 'Trengo',
-    owner: TRENGO_OWNER,
-    visibility: 'everyone',
-    scope: { ...DEFAULT_SCOPE },
-    reports: QUESTION_LED_TEMPLATE_IDS.map((templateId) =>
-      reportFromTemplate(templateId, `${TRENGO_DASHBOARD_ID}-${templateId}`),
-    ),
-    readonly: true,
-  }
+/** URL-safe id from a display name. Ids are part of the URL, so a slug keeps deep links
+ *  readable ("/d/my-dashboard/overview") and — for the seeded dashboard — stable across
+ *  reloads, which also means an HMR patch doesn't lose your place while developing. */
+export function slugify(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'dashboard'
+  )
 }

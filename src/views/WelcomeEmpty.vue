@@ -5,7 +5,7 @@
 import { Button } from '@/components/ui/button'
 import { useWorkspace } from '@/composables/useWorkspace'
 
-const { openNewDashboard } = useWorkspace()
+const { openNewDashboard, allowNewDashboard } = useWorkspace()
 </script>
 
 <template>
@@ -17,7 +17,15 @@ const { openNewDashboard } = useWorkspace()
     <p class="max-w-sm text-sm text-grey-600">
       Pick a template to get started — a ready-made set of widgets you can use right away.
     </p>
-    <Button variant="default" size="default" class="mt-1" @click="openNewDashboard()">
+    <!-- Same gate as the sidebar: without it you can reach a button that opens a
+         dialog you're not allowed to use. -->
+    <Button
+      v-if="allowNewDashboard"
+      variant="default"
+      size="default"
+      class="mt-1"
+      @click="openNewDashboard()"
+    >
       Browse templates
     </Button>
   </div>

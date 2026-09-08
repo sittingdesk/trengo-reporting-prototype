@@ -11,11 +11,15 @@
 // ⚠️ Persistence is mocked: the chosen scenario is saved to localStorage and reseeds
 // on load. Real per-user persistence needs a backend DB (TECH_FOUNDATION §5).
 import { reactive, computed } from 'vue'
-import { getTemplate, LEGACY_REPORT_TEMPLATE_IDS } from '@/config/templates'
+import {
+  getTemplate,
+  LEGACY_REPORT_TEMPLATE_IDS,
+  QUESTION_LED_TEMPLATE_IDS,
+} from '@/config/templates'
 import { getIteration, DEFAULT_ITERATION_ID } from '@/config/iterations'
 import {
-  buildTrengoDashboard,
   reportFromTemplate,
+  slugify,
   DEFAULT_SCOPE,
   type Dashboard,
   type Report,
@@ -26,8 +30,9 @@ import {
 /** Demo onboarding scenarios (prototype-only). */
 export type Scenario = 'existing' | 'new'
 
-/** The demo user — owner of anything created in the prototype. */
-export const DEMO_USER = 'Jeff van Steijn'
+/** Owner of anything created in the prototype. "You" rather than a name: it reads
+ *  naturally in a demo, and the real product substitutes the signed-in user. */
+export const DEMO_USER = 'You'
 
 const SCENARIO_KEY = 'trengo-scenario-v1'
 const ITERATION_KEY = 'trengo-iteration-v1'
@@ -55,32 +60,50 @@ const state = reactive({
   newDashboardOpen: false,
 })
 
-let counter = 0
-function makeId(prefix: string) {
-  counter += 1
-  return `${prefix}-${counter}`
+
+/** Ensure an id is free, appending -2, -3 … Ids are in the URL, so they must be unique
+ *  among dashboards, and among one dashboard's reports. */
+function uniqueId(base: string, taken: Set<string>): string {
+  if (!taken.has(base)) return base
+  let n = 2
+  while (taken.has(`${base}-${n}`)) n += 1
+  return `${base}-${n}`
 }
 
-/** The legacy reports, rebuilt — one user dashboard holding the four old reports. */
-function buildLegacyDashboard(): Dashboard {
+/** A dashboard holding one report per template id — an ordinary user dashboard, whatever
+ *  it was built from. `[]` gives a dashboard with no reports.
+ *  Reports take their template id as their own, so deep links read well and stay stable
+ *  for anything seeded (see `slugify`). */
+function buildDashboard(name: string, templateIds: string[]): Dashboard {
+  const takenIds = new Set(state.dashboards.map((d) => d.id))
+  const reportIds = new Set<string>()
   return {
-    id: makeId('legacy'),
-    name: 'My reports',
+    id: uniqueId(slugify(name), takenIds),
+    name: uniqueName(name, state.dashboards.map((d) => d.name)),
     owner: DEMO_USER,
     visibility: 'private',
     scope: { ...DEFAULT_SCOPE },
-    reports: LEGACY_REPORT_TEMPLATE_IDS.map((t) => reportFromTemplate(t, makeId(t))),
-    readonly: false,
+    reports: templateIds.map((t) => {
+      const id = uniqueId(t, reportIds)
+      reportIds.add(id)
+      return reportFromTemplate(t, id)
+    }),
   }
 }
 
-/** Apply a scenario's starting state: new → the Trengo default; existing → ask first. */
+/** The name a freshly seeded workspace opens with. Deliberately not "Trengo": the
+ *  dashboard is the user's from the moment it exists, and every customer is Trengo's
+ *  customer, so "Trengo" would read as internal-speak on their own dashboard. */
+const SEED_NAME = 'My dashboard'
+
+/** Apply a scenario's starting state: new → seeded from the recommended set;
+ *  existing → ask first. */
 function applyScenario(scenario: Scenario) {
+  state.dashboards = []
   if (scenario === 'new') {
-    state.dashboards = [buildTrengoDashboard()]
+    state.dashboards.push(buildDashboard(SEED_NAME, QUESTION_LED_TEMPLATE_IDS))
     state.needsChoice = false
   } else {
-    state.dashboards = []
     state.needsChoice = true
   }
 }
@@ -88,22 +111,26 @@ function applyScenario(scenario: Scenario) {
 // Iterations that lock the scenario always show the seeded ("filled") dashboard.
 if (getIteration(state.iterationId)?.allowScenarioToggle === false) state.scenario = 'new'
 
-// Initialise from the (possibly forced) scenario.
+// Initialise from the (possibly forced) scenario. Must stay at module scope: the router's
+// "/" redirect runs during the first navigation and needs a populated array — from
+// onMounted or a guard it would land on /welcome and never correct itself.
 applyScenario(state.scenario)
 
 function allReports(): Report[] {
   return state.dashboards.flatMap((d) => d.reports)
 }
 
-/** Ensure a unique report name ("Voice", "Voice 2", …) WITHIN one dashboard.
- *  Global uniqueness was a holdover from when a report *was* a dashboard: it made a new
- *  dashboard from the Understand template come out as "Understand 2", because Trengo
- *  already had a report by that name. Two dashboards may each have an "Overview". */
-function uniqueName(base: string, within: Report[]): string {
-  const existing = new Set(within.map((t) => t.name))
-  if (!existing.has(base)) return base
+/** Ensure a unique display name ("Overview", "Overview 2", …) among `existing`.
+ *  Takes names rather than a collection so it serves both grains: dashboard names must be
+ *  unique across the workspace, report names only within their dashboard. It used to be
+ *  called with an empty list for a brand-new dashboard, which made it a no-op — so two
+ *  dashboards from one template were both "Overview" with an identical scope subtitle,
+ *  indistinguishable in the sidebar. */
+function uniqueName(base: string, existing: string[]): string {
+  const taken = new Set(existing)
+  if (!taken.has(base)) return base
   let n = 2
-  while (existing.has(`${base} ${n}`)) n += 1
+  while (taken.has(`${base} ${n}`)) n += 1
   return `${base} ${n}`
 }
 
@@ -126,10 +153,6 @@ export function useWorkspace() {
 
   function getDashboard(id: string): Dashboard | undefined {
     return state.dashboards.find((d) => d.id === id)
-  }
-
-  function getReport(id: string): Report | undefined {
-    return allReports().find((t) => t.id === id)
   }
 
   /** The dashboard a report belongs to. */
@@ -162,35 +185,27 @@ export function useWorkspace() {
    * from the template. Returns the report (the caller navigates to it). An optional `name`
    * lets the picker use a user-typed name; names are de-duplicated either way.
    */
-  function createFromTemplate(templateId: string, name?: string): Report {
+  function createFromTemplate(templateId: string, name?: string): Report | undefined {
+    // Enforced here, not only in the sidebar's v-if: a UI-only guard is bypassed by the
+    // next caller.
+    if (!allowNewDashboard.value) return undefined
     const t = getTemplate(templateId)
-    // A brand-new dashboard has no reports, so nothing to de-duplicate against.
-    const reportName = uniqueName(name?.trim() || t?.name || templateId, [])
-    const report = reportFromTemplate(templateId, makeId(templateId), reportName)
-    state.dashboards.push({
-      id: makeId('dash'),
-      name: reportName,
-      owner: DEMO_USER,
-      visibility: 'private',
-      scope: { ...DEFAULT_SCOPE },
-      reports: [report],
-      readonly: false,
-    })
-    return report
+    const d = buildDashboard(name?.trim() || t?.name || templateId, [templateId])
+    state.dashboards.push(d)
+    return d.reports[0]
   }
 
-  /** Write the working filters onto a dashboard. Refused on the read-only default —
-   *  step 14 turns that into an offer to duplicate it first. */
+  /** Write the working filters onto a dashboard. Every dashboard is the user's now, so
+   *  there is nothing left to refuse. */
   function saveScope(dashboardId: string, scope: SavedScope) {
     const d = getDashboard(dashboardId)
-    if (!d || d.readonly) return
+    if (!d) return
     d.scope = scope
   }
 
-  /** Remove a whole dashboard. The Trengo default can't be removed. */
+  /** Remove a whole dashboard. Gated in the composable, not only in the sidebar. */
   function removeDashboard(id: string) {
-    const d = getDashboard(id)
-    if (!d || d.readonly) return
+    if (!allowRemoveDashboard.value) return
     state.dashboards = state.dashboards.filter((x) => x.id !== id)
   }
 
@@ -214,16 +229,20 @@ export function useWorkspace() {
 
   /**
    * Resolve the existing-customer welcome step.
-   *  - 'new'   → the Trengo default dashboard
-   *  - 'old'   → the legacy reports, rebuilt as one user dashboard
+   *  - 'new'   → seeded from the recommended set
+   *  - 'old'   → the legacy reports, rebuilt as one dashboard
    *  - 'later' → nothing (generic empty state)
-   * Returns the first report so the caller can navigate. Non-destructive: every
-   * template stays available in the gallery regardless of choice.
+   * Returns the first report so the caller can navigate.
+   * ⚠️ Still REPLACES the list, so "keep my current reports" discards the seeded
+   * dashboard — which contradicts this step's own "nothing is lost" promise. Fixed when
+   * onboarding is rewired (commit D), once the recommended set is permanently offered in
+   * the New dashboard dialog.
    */
   function chooseStart(kind: 'new' | 'old' | 'later'): Report | undefined {
-    if (kind === 'new') state.dashboards = [buildTrengoDashboard()]
-    else if (kind === 'old') state.dashboards = [buildLegacyDashboard()]
-    else state.dashboards = []
+    state.dashboards = []
+    if (kind === 'new') state.dashboards.push(buildDashboard(SEED_NAME, QUESTION_LED_TEMPLATE_IDS))
+    else if (kind === 'old')
+      state.dashboards.push(buildDashboard('My reports', LEGACY_REPORT_TEMPLATE_IDS))
     state.needsChoice = false
     return allReports()[0]
   }
@@ -242,7 +261,6 @@ export function useWorkspace() {
     needsChoice,
     newDashboardOpen,
     getDashboard,
-    getReport,
     dashboardOf,
     firstReportOf,
     dashboardPath,
