@@ -2,12 +2,13 @@
 // TabRow — the dashboard's tabs, under its header.
 //
 // Follows the tab pattern already used elsewhere in Trengo: quiet grey labels, the
-// active one darker and bolder with a leaf underline, on a hairline that runs the full
-// width. Deliberately no count badges — those earn their place when a tab holds
-// countable items (contacts, notes), but a widget count tells the user nothing.
+// active one darker and bolder with a leaf underline. Deliberately no count badges —
+// those earn their place when a tab holds countable items (contacts, notes), but a
+// widget count tells the user nothing.
 //
-// The hairline is the one line kept when the header's container was removed: the active
-// underline has to sit on something, or it floats.
+// No full-width hairline: it was the last piece of chrome dividing the top of the page
+// from the widgets, and with it gone the name, tabs and grid read as one page. The active
+// underline is enough of a marker on its own — it marks the tab, not a boundary.
 //
 // Read-only in this step. Add / rename / remove arrive in steps 11–13.
 import { computed } from 'vue'
@@ -30,7 +31,7 @@ const visibleTabs = computed(() => {
 <template>
   <nav
     v-if="visibleTabs.length"
-    class="flex items-center gap-6 overflow-x-auto border-b border-grey-300 px-8 scroll-thin"
+    class="flex items-center gap-6 overflow-x-auto px-8 scroll-thin"
     aria-label="Dashboard tabs"
   >
     <RouterLink
@@ -46,11 +47,10 @@ const visibleTabs = computed(() => {
       :aria-current="t.id === activeTabId ? 'page' : undefined"
     >
       {{ t.name }}
-      <!-- Sits on the hairline, not above it, so the active tab reads as connected to
-           the content below. -->
+      <!-- Marks the tab, nothing more — there's no rule for it to sit on now. -->
       <span
         v-if="t.id === activeTabId"
-        class="absolute inset-x-0 -bottom-px h-0.5 rounded-t-sm bg-leaf-500"
+        class="absolute inset-x-0 bottom-0 h-0.5 rounded-t-sm bg-leaf-500"
         aria-hidden="true"
       />
     </RouterLink>
