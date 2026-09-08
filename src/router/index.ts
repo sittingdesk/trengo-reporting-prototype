@@ -1,9 +1,9 @@
 // Router.
-//   /                        → first tab if any, else /welcome
+//   /                        → the welcome step if a choice is pending, else Trengo
 //   /welcome                 → empty state (new customer)
-//   /d/:dashboardId/:tabId   → one tab of one dashboard (looked up in the workspace)
-//   /d/:tabId                → old shape; redirects into its dashboard
-// Dashboards and tabs exist at runtime, so these routes are dynamic.
+//   /d/:dashboardId/:reportId   → one report of one dashboard (looked up in the workspace)
+//   /d/:reportId                → old shape; redirects into its dashboard
+// Dashboards and reports exist at runtime, so these routes are dynamic.
 // Hash history so the single-file build also works from file://.
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 import DashboardView from '@/views/DashboardView.vue'
@@ -14,16 +14,26 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     redirect: () => {
-      const { tabs, tabPath } = useWorkspace()
-      return tabs.value.length ? tabPath(tabs.value[0].id) : '/welcome'
+      const { dashboards, dashboardPath, needsChoice } = useWorkspace()
+      // needsChoice first: Trengo now always exists, so without this the existing-customer
+      // welcome step could never be reached — the root would always resolve to a dashboard.
+      if (needsChoice.value) return '/welcome'
+      return dashboards.value.length ? dashboardPath(dashboards.value[0].id) : '/welcome'
     },
   },
   { path: '/welcome', name: 'welcome', component: Welcome },
-  { path: '/d/:dashboardId/:tabId', name: 'tab', component: DashboardView },
+  { path: '/d/:dashboardId/:reportId', name: 'report', component: DashboardView },
   // Links saved before dashboards existed still resolve.
   {
-    path: '/d/:tabId',
-    redirect: (to) => useWorkspace().tabPath(String(to.params.tabId)),
+    path: '/d/:reportId',
+    // Best effort only: a bare report id can't say which dashboard it means (see
+    // dashboardOf), so an old link resolves to the first dashboard that has one.
+    redirect: (to) => {
+      const { dashboardOf, reportPath } = useWorkspace()
+      const id = String(to.params.reportId)
+      const d = dashboardOf(id)
+      return d ? reportPath(d.id, id) : '/welcome'
+    },
   },
 ]
 

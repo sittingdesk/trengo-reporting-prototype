@@ -10,7 +10,7 @@
 import { ref } from 'vue'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { RangeCalendar } from '@/components/ui/range-calendar'
-import Icon from '@/components/Icon.vue'
+import FilterChip from '@/components/layout/filters/FilterChip.vue'
 import { DATE_PRESETS } from '@/data/filters'
 import { useFilters } from '@/composables/useFilters'
 
@@ -26,14 +26,9 @@ function choosePreset(id: string) {
 <template>
   <Popover>
     <PopoverTrigger as-child>
-      <button
-        type="button"
-        class="inline-flex h-9 items-center gap-2 rounded-md border border-grey-300 bg-white px-3 text-sm font-medium text-grey-700 transition-colors hover:bg-grey-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-grey-100"
-      >
-        <Icon name="Calendar" :size="16" class="text-grey-600" />
-        <span>{{ dateRangeLabel }}</span>
-        <Icon name="ChevronDown" :size="14" class="text-grey-400" />
-      </button>
+      <!-- Never `active`: a date range is always set, so there is no un-narrowed state
+           for it to stand out against. -->
+      <FilterChip icon="CalendarDates">{{ dateRangeLabel }}</FilterChip>
     </PopoverTrigger>
 
     <PopoverContent align="end" class="flex w-auto p-0">

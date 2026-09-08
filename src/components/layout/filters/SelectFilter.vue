@@ -1,18 +1,24 @@
 <script setup lang="ts">
-// SelectFilter — a top-bar multi-select filter (used for Channel and Team).
-// A pill trigger (icon + label + selected count) opens a Popover with a checkable
-// list of mock options. Empty selection = "All" (nothing is actually filtered).
+// SelectFilter — a dashboard multi-select filter (used for Team).
+// A chip trigger opens a Popover with a checkable list of mock options. Empty selection
+// = "All" (nothing is actually filtered).
 import { computed } from 'vue'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import Icon from '@/components/Icon.vue'
+import FilterChip from '@/components/layout/filters/FilterChip.vue'
 import type { FilterOption } from '@/data/filters'
 
-const props = defineProps<{
-  label: string
-  icon: string
-  options: FilterOption[]
-  selectedIds: string[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    label: string
+    icon: string
+    options: FilterOption[]
+    selectedIds: string[]
+    /** Collapse to icon-only — driven by the bar's measured width. */
+    compact?: boolean
+  }>(),
+  { compact: false },
+)
 
 const emit = defineEmits<{
   toggle: [id: string]
@@ -21,25 +27,26 @@ const emit = defineEmits<{
 
 const count = computed(() => props.selectedIds.length)
 const isSelected = (id: string) => props.selectedIds.includes(id)
+
+// The count goes IN the label rather than into a separate badge beside it — the chip's
+// own colour now carries "this is filtering", so a badge would say it twice. Matches how
+// the channel chip and the sidebar's scope subtitle already read.
+const noun = computed(() => props.label.toLowerCase())
+const triggerLabel = computed(() =>
+  count.value ? `${count.value} ${count.value === 1 ? noun.value : `${noun.value}s`}` : props.label,
+)
 </script>
 
 <template>
   <Popover>
     <PopoverTrigger as-child>
-      <button
-        type="button"
-        class="inline-flex h-9 items-center gap-2 rounded-md border border-grey-300 bg-white px-3 text-sm font-medium text-grey-700 transition-colors hover:bg-grey-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-grey-100"
-      >
-        <Icon :name="icon" :size="16" class="text-grey-600" />
-        <span>{{ label }}</span>
-        <span
-          v-if="count"
-          class="flex h-5 min-w-5 items-center justify-center rounded-pill bg-leaf-100 px-1.5 text-xs font-semibold text-leaf-700"
-        >
-          {{ count }}
-        </span>
-        <Icon name="ChevronDown" :size="14" class="text-grey-400" />
-      </button>
+      <FilterChip
+        :icon="icon"
+        :active="count > 0"
+        :icon-only="props.compact"
+        :label="label"
+        :value="triggerLabel"
+      >{{ triggerLabel }}</FilterChip>
     </PopoverTrigger>
 
     <PopoverContent>

@@ -26,7 +26,16 @@ import { canExportWidget, exportWidgetCSV } from '@/lib/csvExport'
 import { useFilters } from '@/composables/useFilters'
 import { useSettings } from '@/composables/useSettings'
 
-const props = defineProps<{ metricId: string }>()
+const props = withDefaults(
+  defineProps<{
+    metricId: string
+    /** Edit mode: the kebab slot becomes a remove control. */
+    editing?: boolean
+  }>(),
+  { editing: false },
+)
+
+const emit = defineEmits<{ remove: [] }>()
 
 const { dateRange, channelIds, teamIds, comparisonLabel, dateRangeLabel } = useFilters()
 const { showEmptyData, forceLoading, forceError, slaEnabled } = useSettings()
@@ -140,7 +149,11 @@ const formatted = computed(() => {
   return formatValue(sample.value.value, m.unit)
 })
 
-// Per-card "More" menu (kebab). Holds Export as CSV (charts/tables) + Remove widget.
+// Per-card "More" menu (kebab). Holds Export as CSV (charts/tables).
+//
+// Remove moved OUT of here into edit mode. It was a no-op anyway ("widgets come from the
+// template; no removal yet"), and putting a destructive action behind a deliberate mode
+// beats one click from a hover menu — it's also what makes the mode mean something.
 const menuOpen = ref(false)
 
 // Per-widget CSV export (chart/table widgets only).
@@ -159,9 +172,9 @@ function onExport() {
     rangeLabel: dateRangeLabel.value,
   })
 }
-// Remove widget — prototype placeholder (widgets come from the template; no removal yet).
 function onRemove() {
   menuOpen.value = false
+  emit('remove')
 }
 
 // One neutral empty state. `always` (no data source yet) forces empty regardless
@@ -346,8 +359,22 @@ const skeletonBars = computed(() =>
         </span>
       </div>
 
+      <!-- While editing, this slot holds remove instead of the menu: one control in one
+           place, changing with the mode, rather than two routes to the same card. Always
+           visible here — hidden-until-hover is wrong for the mode you entered to find it,
+           and unreachable by touch. -->
+      <button
+        v-if="editing"
+        type="button"
+        class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm border border-grey-300 bg-white text-grey-600 transition-colors hover:border-error-500 hover:bg-error-500 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        :aria-label="`Remove ${metric?.label ?? 'widget'}`"
+        @click="onRemove"
+      >
+        <Icon name="Trash" :size="14" />
+      </button>
+
       <!-- More menu (kebab, secondary-button style) -->
-      <Popover v-if="!loading" v-model:open="menuOpen">
+      <Popover v-else-if="!loading" v-model:open="menuOpen">
         <PopoverTrigger as-child>
           <button
             type="button"
@@ -390,14 +417,6 @@ const skeletonBars = computed(() =>
               <path d="M12 3v12" /><path d="M7 12l5 5 5-5" /><path d="M5 21h14" />
             </svg>
             Export as CSV
-          </button>
-          <button
-            type="button"
-            class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm text-grey-900 transition-colors hover:bg-grey-100 focus:outline-none focus-visible:bg-grey-100"
-            @click="onRemove"
-          >
-            <Icon name="Trash" :size="16" class="shrink-0 text-grey-500" />
-            Remove widget
           </button>
         </PopoverContent>
       </Popover>

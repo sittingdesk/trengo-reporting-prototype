@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Welcome — the no-tabs landing.
+// Welcome — the no-dashboards landing.
 // Existing customers who haven't chosen yet see the onboarding step; everyone
-// else (new customers who cleared their tabs, or "decide later") sees the generic
+// else (new customers who cleared their reports, or "decide later") sees the generic
 // empty state.
 import { computed } from 'vue'
 import { useWorkspace } from '@/composables/useWorkspace'

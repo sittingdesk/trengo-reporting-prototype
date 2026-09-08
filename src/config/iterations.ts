@@ -4,11 +4,12 @@
 export interface Iteration {
   id: string
   label: string
-  /** Template ids hidden in this iteration (pages removed from the tab list). */
+  /** Report templates this iteration does NOT offer. Applied when a dashboard is built,
+   *  so a report that exists is always shown — see buildDashboard in useWorkspace. */
   hiddenTemplateIds: string[]
   /** Whether the "New dashboard" triggers are available. */
   allowNewDashboard: boolean
-  /** Whether pages can be removed (the per-tab remove control). */
+  /** Whether pages can be removed (the per-dashboard remove control). */
   allowRemoveDashboard: boolean
   /** Whether the prototype scenario (existing/new customer) can be toggled. */
   allowScenarioToggle: boolean
@@ -29,11 +30,13 @@ export const ITERATIONS: Iteration[] = [
   {
     id: 'internal-test',
     label: 'Internal Testing + Selective Test Group',
-    // A locked-down test build: all five question-led pages, no scenario choice.
-    // Creating dashboards IS allowed — the dashboard layer is what's being tested.
+    // A locked-down test build: seeded with the recommended set, no scenario choice.
+    // Creating and removing dashboards IS allowed — that layer is what's being tested.
     hiddenTemplateIds: [],
     allowNewDashboard: true,
-    allowRemoveDashboard: false,
+    // Was belt-and-braces while the default dashboard was read-only anyway. Now it is
+    // the only way to clean up, including the seeded dashboard.
+    allowRemoveDashboard: true,
     allowScenarioToggle: false,
   },
 ]

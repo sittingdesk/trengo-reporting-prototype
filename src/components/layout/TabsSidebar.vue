@@ -1,18 +1,22 @@
 <script setup lang="ts">
 // TabsSidebar — the second left sidebar: the user's DASHBOARDS.
 //
-// One list: the shipped default first, then the user's own, separated by a gap rather
-// than by headings — with two entries, "Trengo" and "Your dashboards" labelled more than
-// they organised. Each row shows its saved scope as a subtitle, so two dashboards are
+// Trengo leads, then the user's own, separated by a gap rather than by headings — with
+// two groups, "Trengo" and "Your dashboards" labelled more than they organised. 8px, not
+// 16: the rows inside a group sit flush, so 8px already reads as a separator, where 16
+// read as a break in the list. Each row
+// shows its saved scope as a subtitle, so two dashboards are
 // told apart by what they actually look at rather than by name alone. Clicking one opens
-// its first tab; the tabs themselves live in the tab row inside the dashboard, not here.
+// its first report; the reports themselves live in the tab row inside the dashboard, not here.
 // At the bottom sits a clearly-labelled PROTOTYPE scenario switcher to demo the
 // "existing customer" (seeded) vs "new customer" (empty) onboarding states.
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/Icon.vue'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useWorkspace, type Scenario } from '@/composables/useWorkspace'
 import { useSettings, type DataState } from '@/composables/useSettings'
+import { useFilters } from '@/composables/useFilters'
 import { SELECTABLE_ITERATIONS } from '@/config/iterations'
 import { scopeLabel } from '@/data/dashboards'
 
@@ -20,29 +24,44 @@ const route = useRoute()
 const router = useRouter()
 const {
   dashboards,
-  tabs,
   scenario,
   iterationId,
   allowNewDashboard,
-  allowRemoveDashboard,
   allowScenarioToggle,
-  openGallery,
-  removeDashboard,
+  openNewDashboard,
   dashboardPath,
-  tabPath,
   setScenario,
   setIteration,
+  resetPrototype: resetWorkspace,
 } = useWorkspace()
 
 /** The dashboard currently open, straight from the route. */
 const activeId = computed(() => String(route.params.dashboardId ?? ''))
 
-// "Trengo" is whatever the workspace ships as the default; everything else is the
-// user's. Splitting on `readonly` rather than on id keeps this true if there's ever
-// more than one shipped dashboard.
-const trengoDashboards = computed(() => dashboards.value.filter((d) => d.readonly))
+// Split on `readonly` rather than on id, so it stays right if more than one dashboard is
+// ever shipped as a default.
+const defaultDashboards = computed(() => dashboards.value.filter((d) => d.readonly))
 const userDashboards = computed(() => dashboards.value.filter((d) => !d.readonly))
-const { slaEnabled, toggleSla, dataState, setDataState } = useSettings()
+
+const { slaEnabled, toggleSla, setSla, dataState, setDataState } = useSettings()
+const { applyScope } = useFilters()
+
+/**
+ * Back to first load: the seeded dashboard, its default filters, SLA off, Normal data.
+ * Everything in this panel AND the workspace — "the starting point" means the whole demo,
+ * and a switch you wanted on is one click to restore, whereas a dashboard you removed and
+ * a scope you saved over are not.
+ */
+function resetPrototype() {
+  const d = resetWorkspace()
+  setSla(false)
+  setDataState('normal')
+  // The reseeded dashboard keeps its slug id, so DashboardView's scope watcher — keyed on
+  // that id — won't refire. Apply the fresh scope here or the old filters would survive a
+  // reset, which is the one thing it must not do.
+  if (d) applyScope(d.scope)
+  router.push(d ? dashboardPath(d.id) : '/welcome')
+}
 
 const scenarios: { id: Scenario; label: string }[] = [
   { id: 'existing', label: 'Existing customer' },
@@ -56,19 +75,19 @@ const dataStates: { id: DataState; label: string }[] = [
   { id: 'error', label: 'Error' },
 ]
 
-// After changing scenario/iteration, land on the first visible tab (or welcome).
-function goToFirstTab() {
-  router.push(tabs.value.length ? tabPath(tabs.value[0].id) : '/welcome')
+// After changing scenario/iteration, land on the first visible report (or welcome).
+function goToFirstReport() {
+  router.push(dashboards.value.length ? dashboardPath(dashboards.value[0].id) : '/welcome')
 }
 
 function switchScenario(id: Scenario) {
   setScenario(id)
-  goToFirstTab()
+  goToFirstReport()
 }
 
 function changeIteration(id: string) {
   setIteration(id)
-  goToFirstTab()
+  goToFirstReport()
 }
 </script>
 
@@ -81,27 +100,50 @@ function changeIteration(id: string) {
         v-if="allowNewDashboard"
         class="flex size-7 items-center justify-center rounded-base text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900"
         title="New dashboard"
-        @click="openGallery()"
+        @click="openNewDashboard()"
       >
         <span class="text-lg leading-none">+</span>
       </button>
     </div>
 
-    <!-- Dashboard list, in two groups -->
-    <nav class="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-1 scroll-thin" aria-label="Dashboards">
-      <div v-if="trengoDashboards.length">
+    <!-- Dashboard list -->
+    <nav class="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-1 scroll-thin" aria-label="Dashboards">
+      <!-- Trengo. Navigation only — no remove, and its name isn't editable either. Same
+           shape as a user row so the trailing slot lines up: the lock sits where the
+           remove ✕ does, and the right edge consistently means "this row's status or
+           action". The lock is the ONLY signal left that this dashboard is different,
+           now that the "Trengo · Default dashboard" line under the title is gone —
+           everything else about it is an absence. -->
+      <div v-if="defaultDashboards.length">
         <RouterLink
-          v-for="d in trengoDashboards"
+          v-for="d in defaultDashboards"
           :key="d.id"
           :to="dashboardPath(d.id)"
-          class="flex flex-col gap-0.5 rounded-base px-2.5 py-2 transition-colors hover:bg-grey-200"
+          class="flex items-center gap-2 rounded-base px-2.5 py-2 transition-colors hover:bg-grey-200"
           :class="d.id === activeId ? 'bg-grey-200' : ''"
         >
-          <span
-            class="truncate text-sm font-medium"
-            :class="d.id === activeId ? 'text-grey-900' : 'text-grey-700'"
-          >{{ d.name }}</span>
-          <span class="truncate text-xs text-grey-600">{{ scopeLabel(d.scope) }}</span>
+          <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span
+              class="truncate text-sm font-medium"
+              :class="d.id === activeId ? 'text-grey-900' : 'text-grey-700'"
+            >{{ d.name }}</span>
+            <span class="truncate text-xs text-grey-600">{{ scopeLabel(d.scope) }}</span>
+          </span>
+          <!-- Lock2 (the padlock) rather than Lock (the round one), and 16px: design.md
+               §8 gives three render sizes — 16 / 20 / 32 — and the 12 this started at
+               isn't one of them, which is part of why it read as undersized.
+               grey-600, not grey-500: that token is in neither design.md nor @theme, so
+               the class emitted nothing and the icon inherited grey-900 — full-strength
+               body text, which is the opposite of quiet. -->
+          <Tooltip text="Can’t be changed. Make your own from New dashboard.">
+            <span
+              class="flex size-5 shrink-0 items-center justify-center text-grey-600"
+              role="img"
+              aria-label="Read-only"
+            >
+              <Icon name="Lock2" :size="16" />
+            </span>
+          </Tooltip>
         </RouterLink>
       </div>
 
@@ -120,30 +162,29 @@ function changeIteration(id: string) {
             >{{ d.name }}</span>
             <span class="truncate text-xs text-grey-600">{{ scopeLabel(d.scope) }}</span>
           </span>
-          <!-- Remove on hover -->
-          <button
-            v-if="allowRemoveDashboard"
-            class="hidden size-5 shrink-0 items-center justify-center rounded-sm text-grey-500 hover:bg-grey-300 hover:text-grey-900 group-hover:flex"
-            title="Remove dashboard"
-            @click.prevent.stop="removeDashboard(d.id)"
-          >
-            <Icon name="cross" :size="14" />
-          </button>
+          <!-- No remove control here. It lives in the ⋯ menu on the dashboard's own
+               header, where it sits beside the dashboard it acts on and doesn't have to
+               be discovered by hovering. A hover-only ✕ two pixels from the row you
+               click to navigate was also the geometry that produced accidental hits. -->
         </RouterLink>
 
-        <!-- New dashboard sits at the bottom of the list -->
-        <button
-          v-if="allowNewDashboard"
-          class="mt-1 flex w-full items-center gap-2 rounded-base px-2.5 py-2 text-sm font-medium text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900"
-          @click="openGallery()"
-        >
-          <span class="text-base leading-none">+</span> New dashboard
-        </button>
       </div>
     </nav>
 
     <!-- Prototype-only controls -->
     <div class="space-y-3 border-t border-grey-300 p-3">
+      <!-- Names the block, and gives the reset somewhere to live. The group labels below
+           ("Features", "Data state") had nothing above them saying what they belonged to. -->
+      <div class="flex items-center justify-between">
+        <div class="text-xs font-semibold text-grey-700">Prototype</div>
+        <button
+          class="flex size-6 items-center justify-center rounded-base text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          title="Reset to the starting point"
+          @click="resetPrototype()"
+        >
+          <Icon name="RotateCcw" :size="14" />
+        </button>
+      </div>
       <!-- Iteration (feature-flag set) — temporarily hidden, bring back later.
            The active iteration still applies; only the picker is hidden. -->
       <div v-if="false">
@@ -220,4 +261,5 @@ function changeIteration(id: string) {
       </div>
     </div>
   </aside>
+
 </template>

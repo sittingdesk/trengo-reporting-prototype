@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// WidgetGrid — renders one tab's widgets, in order, on the 12-column grid.
+// WidgetGrid — renders one report's widgets, in order, on the 12-column grid.
 //
 // Pure: it takes the widget list as a prop and knows nothing about routes or
 // dashboards. Metric-bound widgets render a real MetricBox; the remaining (mock)
@@ -12,11 +12,20 @@ import Icon from '@/components/Icon.vue'
 import { Button } from '@/components/ui/button'
 import MetricBox from '@/components/dashboard/MetricBox.vue'
 
-const props = defineProps<{
-  widgets: Widget[]
-  /** Only used in the empty-tab copy. */
-  tabName: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    widgets: Widget[]
+    /** Only used in the empty-report copy. */
+    reportName: string
+    /** Edit mode: cards expose a remove control and an "Add widget" tile appears. */
+    editing?: boolean
+    /** Whether editing is possible at all — false on Trengo, which hides the way in. */
+    canEdit?: boolean
+  }>(),
+  { editing: false, canEdit: false },
+)
+
+const emit = defineEmits<{ remove: [widget: Widget]; edit: [] }>()
 
 const { slaEnabled } = useSettings()
 
@@ -115,22 +124,25 @@ function spanClass(widget: Widget) {
 
 <template>
   <div class="flex flex-1 flex-col">
-    <!-- Empty tab: nothing added yet. Flexes so it centres in whatever height is left
+    <!-- Empty report: nothing added yet. Flexes so it centres in whatever height is left
          below the dashboard header. -->
     <div
-      v-if="visible.length === 0"
+      v-if="visible.length === 0 && !editing"
       class="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center"
     >
       <div class="flex size-12 items-center justify-center rounded-circle bg-grey-200 text-grey-600">
         <Icon name="Grid" :size="22" />
       </div>
-      <h2 class="text-base font-semibold text-grey-900">This dashboard is empty</h2>
+      <h2 class="text-base font-semibold text-grey-900">This report is empty</h2>
       <p class="max-w-sm text-sm text-grey-600">
-        Add widgets to start tracking the metrics that matter for “{{ tabName }}”.
+        Add widgets to start tracking the metrics that matter for “{{ reportName }}”.
       </p>
-      <Button variant="secondary" size="sm" class="mt-1">
-        <Icon name="Grid" :size="16" />
-        Manage widgets
+      <!-- The way in, not a placeholder: an empty report's only useful action is to
+           start adding, which is what edit mode is for. Absent when the dashboard can't
+           be edited, since there'd be nothing behind it. -->
+      <Button v-if="canEdit" variant="secondary" size="sm" class="mt-1" @click="emit('edit')">
+        <Icon name="Plus" :size="16" />
+        Add widgets
       </Button>
     </div>
 
@@ -141,7 +153,9 @@ function spanClass(widget: Widget) {
           <MetricBox
             v-if="isMetricWidget(widget)"
             :metric-id="widget.metricId"
+            :editing="editing"
             :class="spanClass(widget)"
+            @remove="emit('remove', widget)"
           />
           <!-- Mock placeholder (templates not yet wired to the registry) -->
           <article
@@ -160,6 +174,19 @@ function spanClass(widget: Widget) {
             </div>
           </article>
         </template>
+
+        <!-- Add widget, last in document order — appending is what the control does, so
+             that's where it belongs. It takes a KPI's span and min-height so it can't make
+             its row ragged, and it fills the deliberate trailing gap when the last row
+             happens to leave one (a `newRow` widget can put that gap mid-grid instead). -->
+        <button
+          v-if="editing"
+          type="button"
+          class="flex min-h-[160px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-grey-400 bg-white/50 text-sm font-medium text-grey-600 transition-colors hover:border-grey-600 hover:bg-white hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:col-span-3 lg:col-span-3"
+        >
+          <Icon name="Plus" :size="20" />
+          Add widget
+        </button>
       </div>
     </div>
   </div>

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // WelcomeEmpty — the "new customer" empty state.
-// Shown when there are no tabs yet. Prompts the user to create their first
-// dashboard, which opens the template gallery.
+// Shown when there are no dashboards yet — reachable from "Decide later", and now also
+// by removing your last dashboard. Opens the New dashboard dialog.
 import { Button } from '@/components/ui/button'
 import { useWorkspace } from '@/composables/useWorkspace'
 
-const { openGallery } = useWorkspace()
+const { openNewDashboard, allowNewDashboard } = useWorkspace()
 </script>
 
 <template>
@@ -15,10 +15,18 @@ const { openGallery } = useWorkspace()
     </div>
     <h2 class="text-base font-semibold text-grey-900">Create your first dashboard</h2>
     <p class="max-w-sm text-sm text-grey-600">
-      Pick a template to get started — a ready-made set of widgets you can use right away.
+      Choose which reports to start with. You can add more at any time.
     </p>
-    <Button variant="default" size="default" class="mt-1" @click="openGallery()">
-      Browse templates
+    <!-- Same gate as the sidebar: without it you can reach a button that opens a
+         dialog you're not allowed to use. -->
+    <Button
+      v-if="allowNewDashboard"
+      variant="default"
+      size="default"
+      class="mt-1"
+      @click="openNewDashboard()"
+    >
+      New dashboard
     </Button>
   </div>
 </template>
