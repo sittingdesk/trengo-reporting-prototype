@@ -235,10 +235,11 @@ export function useWorkspace() {
    *  - 'old'   → the legacy reports, rebuilt as one dashboard
    *  - 'later' → nothing (generic empty state)
    * Returns the first report so the caller can navigate.
-   * ⚠️ Still REPLACES the list, so "keep my current reports" discards the seeded
-   * dashboard — which contradicts this step's own "nothing is lost" promise. Fixed when
-   * onboarding is rewired (commit D), once the recommended set is permanently offered in
-   * the New dashboard dialog.
+   *
+   * It replaces the list, which is safe: this step is only reachable when the workspace
+   * is empty (the 'existing' scenario seeds nothing and asks first). And nothing is lost
+   * either way — both sets are permanent options in the New dashboard dialog, so the
+   * choice is a starting point rather than a commitment.
    */
   function chooseStart(kind: 'new' | 'old' | 'later'): Report | undefined {
     state.dashboards = []

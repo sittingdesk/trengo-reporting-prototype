@@ -1,25 +1,30 @@
 <script setup lang="ts">
 // OnboardingChoice — the existing-customer welcome step.
 //
-// A reversible recommendation: try the new question-led templates (recommended)
-// or recreate the familiar reports. Either way both sets stay available later in
-// the gallery, so the choice is never destructive. "Decide later" starts empty.
+// A reversible recommendation: start with the reports we recommend, or rebuild the
+// familiar ones. Both cards are driven by STARTING_SETS — the same source the New
+// dashboard dialog reads — so the two surfaces can't drift, and the promise below
+// ("both stay available") is true by construction rather than by good intentions.
+//
+// "Decide later" starts empty, which is why WelcomeEmpty still exists.
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Icon from '@/components/Icon.vue'
 import { useWorkspace } from '@/composables/useWorkspace'
-import {
-  QUESTION_LED_TEMPLATE_IDS,
-  LEGACY_REPORT_TEMPLATE_IDS,
-  getTemplate,
-} from '@/config/templates'
+import { getStartingSet } from '@/config/startingSets'
+import { getTemplate } from '@/config/templates'
 
 const router = useRouter()
 const { chooseStart, reportPath } = useWorkspace()
 
-const newNames = QUESTION_LED_TEMPLATE_IDS.map((id) => getTemplate(id)?.name ?? id)
-const oldNames = LEGACY_REPORT_TEMPLATE_IDS.map((id) => getTemplate(id)?.name ?? id)
+/** The report names a set would create, for the chips on each card. */
+function reportNames(setId: string): string[] {
+  return (getStartingSet(setId)?.templateIds ?? []).map((id) => getTemplate(id)?.name ?? id)
+}
+const newNames = computed(() => reportNames('recommended'))
+const oldNames = computed(() => reportNames('current-reports'))
 
 function choose(kind: 'new' | 'old' | 'later') {
   const report = chooseStart(kind)
@@ -37,21 +42,21 @@ function choose(kind: 'new' | 'old' | 'later') {
         </span>
         <h1 class="text-xl font-bold text-grey-900">Reporting has a new setup</h1>
         <p class="mx-auto mt-1 max-w-md text-sm text-grey-600">
-          We've reorganised analytics around the questions you ask most. Pick how you'd like to
-          start — you can change this anytime.
+          Your reports now live together on a dashboard. Pick which ones to start with —
+          you can change this anytime.
         </p>
       </div>
 
       <!-- Two option cards -->
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <!-- Try the new templates (recommended) -->
+        <!-- The recommended set -->
         <article class="flex flex-col rounded-xl border-2 border-leaf-500 bg-white p-5">
           <div class="mb-1 flex items-center gap-2">
-            <h2 class="text-base font-semibold text-grey-900">Try the new templates</h2>
+            <h2 class="text-base font-semibold text-grey-900">Try the new reports</h2>
             <Badge variant="recommended">Recommended</Badge>
           </div>
           <p class="mb-3 text-sm text-grey-600">
-            Start in the new question-led dashboards — built around health, insight, operations and
+            One dashboard, five reports — built around health, insight, operations and
             automation.
           </p>
           <ul class="mb-4 flex flex-wrap gap-1.5">
@@ -64,11 +69,11 @@ function choose(kind: 'new' | 'old' | 'later') {
             </li>
           </ul>
           <Button variant="default" class="mt-auto w-full rounded-pill" @click="choose('new')">
-            Start with new templates
+            Start with the new reports
           </Button>
         </article>
 
-        <!-- Keep my current reports -->
+        <!-- The legacy set -->
         <article class="flex flex-col rounded-xl border border-grey-300 bg-white p-5">
           <h2 class="mb-1 text-base font-semibold text-grey-900">Keep my current reports</h2>
           <p class="mb-3 text-sm text-grey-600">
@@ -89,11 +94,13 @@ function choose(kind: 'new' | 'old' | 'later') {
         </article>
       </div>
 
-      <!-- Decide later + reassurance -->
+      <!-- Decide later + reassurance. Both sets are permanent options in the dialog, so
+           this isn't a one-way door — worth saying, because it's the whole reason the
+           choice can be offered at all. -->
       <div class="mt-5 text-center">
         <Button variant="ghost" size="sm" @click="choose('later')">Decide later</Button>
         <p class="mt-1 text-xs text-grey-600">
-          You can add or remove any template later from + New dashboard.
+          Whichever you pick, both are always available from + New dashboard.
         </p>
       </div>
     </div>
