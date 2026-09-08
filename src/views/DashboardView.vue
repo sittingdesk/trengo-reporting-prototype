@@ -21,7 +21,7 @@ import WidgetGrid from '@/components/dashboard/WidgetGrid.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { getDashboard } = useWorkspace()
+const { getDashboard, editing, setEditing, removeWidget } = useWorkspace()
 const { applyScope } = useFilters()
 
 const dashboard = computed(() => getDashboard(String(route.params.dashboardId)))
@@ -48,6 +48,8 @@ watch(
   () => dashboard.value?.id,
   (id) => {
     if (id && dashboard.value) applyScope(dashboard.value.scope)
+    // Edit mode belongs to the dashboard you entered it on, so switching leaves it.
+    setEditing(false)
   },
   { immediate: true },
 )
@@ -57,6 +59,13 @@ watch(
   <div v-if="dashboard && report" class="flex min-h-full flex-col">
     <DashboardHeader :dashboard="dashboard" />
     <ReportBar :dashboard="dashboard" :active-report-id="report.id" />
-    <WidgetGrid :widgets="report.widgets" :report-name="report.name" />
+    <WidgetGrid
+      :widgets="report.widgets"
+      :report-name="report.name"
+      :editing="editing"
+      :can-edit="!dashboard.readonly"
+      @remove="removeWidget(dashboard.id, report.id, $event)"
+      @edit="setEditing(true, dashboard.id)"
+    />
   </div>
 </template>

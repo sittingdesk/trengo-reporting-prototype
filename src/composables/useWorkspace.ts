@@ -11,6 +11,7 @@
 // ⚠️ Persistence is mocked: the chosen scenario is saved to localStorage and reseeds
 // on load. Real per-user persistence needs a backend DB (TECH_FOUNDATION §5).
 import { reactive, computed } from 'vue'
+import type { Widget } from '@/config/templates'
 import { getIteration, DEFAULT_ITERATION_ID } from '@/config/iterations'
 import {
   getStartingSet,
@@ -61,6 +62,10 @@ const state = reactive({
   // re-shows it on reload / scenario toggle.
   needsChoice: false,
   newDashboardOpen: false,
+  // Edit mode is a view state, not dashboard data — it isn't saved and it doesn't
+  // travel. Held here beside newDashboardOpen for the same reason: several surfaces
+  // (header, grid, cards) need to agree on it.
+  editing: false,
 })
 
 
@@ -172,6 +177,13 @@ export function useWorkspace() {
   const allowScenarioToggle = computed(() => getIteration(state.iterationId)?.allowScenarioToggle ?? true)
   const needsChoice = computed(() => state.needsChoice)
   const newDashboardOpen = computed(() => state.newDashboardOpen)
+  const editing = computed(() => state.editing)
+  /** Trengo can't be edited, so entering edit mode there is refused rather than hidden
+   *  in the UI alone — the same rule as every other mutation. */
+  function setEditing(on: boolean, dashboardId?: string) {
+    if (on && dashboardId && getDashboard(dashboardId)?.readonly) return
+    state.editing = on
+  }
 
   function getDashboard(id: string): Dashboard | undefined {
     return state.dashboards.find((d) => d.id === id)
@@ -222,6 +234,21 @@ export function useWorkspace() {
     const d = getDashboard(dashboardId)
     if (!d || d.readonly) return
     d.scope = scope
+  }
+
+  /** Remove a widget from a report. Takes the widget OBJECT rather than an index: the
+   *  grid renders a capability-filtered list, so a rendered position doesn't map to a
+   *  stored one. Refused on Trengo.
+   *
+   *  This is the first time removal actually works — MetricBox's menu item was a no-op
+   *  ("widgets come from the template; no removal yet"), true until reports started
+   *  owning their widget lists. */
+  function removeWidget(dashboardId: string, reportId: string, widget: Widget) {
+    const d = getDashboard(dashboardId)
+    if (!d || d.readonly) return
+    const r = d.reports.find((x) => x.id === reportId)
+    if (!r) return
+    r.widgets = r.widgets.filter((w) => w !== widget)
   }
 
   /** Add a blank report and return it, so the caller can navigate and let the user name
@@ -347,6 +374,9 @@ export function useWorkspace() {
     renameDashboard,
     addReport,
     renameReport,
+    removeWidget,
+    editing,
+    setEditing,
     removeDashboard,
     createDashboard,
     resetPrototype,

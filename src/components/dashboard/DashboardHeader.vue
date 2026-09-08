@@ -27,6 +27,8 @@ import ChannelFilter from '@/components/layout/filters/ChannelFilter.vue'
 import SelectFilter from '@/components/layout/filters/SelectFilter.vue'
 import InlineEditName from '@/components/dashboard/InlineEditName.vue'
 import { Tooltip } from '@/components/ui/tooltip'
+import { Button } from '@/components/ui/button'
+import Icon from '@/components/Icon.vue'
 import { useFilters } from '@/composables/useFilters'
 import { useWorkspace } from '@/composables/useWorkspace'
 import { TEAMS } from '@/data/filters'
@@ -36,7 +38,7 @@ const props = defineProps<{ dashboard: Dashboard }>()
 
 const { teamIds, toggleTeam, clearTeams, applyScope, currentScope, isCustomRange, isDirty } =
   useFilters()
-const { saveScope, renameDashboard } = useWorkspace()
+const { saveScope, renameDashboard, editing, setEditing } = useWorkspace()
 
 // Full-width filters cost 432px. Below this the title would be left under ~140px — less
 // than the ~185px a name like "My dashboard" needs — so Channel and Team drop their
@@ -52,6 +54,19 @@ onMounted(() => {
 })
 onBeforeUnmount(() => ro?.disconnect())
 const compactFilters = computed(() => rowW.value > 0 && rowW.value < COMPACT_ROW)
+
+/**
+ * Edit mode. A real mode rather than always-on editing, because drag-and-drop is coming:
+ * once a card can be dragged, every mousedown on one is ambiguous between "interact with
+ * this" and "move this". An explicit mode resolves that, and gives add / remove /
+ * rearrange one home instead of three scattered affordances.
+ *
+ * The trigger sits here, far right of the title row, because that's where Figma 7050:9312
+ * put it and because this row already owns the dashboard-level things — its name and its
+ * scope. Measured: with the filters also on this row, a typical name still fits beside
+ * both down to a 1024px viewport.
+ */
+const toggleEdit = () => setEditing(!editing.value, props.dashboard.id)
 
 const dirty = computed(() => isDirty(props.dashboard.scope))
 
@@ -89,7 +104,7 @@ const save = () => {
         />
       </h1>
 
-      <!-- Scope. A property of the dashboard, so it belongs on the dashboard's row. -->
+      <!-- Scope, then Edit. Both belong to the dashboard, so both belong on its row. -->
       <div class="flex shrink-0 flex-col items-end gap-1">
         <div class="flex items-center gap-2">
           <!-- Never compact: with no active state, this label is the only thing telling
@@ -105,6 +120,22 @@ const save = () => {
             @toggle="toggleTeam"
             @clear="clearTeams"
           />
+
+          <!-- Absent on Trengo, not disabled: there is nothing to edit, and a control
+               that refuses is worse than no control. Drops its label when the row is
+               tight, on the same signal the filters use — one rule, "when space runs
+               short, controls lose their words before navigation does". -->
+          <Button
+            v-if="!dashboard.readonly"
+            :variant="editing ? 'default' : 'outline'"
+            :size="compactFilters ? 'icon' : 'default'"
+            :aria-label="compactFilters ? (editing ? 'Done editing' : 'Edit dashboard') : undefined"
+            :title="compactFilters ? (editing ? 'Done editing' : 'Edit dashboard') : undefined"
+            @click="toggleEdit()"
+          >
+            <Icon :name="editing ? 'Check' : 'Edit'" :size="20" />
+            <span v-if="!compactFilters">{{ editing ? 'Done' : 'Edit' }}</span>
+          </Button>
         </div>
 
         <!-- Only present while the working view differs from the saved one. Sits under the
