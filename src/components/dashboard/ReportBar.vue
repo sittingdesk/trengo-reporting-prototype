@@ -25,10 +25,19 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { useWorkspace } from '@/composables/useWorkspace'
 import type { Dashboard } from '@/data/dashboards'
 
-const props = defineProps<{ dashboard: Dashboard; activeReportId: string }>()
+const props = withDefaults(
+  defineProps<{
+    dashboard: Dashboard
+    activeReportId: string
+    /** Edit mode: each pill gains a remove button, on the same rule as the widgets —
+     *  structural change lives in edit mode. */
+    editing?: boolean
+  }>(),
+  { editing: false },
+)
 
 const router = useRouter()
-const { reportPath, addReport, renameReport } = useWorkspace()
+const { reportPath, addReport, renameReport, removeReport } = useWorkspace()
 
 /** Which report should open its name editor — set the moment one is created. */
 const autoEditId = ref('')
@@ -80,14 +89,39 @@ watch(
 const GAP = 8
 const ADD_W = 34 // the pinned "+"
 const MORE_W = 40 // the "+N" trigger
+/** What a pill's remove button adds while editing: a 4px gap plus a 20px button. The
+ *  mirror row measures pills WITHOUT it, so the arithmetic adds it rather than the
+ *  measurement — one measured value, adjusted, instead of two to keep in step. */
+const REMOVE_W = 24
+
+/** Can this report be removed? Not the last one — see `removeReport`. */
+const removable = computed(() => props.editing && props.dashboard.reports.length > 1)
+
+/**
+ * Remove a report. If it's the one you're on, NAVIGATE AWAY FIRST, then delete — order
+ * matters. Deleting first makes the active route id stop resolving, and DashboardView's
+ * guard sees that within the same tick and replaces the route with '/', which lands you
+ * on a different dashboard entirely. Moving off it first leaves the guard nothing to
+ * catch. Neighbour is the previous report, or the next if it was already first.
+ */
+async function remove(reportId: string) {
+  const reports = props.dashboard.reports
+  const i = reports.findIndex((r) => r.id === reportId)
+  const neighbour = reports[i - 1] ?? reports[i + 1]
+  if (reportId === props.activeReportId && neighbour) {
+    await router.push(reportPath(props.dashboard.id, neighbour.id))
+  }
+  removeReport(props.dashboard.id, reportId)
+}
 
 /** Greedily take pills while they fit in `budget`; returns their indices. */
 function fitIn(budget: number) {
   const w = natural.value
+  const extra = removable.value ? REMOVE_W : 0
   let used = 0
   const out: number[] = []
   for (let i = 0; i < w.length; i++) {
-    const cost = w[i] + (out.length ? GAP : 0)
+    const cost = w[i] + extra + (out.length ? GAP : 0)
     if (used + cost > budget) break
     used += cost
     out.push(i)
@@ -168,7 +202,11 @@ const INACTIVE_PILL =
       class="-m-1 flex min-w-0 flex-1 items-center gap-2 overflow-hidden p-1"
       aria-label="Reports"
     >
-      <template v-for="r in shownReports" :key="r.id">
+      <!-- Pill, then its remove button beside it while editing. Adjacent rather than
+           inside: a button nested in the navigation link would be invalid markup and a
+           coin-toss click target at this size. Navigation keeps working in edit mode —
+           you often want to arrange one report, then the next. -->
+      <span v-for="r in shownReports" :key="r.id" class="inline-flex shrink-0 items-center gap-1">
         <!-- The active one is a rename target, not a link to where you already are. -->
         <InlineEditName
           v-if="r.id === activeReportId"
@@ -182,7 +220,16 @@ const INACTIVE_PILL =
         <RouterLink v-else :to="reportPath(dashboard.id, r.id)" :class="INACTIVE_PILL">
           {{ r.name }}
         </RouterLink>
-      </template>
+        <button
+          v-if="removable"
+          type="button"
+          class="inline-flex size-5 shrink-0 items-center justify-center rounded-sm border border-grey-300 bg-white text-grey-600 transition-colors hover:border-error-500 hover:bg-error-500 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          :aria-label="`Remove ${r.name}`"
+          @click="remove(r.id)"
+        >
+          <Icon name="Cross" :size="12" />
+        </button>
+      </span>
 
       <!-- The reports that didn't fit. The count is exactly what the list contains, so
            "+3" is a promise rather than a hint. -->

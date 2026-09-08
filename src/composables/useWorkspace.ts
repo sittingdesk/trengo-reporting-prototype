@@ -268,6 +268,16 @@ export function useWorkspace() {
     return report
   }
 
+  /** Remove a report, with its widgets. Refused on Trengo, and refused on the LAST
+   *  report: a dashboard with none is a dead end we haven't designed, and "get rid of all
+   *  of it" already has an answer — remove the dashboard. So a dashboard always holds at
+   *  least one report. */
+  function removeReport(dashboardId: string, reportId: string) {
+    const d = getDashboard(dashboardId)
+    if (!d || d.readonly || d.reports.length <= 1) return
+    d.reports = d.reports.filter((r) => r.id !== reportId)
+  }
+
   /** Rename a report. Its id stays put for the same reason a dashboard's does — the id
    *  is in the URL. Names de-duplicate within the dashboard only; two dashboards may
    *  each have an "Overview". */
@@ -374,6 +384,7 @@ export function useWorkspace() {
     renameDashboard,
     addReport,
     renameReport,
+    removeReport,
     removeWidget,
     editing,
     setEditing,

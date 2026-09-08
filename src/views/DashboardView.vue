@@ -58,7 +58,7 @@ watch(
 <template>
   <div v-if="dashboard && report" class="flex min-h-full flex-col">
     <DashboardHeader :dashboard="dashboard" />
-    <ReportBar :dashboard="dashboard" :active-report-id="report.id" />
+    <ReportBar :dashboard="dashboard" :active-report-id="report.id" :editing="editing" />
     <WidgetGrid
       :widgets="report.widgets"
       :report-name="report.name"
