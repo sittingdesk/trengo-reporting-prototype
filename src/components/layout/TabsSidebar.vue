@@ -20,7 +20,6 @@ const route = useRoute()
 const router = useRouter()
 const {
   dashboards,
-  reports,
   scenario,
   iterationId,
   allowNewDashboard,
@@ -29,8 +28,6 @@ const {
   openNewDashboard,
   removeDashboard,
   dashboardPath,
-  dashboardOf,
-  reportPath,
   setScenario,
   setIteration,
   resetPrototype: resetWorkspace,
@@ -49,15 +46,14 @@ const { applyScope } = useFilters()
  * a scope you saved over are not.
  */
 function resetPrototype() {
-  const first = resetWorkspace()
+  const d = resetWorkspace()
   setSla(false)
   setDataState('normal')
   // The reseeded dashboard keeps its slug id, so DashboardView's scope watcher — keyed on
   // that id — won't refire. Apply the fresh scope here or the old filters would survive a
   // reset, which is the one thing it must not do.
-  const d = first ? dashboardOf(first.id) : undefined
   if (d) applyScope(d.scope)
-  router.push(first ? reportPath(first.id) : '/welcome')
+  router.push(d ? dashboardPath(d.id) : '/welcome')
 }
 
 const scenarios: { id: Scenario; label: string }[] = [
@@ -74,7 +70,7 @@ const dataStates: { id: DataState; label: string }[] = [
 
 // After changing scenario/iteration, land on the first visible report (or welcome).
 function goToFirstReport() {
-  router.push(reports.value.length ? reportPath(reports.value[0].id) : '/welcome')
+  router.push(dashboards.value.length ? dashboardPath(dashboards.value[0].id) : '/welcome')
 }
 
 function switchScenario(id: Scenario) {

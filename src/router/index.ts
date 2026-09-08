@@ -14,8 +14,8 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     redirect: () => {
-      const { reports, reportPath } = useWorkspace()
-      return reports.value.length ? reportPath(reports.value[0].id) : '/welcome'
+      const { dashboards, dashboardPath } = useWorkspace()
+      return dashboards.value.length ? dashboardPath(dashboards.value[0].id) : '/welcome'
     },
   },
   { path: '/welcome', name: 'welcome', component: Welcome },
@@ -23,7 +23,14 @@ const routes: RouteRecordRaw[] = [
   // Links saved before dashboards existed still resolve.
   {
     path: '/d/:reportId',
-    redirect: (to) => useWorkspace().reportPath(String(to.params.reportId)),
+    // Best effort only: a bare report id can't say which dashboard it means (see
+    // dashboardOf), so an old link resolves to the first dashboard that has one.
+    redirect: (to) => {
+      const { dashboardOf, reportPath } = useWorkspace()
+      const id = String(to.params.reportId)
+      const d = dashboardOf(id)
+      return d ? reportPath(d.id, id) : '/welcome'
+    },
   },
 ]
 

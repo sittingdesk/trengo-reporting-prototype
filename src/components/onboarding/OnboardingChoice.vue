@@ -17,7 +17,7 @@ import { getStartingSet } from '@/config/startingSets'
 import { getTemplate } from '@/config/templates'
 
 const router = useRouter()
-const { chooseStart, reportPath } = useWorkspace()
+const { chooseStart, dashboardPath } = useWorkspace()
 
 /** The report names a set would create, for the chips on each card. */
 function reportNames(setId: string): string[] {
@@ -27,8 +27,8 @@ const newNames = computed(() => reportNames('recommended'))
 const oldNames = computed(() => reportNames('current-reports'))
 
 function choose(kind: 'new' | 'old' | 'later') {
-  const report = chooseStart(kind)
-  router.push(report ? reportPath(report.id) : '/welcome')
+  const dashboard = chooseStart(kind)
+  router.push(dashboard ? dashboardPath(dashboard.id) : '/welcome')
 }
 </script>
 

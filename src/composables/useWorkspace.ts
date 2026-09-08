@@ -162,7 +162,10 @@ export function useWorkspace() {
     return state.dashboards.find((d) => d.id === id)
   }
 
-  /** The dashboard a report belongs to. */
+  /** The dashboard a report belongs to — FIRST match only.
+   *  ⚠️ Report ids are unique within a dashboard, not across the workspace: they're
+   *  template ids, so two dashboards from the same starting set both hold `overview`.
+   *  Only the legacy single-id URL may use this, and only as a best effort. */
   function dashboardOf(reportId: string): Dashboard | undefined {
     return state.dashboards.find((d) => d.reports.some((t) => t.id === reportId))
   }
@@ -178,23 +181,24 @@ export function useWorkspace() {
     return t ? `/d/${dashboardId}/${t.id}` : '/welcome'
   }
 
-  /** Route to a report — the one place that knows the URL shape. */
-  function reportPath(reportId: string): string {
-    const d = dashboardOf(reportId)
-    return d ? `/d/${d.id}/${reportId}` : '/welcome'
+  /** Route to a report — the one place that knows the URL shape. Takes the dashboard
+   *  explicitly: a report id on its own is ambiguous (see `dashboardOf`), and resolving
+   *  it globally sent you to the wrong dashboard whenever two shared a report id. */
+  function reportPath(dashboardId: string, reportId: string): string {
+    return `/d/${dashboardId}/${reportId}`
   }
 
   /**
    * "New dashboard": a private dashboard from a starting set, with an optional user-typed
    * name (de-duplicated either way). Returns its first report so the caller can navigate.
    */
-  function createDashboard(setId: StartingSetId, name?: string): Report | undefined {
+  function createDashboard(setId: StartingSetId, name?: string): Dashboard | undefined {
     // Enforced here, not only in the sidebar's v-if: a UI-only guard is bypassed by the
     // next caller.
     if (!allowNewDashboard.value) return undefined
     const d = buildDashboard(setId, name)
     state.dashboards.push(d)
-    return d.reports[0]
+    return d
   }
 
   /** Write the working filters onto a dashboard. Every dashboard is the user's now, so
@@ -227,11 +231,11 @@ export function useWorkspace() {
    * Put the workspace back to its first-load state for the active scenario — prototype
    * only. Dashboards can be created and removed now and nothing persists, so a demo
    * needs one click back to the starting point instead of rebuilding it by hand.
-   * Returns the first report so the caller can navigate.
+   * Returns the dashboard so the caller can navigate.
    */
-  function resetPrototype(): Report | undefined {
+  function resetPrototype(): Dashboard | undefined {
     applyScenario(state.scenario)
-    return allReports()[0]
+    return state.dashboards[0]
   }
 
   /** Switch demo scenario — persists and applies its starting state. */
@@ -264,12 +268,12 @@ export function useWorkspace() {
    * either way — both sets are permanent options in the New dashboard dialog, so the
    * choice is a starting point rather than a commitment.
    */
-  function chooseStart(kind: 'new' | 'old' | 'later'): Report | undefined {
+  function chooseStart(kind: 'new' | 'old' | 'later'): Dashboard | undefined {
     state.dashboards = []
     if (kind === 'new') state.dashboards.push(buildDashboard('recommended'))
     else if (kind === 'old') state.dashboards.push(buildDashboard('current-reports'))
     state.needsChoice = false
-    return allReports()[0]
+    return state.dashboards[0]
   }
 
   const openNewDashboard = () => (state.newDashboardOpen = true)

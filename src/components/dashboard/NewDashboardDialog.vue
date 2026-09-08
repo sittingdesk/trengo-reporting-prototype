@@ -27,7 +27,7 @@ import { STARTING_SETS, type StartingSetId } from '@/config/startingSets'
 import { useWorkspace } from '@/composables/useWorkspace'
 
 const router = useRouter()
-const { newDashboardOpen, createDashboard, closeNewDashboard, reportPath } = useWorkspace()
+const { newDashboardOpen, createDashboard, closeNewDashboard, dashboardPath } = useWorkspace()
 
 // Per-set leading icon + accent tint (presentation only). Full class strings so
 // Tailwind's JIT keeps them — never build a class name from a variable.
@@ -73,9 +73,9 @@ function onOpenChange(open: boolean) {
 function create() {
   // undefined when the active iteration doesn't allow new dashboards — the triggers are
   // hidden in that case, so this is belt-and-braces rather than a reachable path.
-  const report = createDashboard(selectedId.value, name.value)
+  const dashboard = createDashboard(selectedId.value, name.value)
   closeNewDashboard()
-  if (report) router.push(reportPath(report.id))
+  if (dashboard) router.push(dashboardPath(dashboard.id))
 }
 </script>
 

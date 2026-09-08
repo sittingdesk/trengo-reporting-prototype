@@ -35,7 +35,7 @@ const visibleReports = computed(() => props.dashboard.reports)
     <RouterLink
       v-for="t in visibleReports"
       :key="t.id"
-      :to="reportPath(t.id)"
+      :to="reportPath(dashboard.id, t.id)"
       class="relative shrink-0 py-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       :class="
         t.id === activeReportId
