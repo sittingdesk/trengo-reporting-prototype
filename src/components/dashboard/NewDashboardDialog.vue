@@ -82,14 +82,13 @@ function create() {
 <template>
   <Dialog :open="newDashboardOpen" @update:open="onOpenChange">
     <DialogContent class="max-w-lg gap-0 p-0">
-      <DialogHeader class="gap-1 p-4 pb-3">
-        <div class="flex items-center gap-2.5">
-          <span class="flex size-8 shrink-0 items-center justify-center rounded-base bg-grey-100 text-grey-700">
-            <Icon name="FilePlus" :size="16" />
-          </span>
-          <DialogTitle class="text-base">New dashboard</DialogTitle>
-        </div>
-        <DialogDescription class="text-xs">
+      <DialogHeader class="p-4 pb-3">
+        <DialogTitle class="text-base">New dashboard</DialogTitle>
+        <!-- sr-only rather than deleted: the field labels below ("Dashboard name",
+             "Start with") already say this to anyone who can see them, but a dialog needs
+             a description for `aria-describedby`, and dropping it entirely would take that
+             from screen readers and make reka-ui complain. -->
+        <DialogDescription class="sr-only">
           Name it, then choose which reports to start with. You can add more later.
         </DialogDescription>
       </DialogHeader>

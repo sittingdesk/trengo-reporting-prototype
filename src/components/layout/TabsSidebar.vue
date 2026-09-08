@@ -2,7 +2,9 @@
 // TabsSidebar — the second left sidebar: the user's DASHBOARDS.
 //
 // Trengo leads, then the user's own, separated by a gap rather than by headings — with
-// two groups, "Trengo" and "Your dashboards" labelled more than they organised. Each row
+// two groups, "Trengo" and "Your dashboards" labelled more than they organised. 8px, not
+// 16: the rows inside a group sit flush, so 8px already reads as a separator, where 16
+// read as a break in the list. Each row
 // shows its saved scope as a subtitle, so two dashboards are
 // told apart by what they actually look at rather than by name alone. Clicking one opens
 // its first report; the reports themselves live in the tab row inside the dashboard, not here.
@@ -106,7 +108,7 @@ function changeIteration(id: string) {
     </div>
 
     <!-- Dashboard list -->
-    <nav class="flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-1 scroll-thin" aria-label="Dashboards">
+    <nav class="flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-1 scroll-thin" aria-label="Dashboards">
       <!-- Trengo. Navigation only — no remove, and its name isn't editable either. -->
       <div v-if="defaultDashboards.length">
         <RouterLink
