@@ -131,7 +131,10 @@ function changeIteration(id: string) {
             >{{ d.name }}</span>
             <span class="truncate text-xs text-grey-600">{{ scopeLabel(d.scope) }}</span>
           </span>
-          <!-- grey-600, not grey-500: that token is in neither design.md nor @theme, so
+          <!-- Lock2 (the padlock) rather than Lock (the round one), and 16px: design.md
+               §8 gives three render sizes — 16 / 20 / 32 — and the 12 this started at
+               isn't one of them, which is part of why it read as undersized.
+               grey-600, not grey-500: that token is in neither design.md nor @theme, so
                the class emitted nothing and the icon inherited grey-900 — full-strength
                body text, which is the opposite of quiet. -->
           <Tooltip text="Can’t be changed. Make your own from New dashboard.">
@@ -140,7 +143,7 @@ function changeIteration(id: string) {
               role="img"
               aria-label="Read-only"
             >
-              <Icon name="Lock" :size="12" />
+              <Icon name="Lock2" :size="16" />
             </span>
           </Tooltip>
         </RouterLink>
@@ -172,14 +175,6 @@ function changeIteration(id: string) {
           </button>
         </RouterLink>
 
-        <!-- New dashboard sits at the bottom of the list -->
-        <button
-          v-if="allowNewDashboard"
-          class="mt-1 flex w-full items-center gap-2 rounded-base px-2.5 py-2 text-sm font-medium text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900"
-          @click="openNewDashboard()"
-        >
-          <span class="text-base leading-none">+</span> New dashboard
-        </button>
       </div>
     </nav>
 
