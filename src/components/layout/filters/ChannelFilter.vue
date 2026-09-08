@@ -10,6 +10,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import Icon from '@/components/Icon.vue'
+import FilterChip from '@/components/layout/filters/FilterChip.vue'
 import { CATALOG, CHANNEL_INSTANCE_IDS, type ChannelCategory } from '@/data/channelData'
 import { useFilters } from '@/composables/useFilters'
 
@@ -85,14 +86,7 @@ function focusLeft() {
 <template>
   <Popover>
     <PopoverTrigger as-child>
-      <button
-        type="button"
-        class="inline-flex h-9 items-center gap-2 rounded-md border border-grey-300 bg-white px-3 text-sm font-medium text-grey-700 transition-colors hover:bg-grey-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-grey-100"
-      >
-        <Icon name="Hashtag" :size="16" class="text-grey-600" />
-        <span>{{ triggerLabel }}</span>
-        <Icon name="ChevronDown" :size="14" class="text-grey-400" />
-      </button>
+      <FilterChip icon="InboxIn" :active="!allSelected">{{ triggerLabel }}</FilterChip>
     </PopoverTrigger>
 
     <PopoverContent class="flex w-auto overflow-hidden p-0" :side-offset="6">

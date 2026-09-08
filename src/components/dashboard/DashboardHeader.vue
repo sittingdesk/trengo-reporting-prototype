@@ -5,18 +5,19 @@
 // the dashboard now: filters are a property of the dashboard (its saved scope), not of
 // the report, and reports inherit them.
 //
-// No background of its own: it sits on the page, not in a bar.
+// The header itself has no background — it sits on the page, not in a bar. The FILTERS
+// do: they're grouped into one bordered card, so three chips read as one control rather
+// than three loose buttons floating beside the title.
 //
-// Changing a filter is TEMPORARY. The row below appears the moment the working view
-// differs from what's saved, so you always know whether you're looking at the dashboard
-// as its owner left it — and it's the only warning before switching away discards the
-// change.
+// Changing a filter is TEMPORARY. The row inside that card appears the moment the working
+// view differs from what's saved, so you always know whether you're looking at the
+// dashboard as its owner left it — and it's the only warning before switching away
+// discards the change. It lives INSIDE the card because it's about those filters; as a
+// separate row under the header it read as a page-level alert.
 import { computed } from 'vue'
 import DateRangeFilter from '@/components/layout/filters/DateRangeFilter.vue'
 import ChannelFilter from '@/components/layout/filters/ChannelFilter.vue'
 import SelectFilter from '@/components/layout/filters/SelectFilter.vue'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { useFilters } from '@/composables/useFilters'
 import { useWorkspace } from '@/composables/useWorkspace'
 import { TEAMS } from '@/data/filters'
@@ -63,30 +64,46 @@ const save = () => saveScope(props.dashboard.id, currentScope())
         <p class="mt-0.5 truncate text-xs font-medium text-grey-600">{{ ownerLine }}</p>
       </div>
 
-      <!-- The dashboard's filters. Reports inherit them; there is no per-report filtering. -->
-      <div class="flex shrink-0 items-center gap-2">
-        <DateRangeFilter />
-        <ChannelFilter />
-        <SelectFilter
-          label="Team"
-          icon="Users"
-          :options="TEAMS"
-          :selected-ids="teamIds"
-          @toggle="toggleTeam"
-          @clear="clearTeams"
-        />
-      </div>
-    </div>
+      <!-- The dashboard's filters, grouped as one control. Reports inherit them; there
+           is no per-report filtering. -->
+      <div class="shrink-0 rounded-2xl border border-grey-400 bg-grey-100 p-2 shadow-100">
+        <div class="flex items-center gap-2">
+          <DateRangeFilter />
+          <ChannelFilter />
+          <SelectFilter
+            label="Team"
+            icon="Users"
+            :options="TEAMS"
+            :selected-ids="teamIds"
+            @toggle="toggleTeam"
+            @clear="clearTeams"
+          />
+        </div>
 
-    <!-- Only present while the working view differs from the saved one. -->
-    <div v-if="dirty" class="mt-3 flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
-      <Badge variant="muted">Filters changed</Badge>
-      <span v-if="blockedReason" class="text-xs text-grey-600">{{ blockedReason }}</span>
-      <div class="flex items-center gap-2">
-        <Button variant="outline" size="sm" @click="reset()">Reset</Button>
-        <Button variant="default" size="sm" :disabled="!!blockedReason" @click="save()">
-          Save to dashboard
-        </Button>
+        <!-- Only present while the working view differs from the saved one. -->
+        <div v-if="dirty" class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-0.5">
+          <span class="flex items-center gap-2 text-sm font-medium text-grey-800">
+            <span class="size-1.5 shrink-0 rounded-circle bg-leaf-500" aria-hidden="true" />
+            Filters changed
+          </span>
+          <button
+            type="button"
+            class="text-sm font-medium text-grey-700 transition-colors hover:text-grey-900 focus:outline-none focus-visible:underline"
+            @click="reset()"
+          >
+            Reset
+          </button>
+          <button
+            type="button"
+            :disabled="!!blockedReason"
+            class="h-5 rounded-lg bg-grey-900 px-2 text-sm font-medium text-grey-100 transition-colors hover:bg-grey-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-grey-400"
+            @click="save()"
+          >
+            Save
+          </button>
+          <!-- Last, so it wraps to its own line before anything actionable does. -->
+          <span v-if="blockedReason" class="text-xs text-grey-600">{{ blockedReason }}</span>
+        </div>
       </div>
     </div>
   </header>
