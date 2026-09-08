@@ -1,5 +1,11 @@
 // shadcn-vue Button — variant definitions.
 //
+// `sm` and `icon` are the 32px control size — the one design.md §3.3 already documents
+// ("Circular button, 32×32") and the size the DS calls SM. Every 32px control in the app
+// states its height explicitly rather than reaching it by padding arithmetic: 20px of
+// line-height needs 5px of vertical padding to make 32 with a 1px border, and there is no
+// 5px step, so padding could only ever land on 30 or 34.
+//
 // Radius is `pill` (24px) per design.md §7.5 — "Shared: padding 6px 12px, border-radius
 // 24px …" — and §4, which names the `pill` token for "Pill buttons, toolbars, toggle
 // controls". The sizes have to repeat it because cva's size classes come after the base.
@@ -27,9 +33,9 @@ export const buttonVariants = cva(
       },
       size: {
         default: 'h-10 px-4 py-2',
-        sm: 'h-9 rounded-pill px-3',
+        sm: 'h-8 rounded-pill px-3',
         lg: 'h-11 rounded-pill px-8',
-        icon: 'h-10 w-10',
+        icon: 'size-8',
       },
     },
     defaultVariants: {

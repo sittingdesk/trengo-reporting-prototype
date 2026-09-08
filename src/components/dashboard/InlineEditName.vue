@@ -108,9 +108,9 @@ const SHAPE = {
     // shrink-0 on all three, matching INACTIVE_PILL. Without it the ACTIVE pill was the
     // only one in the row allowed to shrink, and it collapsed to 18px under pressure —
     // the one pill that must stay readable was the one that didn't.
-    rest: 'inline-block max-w-[14rem] shrink-0 truncate rounded-base border border-grey-400 bg-white px-2 py-1.5 text-left text-sm font-medium text-grey-800 shadow-100 transition-colors hover:border-grey-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-    plain: 'inline-block max-w-[14rem] shrink-0 truncate rounded-base border border-grey-400 bg-white px-2 py-1.5 text-sm font-medium text-grey-800 shadow-100',
-    edit: 'min-w-[6ch] max-w-[14rem] shrink-0 rounded-base border border-leaf-500 bg-white px-2 py-1.5 text-sm font-medium text-grey-800 shadow-focus outline-none field-sizing-content',
+    rest: 'inline-flex h-8 max-w-[14rem] shrink-0 items-center truncate rounded-base border border-grey-400 bg-white px-2 text-left text-sm font-medium text-grey-800 shadow-100 transition-colors hover:border-grey-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    plain: 'inline-flex h-8 max-w-[14rem] shrink-0 items-center truncate rounded-base border border-grey-400 bg-white px-2 text-sm font-medium text-grey-800 shadow-100',
+    edit: 'h-8 min-w-[6ch] max-w-[14rem] shrink-0 rounded-base border border-leaf-500 bg-white px-2 text-sm font-medium text-grey-800 shadow-focus outline-none field-sizing-content',
   },
 } as const
 

@@ -128,7 +128,7 @@ const save = () => {
           <Button
             v-if="!dashboard.readonly"
             :variant="editing ? 'default' : 'outline'"
-            :size="compactFilters ? 'icon' : 'default'"
+            :size="compactFilters ? 'icon' : 'sm'"
             :aria-label="compactFilters ? (editing ? 'Done editing' : 'Edit dashboard') : undefined"
             :title="compactFilters ? (editing ? 'Done editing' : 'Edit dashboard') : undefined"
             @click="toggleEdit()"

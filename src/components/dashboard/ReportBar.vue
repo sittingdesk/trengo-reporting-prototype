@@ -185,7 +185,7 @@ async function goTo(reportId: string) {
 // Inactive pill: filled grey, no border in the design — but it carries a TRANSPARENT one
 // so it stands exactly as tall as the active pill, which does have one.
 const INACTIVE_PILL =
-  'inline-block max-w-[14rem] shrink-0 truncate rounded-base border border-transparent bg-grey-200 px-2 py-1.5 text-sm font-medium text-grey-700 transition-colors hover:bg-grey-300 hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'inline-flex h-8 max-w-[14rem] shrink-0 items-center truncate rounded-base border border-transparent bg-grey-200 px-2 text-sm font-medium text-grey-700 transition-colors hover:bg-grey-300 hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring'
 </script>
 
 <template>
@@ -276,12 +276,15 @@ const INACTIVE_PILL =
         <button
           type="button"
           aria-label="Add report"
-          class="inline-flex shrink-0 items-center justify-center rounded-base border border-grey-400 bg-grey-400 p-1 text-grey-800 shadow-100 transition-colors hover:border-grey-600 hover:bg-grey-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          class="inline-flex size-8 shrink-0 items-center justify-center rounded-base border border-grey-400 bg-grey-400 text-grey-800 shadow-100 transition-colors hover:border-grey-600 hover:bg-grey-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           @click="add()"
         >
-          <!-- The design draws this glyph near-white on grey-400 — 1.66:1, well under the
+          <!-- Same 32px box as a pill, with a 20px glyph rather than 24: a 24px plus in
+               a 32px box is nearly edge to edge and read heavier than any tab beside it.
+               20 is also on design.md §8's render scale.
+               The design draws this glyph near-white on grey-400 — 1.66:1, well under the
                3:1 a meaningful icon needs. Chip tone kept, glyph darkened to grey-800. -->
-          <Icon name="Plus" :size="24" />
+          <Icon name="Plus" :size="20" />
         </button>
       </Tooltip>
     </nav>
@@ -297,7 +300,7 @@ const INACTIVE_PILL =
       <span
         v-for="r in dashboard.reports"
         :key="r.id"
-        class="inline-block max-w-[14rem] shrink-0 truncate whitespace-nowrap rounded-base border px-2 py-1.5 text-sm font-medium"
+        class="inline-flex h-8 max-w-[14rem] shrink-0 items-center truncate whitespace-nowrap rounded-base border px-2 text-sm font-medium"
       >{{ r.name }}</span>
     </div>
 
