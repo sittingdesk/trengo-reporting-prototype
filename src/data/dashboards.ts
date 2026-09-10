@@ -92,13 +92,27 @@ export function scopeLabel(scope: SavedScope): string {
 /** What every new dashboard opens with until its owner saves something else. */
 export const DEFAULT_SCOPE: SavedScope = { presetId: 'last7', channelIds: [], teamIds: [] }
 
+/**
+ * Identity for a placed widget. A plain counter, not `crypto.randomUUID()`: the build
+ * ships as a single `dist/index.html` opened over `file://`, which is not a secure
+ * context, and `randomUUID` is secure-context-only — it would throw in the artifact we
+ * actually hand to people. Uniqueness only has to hold within one session, since nothing
+ * persists.
+ */
+let widgetSeq = 0
+export function nextWidgetUid(): string {
+  return `w${++widgetSeq}`
+}
+
 /** A report whose widgets are a fresh copy of a template's. */
 export function reportFromTemplate(templateId: string, id: string, name?: string): Report {
   const t = getTemplate(templateId)
   return {
     id,
     name: name ?? t?.name ?? templateId,
-    widgets: (t?.widgets ?? []).map((w) => ({ ...w })),
+    // Copied, and stamped with an identity: a template widget is a blueprint that can be
+    // placed on many reports, so the uid belongs to the placement, not to the template.
+    widgets: (t?.widgets ?? []).map((w) => ({ ...w, uid: nextWidgetUid() })),
     templateId,
   }
 }

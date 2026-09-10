@@ -11,7 +11,9 @@
 // ⚠️ Persistence is mocked: the chosen scenario is saved to localStorage and reseeds
 // on load. Real per-user persistence needs a backend DB (TECH_FOUNDATION §5).
 import { reactive, computed } from 'vue'
-import type { Widget } from '@/config/templates'
+import { isMetricWidget, type MetricWidget, type Widget } from '@/config/templates'
+import { getMetric } from '@/data/metrics'
+import { defaultSpanForMetric, needsNewRow } from '@/lib/widgetLayout'
 import { getIteration, DEFAULT_ITERATION_ID } from '@/config/iterations'
 import {
   getStartingSet,
@@ -20,6 +22,7 @@ import {
 } from '@/config/startingSets'
 import {
   blankReport,
+  nextWidgetUid,
   reportFromTemplate,
   slugify,
   TRENGO_DASHBOARD_NAME,
@@ -236,6 +239,44 @@ export function useWorkspace() {
     d.scope = scope
   }
 
+  /**
+   * Add a metric widget to the END of a report, and return it so the caller can announce
+   * it and scroll to it. Takes a metricId rather than a Widget: the composable owns what
+   * a stored widget looks like, so no caller can persist a shape the grid can't render.
+   *
+   * Placement is append-only until widgets can be rearranged, which is why there is no
+   * index — the "+ Add widget" tile sits last in the grid for the same reason.
+   *
+   * Refused on Trengo, on an unknown metric, and on a metric the report already has.
+   * Duplicates are refused rather than allowed-and-deduplicated: there is no use for two
+   * identical cards today, and the thing people will actually want — the same measure at
+   * two break-downs — is two different widgets under the coming preset model, not two
+   * copies of one.
+   */
+  function addWidget(
+    dashboardId: string,
+    reportId: string,
+    metricId: string,
+  ): MetricWidget | undefined {
+    const d = getDashboard(dashboardId)
+    if (!d || d.readonly) return undefined
+    const r = d.reports.find((x) => x.id === reportId)
+    if (!r) return undefined
+    // Never store a widget bound to a metric the registry doesn't have. `removeWidget`
+    // needs no equivalent because it takes the object it is removing.
+    if (!getMetric(metricId)) return undefined
+    if (r.widgets.some((w) => isMetricWidget(w) && w.metricId === metricId)) return undefined
+
+    // No `span`: the default already comes from the metric's result type, and writing a
+    // literal here would freeze today's default into the data — you could never tell "the
+    // user chose this width" from "6 was the default in September". `span` is the field
+    // drag-to-resize writes.
+    const widget: MetricWidget = { metricId, uid: nextWidgetUid() }
+    if (needsNewRow(defaultSpanForMetric(metricId))) widget.newRow = true
+    r.widgets.push(widget)
+    return widget
+  }
+
   /** Remove a widget from a report. Takes the widget OBJECT rather than an index: the
    *  grid renders a capability-filtered list, so a rendered position doesn't map to a
    *  stored one. Refused on Trengo.
@@ -385,6 +426,7 @@ export function useWorkspace() {
     addReport,
     renameReport,
     removeReport,
+    addWidget,
     removeWidget,
     editing,
     setEditing,

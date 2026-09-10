@@ -16,13 +16,23 @@ export type WidgetKind =
   | 'breakdown' // simple breakdown (not a table)
   | 'tbd' // not decided yet
 
-export interface WidgetPlaceholder {
+/** Identity for one PLACED widget. Not part of a template's own data — templates are
+ *  blueprints, and the same template widget can be placed on many reports — so it is
+ *  stamped when a widget is copied onto a report (`reportFromTemplate`) or added to one
+ *  (`addWidget`). It gives the grid a key that can't collide, and gives the coming
+ *  drag/resize and per-widget settings a handle that survives reordering.
+ *  Optional so any widget literal without one still renders. */
+export interface WidgetIdentity {
+  uid?: string
+}
+
+export interface WidgetPlaceholder extends WidgetIdentity {
   name: string
   kind: WidgetKind
 }
 
 /** A real widget bound to a metric in the registry (renders a MetricBox). */
-export interface MetricWidget {
+export interface MetricWidget extends WidgetIdentity {
   metricId: string
   /** Width in the 12-column grid (1–12). Defaults by result type; the future
    *  drag-to-resize hook writes this. */
