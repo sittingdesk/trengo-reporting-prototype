@@ -21,7 +21,7 @@ const props = withDefaults(
     name: string
     label?: string
     editable?: boolean
-    /** 'heading' = the dashboard title; 'pill' = a report tab in the bar. */
+    /** 'heading' = the dashboard title; 'pill' = one segment of the report bar. */
     variant?: 'heading' | 'pill'
     /** Flip true to open the editor from outside — used when a report is created, so you
      *  can type its name immediately instead of hunting for a rename control. */
@@ -103,14 +103,23 @@ const SHAPE = {
       '-ml-2 -my-0.5 block max-w-full truncate rounded-md border border-transparent px-2 py-0.5 text-h3 font-bold text-grey-900',
     edit: '-ml-2 -my-0.5 min-w-[6ch] max-w-full rounded-md border border-leaf-500 bg-white px-2 py-0.5 text-h3 font-bold text-grey-900 shadow-focus outline-none field-sizing-content',
   },
+  // The SELECTED segment of the report bar's segmented control: white, lifted off the
+  // grey-200 track by shadow-100, fully rounded. It used to be white on a grey-400
+  // hairline with shadow-100 — which is precisely the field surface the filter chips
+  // wear, and why the two rows read as the same kind of control. The track is what
+  // separates them now: filters are raised on the page, segments are inset in a groove.
+  //
+  // The border stays, TRANSPARENT, in all three states. It reserves the 1px the hover
+  // affordance needs (see `rest`), so revealing it can't move the label — and it keeps
+  // the measured height identical to the unselected segments, which carry one too.
+  //
+  // shrink-0 on all three, matching SEGMENT. Without it the selected segment was the
+  // only one in the row allowed to shrink, and it collapsed to 18px under pressure —
+  // the one segment that must stay readable was the one that didn't.
   pill: {
-    // The active report's pill: white on a grey-400 hairline, per the Figma bar.
-    // shrink-0 on all three, matching INACTIVE_PILL. Without it the ACTIVE pill was the
-    // only one in the row allowed to shrink, and it collapsed to 18px under pressure —
-    // the one pill that must stay readable was the one that didn't.
-    rest: 'inline-flex h-8 max-w-[14rem] shrink-0 items-center truncate rounded-base border border-grey-400 bg-white px-2 text-left text-sm font-medium text-grey-800 shadow-100 transition-colors hover:border-grey-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-    plain: 'inline-flex h-8 max-w-[14rem] shrink-0 items-center truncate rounded-base border border-grey-400 bg-white px-2 text-sm font-medium text-grey-800 shadow-100',
-    edit: 'h-8 min-w-[6ch] max-w-[14rem] shrink-0 rounded-base border border-leaf-500 bg-white px-2 text-sm font-medium text-grey-800 shadow-focus outline-none field-sizing-content',
+    rest: 'inline-flex h-8 max-w-[14rem] shrink-0 items-center truncate rounded-pill border border-transparent bg-white px-3 text-left text-sm font-semibold text-grey-800 shadow-100 transition-colors hover:border-grey-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    plain: 'inline-flex h-8 max-w-[14rem] shrink-0 items-center truncate rounded-pill border border-transparent bg-white px-3 text-sm font-semibold text-grey-800 shadow-100',
+    edit: 'h-8 min-w-[6ch] max-w-[14rem] shrink-0 rounded-pill border border-leaf-500 bg-white px-3 text-sm font-semibold text-grey-800 shadow-focus outline-none field-sizing-content',
   },
 } as const
 

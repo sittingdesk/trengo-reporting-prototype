@@ -87,15 +87,20 @@ watch(
   () => nextTick(measure),
 )
 
-const GAP = 8
-const ADD_W = 34 // the pinned "+"
-const MORE_W = 40 // the "+N" trigger
-/** What a pill grows by while editing. The × sits INSIDE the pill, over its trailing
- *  edge, so the cost is the extra right padding (pr-7, 28px) less the 8px the pill
- *  already had. The mirror row measures pills WITHOUT it, so the arithmetic adds it
- *  rather than the measurement — one measured value, adjusted, instead of two to keep
- *  in step. */
-const REMOVE_W = 20
+// Widths the fitting maths reserves. All of them are the segmented control's own
+// geometry, so they live next to each other rather than being re-derived:
+const GAP = 2 // between segments, inside the track — the DS component's own 2px inset
+const TRACK_PAD = 4 // the track's 2px padding, both sides
+const OUTER_GAP = 8 // between the track and the "+" that sits outside it
+const ADD_W = 32 // the pinned "+"
+const MORE_W = 42 // the "+N" segment: 24px of padding either side of a two-glyph label
+
+/** What a segment grows by while editing. The × sits INSIDE it, over its trailing edge,
+ *  so the cost is the extra right padding (pr-7, 28px) less the 12px (px-3) the segment
+ *  already had. The mirror row measures segments WITHOUT it, so the arithmetic adds it
+ *  rather than the measurement — one measured value, adjusted, instead of two to keep in
+ *  step. */
+const REMOVE_W = 16
 
 /** Can this report be removed? Not the last one — see `removeReport`. */
 const removable = computed(() => props.editing && props.dashboard.reports.length > 1)
@@ -183,7 +188,9 @@ const split = computed(() => {
   // that reflows once is better than an empty one.
   if (!stripW.value || w.length !== reports.length) return { shown: all, hidden: [] as number[] }
 
-  const reserve = props.dashboard.readonly ? 0 : ADD_W + GAP
+  // The "+" sits OUTSIDE the track, so it costs the outer gap; the track's padding is
+  // spent whatever fits inside it.
+  const reserve = TRACK_PAD + (props.dashboard.readonly ? 0 : ADD_W + OUTER_GAP)
 
   let shown = fitIn(stripW.value - reserve)
   if (shown.length === reports.length) return { shown, hidden: [] }
@@ -219,10 +226,19 @@ async function goTo(reportId: string) {
 }
 
 
-// Inactive pill: filled grey, no border in the design — but it carries a TRANSPARENT one
-// so it stands exactly as tall as the active pill, which does have one.
-const INACTIVE_PILL =
-  'inline-flex h-8 max-w-[14rem] shrink-0 items-center truncate rounded-base border border-transparent bg-grey-200 px-2 text-sm font-medium text-grey-700 transition-colors hover:bg-grey-300 hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+// One unselected segment. Shares its box exactly with the selected one (InlineEditName's
+// `pill` variant) — same height, padding, radius, weight and 1px transparent border — so
+// selecting a report can't move the row by a pixel.
+//
+// Ground: nothing. An unselected segment is a hole in the track, and hover lifts it
+// halfway towards white, previewing what selecting it does.
+//
+// Text is grey-700 where the DS component specifies grey-600. grey-600 on the grey-200
+// track measures 4.27:1, under the 4.5:1 AA floor for 14px semibold (which is not large
+// text); grey-700 is 7.3:1. Same call as the delta text and the "+" glyph before it.
+const SEGMENT =
+  'inline-flex h-8 max-w-[14rem] shrink-0 items-center gap-1 truncate rounded-pill border border-transparent px-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+const UNSELECTED = 'text-grey-700 hover:bg-white/60 hover:text-grey-900'
 </script>
 
 <template>
@@ -241,6 +257,21 @@ const INACTIVE_PILL =
       class="-m-1 flex min-w-0 flex-1 items-center gap-2 overflow-hidden p-1"
       aria-label="Reports"
     >
+      <!-- The TRACK. This is what stops the reports reading as another row of filters:
+           the chips beside the title are raised ON the page (white, hairline, shadow),
+           while these are inset IN a groove, and only the selected one lifts out of it.
+           Same tokens either way — the difference is figure and ground.
+           NOT clipped: a segment's focus ring and the rename input's 4px leaf ring both
+           paint past the track's 2px inset, and `overflow-hidden` here would shave them.
+           Nothing needs clipping anyway, since the radii agree.
+           `shadow-inner` is doing real work. The DS component's grey-200 track assumes a
+           WHITE page; ours is grey-100, against which grey-200 measures 1.04:1 — the
+           groove was invisible and the row read as loose text beside one white pill. The
+           hairline defines it while keeping the DS fill, which is exactly what design.md
+           gives shadow-inner to ("coloured surfaces"), and what §5's closing rule asks of
+           any surface. A grey-300 fill was the other candidate: visible, but heavy enough
+           to compete with the widget cards under it. -->
+      <div class="flex shrink-0 items-center gap-0.5 rounded-pill bg-grey-200 p-0.5 shadow-inner">
       <!-- The × sits INSIDE the pill — positioned over its trailing edge, but as a
            SIBLING of the link rather than a child of it. Nesting a button inside the
            navigation link would be invalid markup and a coin-toss click target; a sibling
@@ -263,13 +294,14 @@ const INACTIVE_PILL =
         <RouterLink
           v-else
           :to="reportPath(dashboard.id, r.id)"
-          :class="[INACTIVE_PILL, removable ? 'pr-7' : '']"
+          :class="[SEGMENT, UNSELECTED, removable ? 'pr-7' : '']"
         >
           {{ r.name }}
         </RouterLink>
-        <!-- No border or fill of its own: inside a 34px pill a bordered mini-button reads
-             as a second chip. Just the glyph, with a hover ground so the target is
-             legible. -->
+        <!-- No border or fill of its own: inside a 32px segment a bordered mini-button
+             reads as a second chip. Just the glyph, with a hover ground so the target is
+             legible on both grounds it can sit on — white when the segment is selected,
+             the grey track when it isn't. -->
         <button
           v-if="removable"
           type="button"
@@ -288,7 +320,11 @@ const INACTIVE_PILL =
           <button
             type="button"
             :aria-label="`Show ${hiddenReports.length} more ${hiddenReports.length === 1 ? 'report' : 'reports'}`"
-            class="inline-flex shrink-0 items-center rounded-base border border-transparent bg-grey-200 px-2 py-1.5 text-sm font-medium text-grey-700 transition-colors hover:bg-grey-300 hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-grey-300"
+            :class="[
+              SEGMENT,
+              UNSELECTED,
+              'data-[state=open]:bg-white data-[state=open]:text-grey-800 data-[state=open]:shadow-100',
+            ]"
           >
             +{{ hiddenReports.length }}
           </button>
@@ -306,21 +342,27 @@ const INACTIVE_PILL =
         </PopoverContent>
       </Popover>
 
-      <!-- Add a report. Pinned OUTSIDE the overflow set, so it never scrolls or collapses
-           away — adding shouldn't require first finding the end of the list. Hidden on
-           Trengo, which can't gain one. -->
+      </div>
+
+      <!-- Add a report. OUTSIDE the track, and deliberately: everything inside it is a
+           report you can select, and a "+" segment would read as one more of those
+           rather than as the thing that makes them. Pinned outside the overflow set too,
+           so it never scrolls or collapses away — adding shouldn't require first finding
+           the end of the list. Hidden on Trengo, which can't gain one. -->
       <Tooltip v-if="!dashboard.readonly" text="Add report">
         <button
           type="button"
           aria-label="Add report"
-          class="inline-flex size-8 shrink-0 items-center justify-center rounded-base border border-grey-400 bg-grey-400 text-grey-800 shadow-100 transition-colors hover:border-grey-600 hover:bg-grey-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          class="inline-flex size-8 shrink-0 items-center justify-center rounded-pill bg-grey-200 text-grey-700 transition-colors hover:bg-grey-300 hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           @click="add()"
         >
-          <!-- Same 32px box as a pill, with a 20px glyph rather than 24: a 24px plus in
-               a 32px box is nearly edge to edge and read heavier than any tab beside it.
-               20 is also on design.md §8's render scale.
-               The design draws this glyph near-white on grey-400 — 1.66:1, well under the
-               3:1 a meaningful icon needs. Chip tone kept, glyph darkened to grey-800. -->
+          <!-- Round and grey-200: it belongs to the tab family (same ground as the
+               track) without pretending to be a segment, and a circle beside a pill
+               track reads as an action rather than an option. It was a grey-400 chip
+               with a hairline and a shadow, which is the field surface — the same
+               resemblance to the filters this whole change is undoing.
+               20px glyph, not 24: a 24px plus in a 32px box is nearly edge to edge and
+               read heavier than any tab beside it. 20 is on design.md §8's scale. -->
           <Icon name="Plus" :size="20" />
         </button>
       </Tooltip>
@@ -331,13 +373,13 @@ const INACTIVE_PILL =
          Same box and same max-width as the real pills, or the numbers would lie. -->
     <div
       ref="mirrorEl"
-      class="pointer-events-none absolute -left-[9999px] top-0 flex items-center gap-2"
+      class="pointer-events-none absolute -left-[9999px] top-0 flex items-center gap-0.5"
       aria-hidden="true"
     >
       <span
         v-for="r in dashboard.reports"
         :key="r.id"
-        class="inline-flex h-8 max-w-[14rem] shrink-0 items-center truncate whitespace-nowrap rounded-base border px-2 text-sm font-medium"
+        class="inline-flex h-8 max-w-[14rem] shrink-0 items-center truncate whitespace-nowrap rounded-pill border border-transparent px-3 text-sm font-semibold"
       >{{ r.name }}</span>
     </div>
 

@@ -109,6 +109,10 @@
   --shadow-100: 0 1px 4px 0 rgba(0, 0, 0, 0.06);
   --shadow-300: 0 2px 4px -1px rgba(0, 0, 0, 0.08), 0 8px 16px -2px rgba(0, 0, 0, 0.02);
   --shadow-500: 0 4px 8px -4px rgba(0, 0, 0, 0.16), 0 12px 24px -2px rgba(0, 0, 0, 0.03);
+  /* design.md §5.1 lists shadow-inner for "coloured surfaces, image thumbnails" — it was
+     the one shadow token never translated here, so `shadow-inner` emitted nothing (the
+     same silent-miss as a colour that isn't on the scale). */
+  --shadow-inner: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
   --shadow-focus: 0 0 0 4px rgba(36, 152, 136, 0.25), inset 0 0 0 1px #249888;
   --shadow-focus-error: 0 0 0 4px #fad7db, inset 0 0 0 1px #e8374c;
   --shadow-focus-sm: 0 0 0 2px rgba(36, 152, 136, 0.25), inset 0 0 0 2px #249888;
