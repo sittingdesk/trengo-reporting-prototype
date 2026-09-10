@@ -21,7 +21,16 @@ import WidgetGrid from '@/components/dashboard/WidgetGrid.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { getDashboard, editing, setEditing, removeWidget } = useWorkspace()
+const {
+  getDashboard,
+  editing,
+  setEditing,
+  removeWidget,
+  widgetLibrary,
+  openWidgetLibrary,
+  closeWidgetLibrary,
+  retargetWidgetLibrary,
+} = useWorkspace()
 const { applyScope } = useFilters()
 
 const dashboard = computed(() => getDashboard(String(route.params.dashboardId)))
@@ -41,6 +50,15 @@ watch(
   { immediate: true },
 )
 
+// The library outlives a report switch (the mode is the dashboard's), so it has to follow
+// you — otherwise the next add lands on the report you just left.
+watch(
+  () => report.value?.id,
+  (id) => {
+    if (id && widgetLibrary.value) retargetWidgetLibrary(id)
+  },
+)
+
 // Apply the saved scope on open. Any temporary filter change is discarded when you
 // switch dashboards — deliberate, and the "Filters changed" marker (step 9) is what
 // warns you the working view has diverged before you leave it.
@@ -48,8 +66,10 @@ watch(
   () => dashboard.value?.id,
   (id) => {
     if (id && dashboard.value) applyScope(dashboard.value.scope)
-    // Edit mode belongs to the dashboard you entered it on, so switching leaves it.
+    // Edit mode belongs to the dashboard you entered it on, so switching leaves it — and
+    // the widget library goes with it, since its target was a report on the old one.
     setEditing(false)
+    closeWidgetLibrary()
   },
   { immediate: true },
 )
@@ -65,6 +85,7 @@ watch(
       :editing="editing"
       :can-edit="!dashboard.readonly"
       @remove="removeWidget(dashboard.id, report.id, $event)"
+      @add="openWidgetLibrary(dashboard.id, report.id)"
       @edit="setEditing(true, dashboard.id)"
     />
   </div>

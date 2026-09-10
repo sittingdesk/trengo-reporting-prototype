@@ -26,7 +26,7 @@ const props = withDefaults(
   { editing: false, canEdit: false },
 )
 
-const emit = defineEmits<{ remove: [widget: Widget]; edit: [] }>()
+const emit = defineEmits<{ remove: [widget: Widget]; add: [] }>()
 
 const { slaEnabled } = useSettings()
 
@@ -92,12 +92,13 @@ const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-6 lg:grid-col
       <p class="max-w-sm text-sm text-grey-600">
         Add widgets to start tracking the metrics that matter for “{{ reportName }}”.
       </p>
-      <!-- The way in, not a placeholder: an empty report's only useful action is to
-           start adding, which is what edit mode is for. Absent when the dashboard can't
-           be edited, since there'd be nothing behind it. -->
-      <Button v-if="canEdit" variant="secondary" size="sm" class="mt-1" @click="emit('edit')">
+      <!-- The way in. It used to only enter edit mode, which left you looking at an
+           empty grid and a dashed tile — two clicks with a dead end between them. Now it
+           opens the library directly (which enters the mode on the way). Absent when the
+           dashboard can't be edited, since there'd be nothing behind it. -->
+      <Button v-if="canEdit" variant="secondary" size="sm" class="mt-1" @click="emit('add')">
         <Icon name="Plus" :size="16" />
-        Add widgets
+        Add widget
       </Button>
     </div>
 
@@ -110,6 +111,7 @@ const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-6 lg:grid-col
             :metric-id="widget.metricId"
             :editing="editing"
             :class="spanClass(widget)"
+            :data-widget-uid="widget.uid"
             @remove="emit('remove', widget)"
           />
           <!-- Mock placeholder (templates not yet wired to the registry) -->
@@ -138,6 +140,7 @@ const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-6 lg:grid-col
           v-if="editing"
           type="button"
           class="flex min-h-[160px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-grey-400 bg-white/50 text-sm font-medium text-grey-600 transition-colors hover:border-grey-600 hover:bg-white hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:col-span-3 lg:col-span-3"
+          @click="emit('add')"
         >
           <Icon name="Plus" :size="20" />
           Add widget

@@ -69,6 +69,10 @@ const state = reactive({
   // travel. Held here beside newDashboardOpen for the same reason: several surfaces
   // (header, grid, cards) need to agree on it.
   editing: false,
+  /** Which report the widget library is adding to, or null when it's closed. The TARGET
+   *  travels in state rather than being read off the route, so a trigger that isn't a
+   *  route — the grid's tile, an empty report's CTA, anything later — is a one-liner. */
+  widgetLibrary: null as { dashboardId: string; reportId: string } | null,
 })
 
 
@@ -237,6 +241,29 @@ export function useWorkspace() {
     const d = getDashboard(dashboardId)
     if (!d || d.readonly) return
     d.scope = scope
+  }
+
+  /** Open the widget library against one report. Entering edit mode is part of opening
+   *  it: adding a widget IS editing, and the mode is what the rest of the page reads to
+   *  show its remove controls. Refused on Trengo like every other mutation, so no trigger
+   *  can talk its way in. */
+  function openWidgetLibrary(dashboardId: string, reportId: string) {
+    const d = getDashboard(dashboardId)
+    if (!d || d.readonly) return
+    if (!d.reports.some((r) => r.id === reportId)) return
+    state.widgetLibrary = { dashboardId, reportId }
+    state.editing = true
+  }
+
+  function closeWidgetLibrary() {
+    state.widgetLibrary = null
+  }
+
+  /** Follow the reader when they switch reports with the library open — otherwise the
+   *  next add lands on a report they're no longer looking at. */
+  function retargetWidgetLibrary(reportId: string) {
+    if (!state.widgetLibrary) return
+    state.widgetLibrary = { ...state.widgetLibrary, reportId }
   }
 
   /**
@@ -428,6 +455,10 @@ export function useWorkspace() {
     removeReport,
     addWidget,
     removeWidget,
+    widgetLibrary: computed(() => state.widgetLibrary),
+    openWidgetLibrary,
+    closeWidgetLibrary,
+    retargetWidgetLibrary,
     editing,
     setEditing,
     removeDashboard,
