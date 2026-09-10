@@ -115,10 +115,17 @@ function flash(uid?: string) {
 
 // Escape closes the panel. Only while it's open, and only if nothing is stacked above it —
 // a confirm dialog opened from a card should take the key first.
+//
+// `preventDefault` is how this hands off: edit mode ALSO exits on Escape, and both
+// listeners sit on window, so which one runs first depends on mount order — which changes,
+// because the route component remounts on every navigation while this panel doesn't. One
+// press was closing the panel and leaving the mode. Marking the event handled makes the
+// order irrelevant (and DashboardView's own guard covers the mirror case).
 function onKeydown(e: KeyboardEvent) {
   if (e.key !== 'Escape' || !open.value) return
   if (document.querySelector('[role="alertdialog"], [role="dialog"][data-state="open"]')) return
   closeWidgetLibrary()
+  e.preventDefault()
 }
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))

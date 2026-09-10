@@ -95,15 +95,25 @@ const OUTER_GAP = 8 // between the track and the "+" that sits outside it
 const ADD_W = 32 // the pinned "+"
 const MORE_W = 42 // the "+N" segment: 24px of padding either side of a two-glyph label
 
-/** What a segment grows by while editing. The × sits INSIDE it, over its trailing edge,
- *  so the cost is the extra right padding (pr-7, 28px) less the 12px (px-3) the segment
- *  already had. The mirror row measures segments WITHOUT it, so the arithmetic adds it
- *  rather than the measurement — one measured value, adjusted, instead of two to keep in
- *  step. */
+/** What the ACTIVE segment grows by while editing. The × sits INSIDE it, over its
+ *  trailing edge, so the cost is the extra right padding (pr-7, 28px) less the 12px
+ *  (px-3) the segment already had. The mirror row measures segments WITHOUT it, so the
+ *  arithmetic adds it rather than the measurement — and it's charged ONCE to the strip,
+ *  not per segment, because only one segment ever carries a ×. */
 const REMOVE_W = 16
 
-/** Can this report be removed? Not the last one — see `removeReport`. */
+/**
+ * Can this report be removed? Not the last one — see `removeReport`.
+ *
+ * Only the ACTIVE segment gets the ×, even in edit mode. Putting one on every segment
+ * charged REMOVE_W to all of them, so entering edit mode could push reports into the "+N"
+ * overflow — navigation reflowing as a side effect of an unrelated mode, which moves the
+ * target you were reaching for. One segment's worth of growth can't do that. It also
+ * matches the rule the row already follows: the active segment is the editable one, which
+ * is why rename lives there and nowhere else.
+ */
 const removable = computed(() => props.editing && props.dashboard.reports.length > 1)
+const removableId = computed(() => (removable.value ? props.activeReportId : ''))
 
 /**
  * Ask before removing a report that holds anything. An empty report is a name and
@@ -161,11 +171,10 @@ async function remove(reportId: string) {
 /** Greedily take pills while they fit in `budget`; returns their indices. */
 function fitIn(budget: number) {
   const w = natural.value
-  const extra = removable.value ? REMOVE_W : 0
   let used = 0
   const out: number[] = []
   for (let i = 0; i < w.length; i++) {
-    const cost = w[i] + extra + (out.length ? GAP : 0)
+    const cost = w[i] + (out.length ? GAP : 0)
     if (used + cost > budget) break
     used += cost
     out.push(i)
@@ -190,7 +199,11 @@ const split = computed(() => {
 
   // The "+" sits OUTSIDE the track, so it costs the outer gap; the track's padding is
   // spent whatever fits inside it.
-  const reserve = TRACK_PAD + (props.dashboard.readonly ? 0 : ADD_W + OUTER_GAP)
+  const reserve =
+    TRACK_PAD +
+    (props.dashboard.readonly ? 0 : ADD_W + OUTER_GAP) +
+    // One ×, on the active segment, so one charge against the strip.
+    (removable.value ? REMOVE_W : 0)
 
   let shown = fitIn(stripW.value - reserve)
   if (shown.length === reports.length) return { shown, hidden: [] }
@@ -291,14 +304,14 @@ const UNSELECTED = 'text-grey-700 hover:bg-grey-300 hover:text-grey-900'
           :name="r.name"
           :editable="!dashboard.readonly"
           :auto-edit="r.id === autoEditId"
-          :reserve-trailing="removable"
+          :reserve-trailing="r.id === removableId"
           label="Report name"
           @rename="renameReport(dashboard.id, r.id, $event)"
         />
         <RouterLink
           v-else
           :to="reportPath(dashboard.id, r.id)"
-          :class="[SEGMENT, UNSELECTED, removable ? 'pr-7' : '']"
+          :class="[SEGMENT, UNSELECTED]"
         >
           {{ r.name }}
         </RouterLink>
@@ -307,9 +320,9 @@ const UNSELECTED = 'text-grey-700 hover:bg-grey-300 hover:text-grey-900'
              legible on both grounds it can sit on — white when the segment is selected,
              the grey track when it isn't. -->
         <button
-          v-if="removable"
+          v-if="r.id === removableId"
           type="button"
-          class="absolute right-1 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-grey-600 transition-colors hover:bg-grey-300 hover:text-error-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          class="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-pill text-grey-600 transition-colors hover:bg-grey-300 hover:text-error-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           :aria-label="`Remove ${r.name}`"
           @click="askRemove(r)"
         >

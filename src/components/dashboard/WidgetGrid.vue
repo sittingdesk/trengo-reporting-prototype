@@ -78,11 +78,23 @@ const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-6 lg:grid-col
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col">
+  <!-- The editing surface. grey-200 with a top hairline while editing: an inset ground
+       that says "these are the things you arrange", which is the same idiom the report
+       bar's segmented track already uses one row above. The hairline is what makes it
+       legible — grey-200 on the grey-100 page is 1.04:1 on its own.
+       It goes on the ROOT, outside the px-8/py-6 the grid keeps, so nothing moves by a
+       pixel when the mode changes; and the root flexes inside min-h-full, so the ground
+       fills to the bottom of the viewport even on a one-widget report.
+       Not grey-300: that erases every card's grey-300 hairline and inverts the report
+       bar's track above it. -->
+  <div
+    class="flex flex-1 flex-col transition-colors"
+    :class="editing ? 'border-t border-grey-300 bg-grey-200' : ''"
+  >
     <!-- Empty report: nothing added yet. Flexes so it centres in whatever height is left
          below the dashboard header. -->
     <div
-      v-if="visible.length === 0 && !editing"
+      v-if="visible.length === 0"
       class="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center"
     >
       <div class="flex size-12 items-center justify-center rounded-circle bg-grey-200 text-grey-600">
@@ -117,8 +129,8 @@ const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-6 lg:grid-col
           <!-- Mock placeholder (templates not yet wired to the registry) -->
           <article
             v-else
-            class="flex min-h-[140px] flex-col rounded-lg border border-grey-300 bg-white p-4"
-            :class="spanClass(widget)"
+            class="flex min-h-[140px] flex-col rounded-lg border bg-white p-4"
+            :class="[spanClass(widget), editing ? 'border-grey-400 shadow-100' : 'border-grey-300']"
           >
             <header class="mb-1 flex items-start justify-between gap-2">
               <h3 class="text-sm font-semibold text-grey-900">{{ widget.name }}</h3>

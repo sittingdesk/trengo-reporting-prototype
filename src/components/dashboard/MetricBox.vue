@@ -303,14 +303,23 @@ const skeletonBars = computed(() =>
 </script>
 
 <template>
+  <!-- Editing lifts the card off the inset ground: grey-400 hairline + shadow-100, which
+       is design.md §5's pairing rule, and it restores the definition the grey-200 canvas
+       takes away (grey-400 on grey-200 is 1.52:1 against grey-300's 1.18:1). The border
+       stays 1px in both modes, so nothing reflows. -->
   <article
     v-if="metric"
-    class="group flex min-h-[160px] flex-col justify-between gap-4 overflow-hidden rounded-lg border border-grey-300 bg-white p-4"
+    class="group flex min-h-[160px] flex-col justify-between gap-4 overflow-hidden rounded-lg border bg-white p-4"
+    :class="editing ? 'border-grey-400 shadow-100' : 'border-grey-300'"
   >
     <!-- Header: label + inline info icon · (chart legend) · More menu -->
     <header class="flex items-center gap-2">
       <div class="flex min-w-0 flex-1 items-center gap-2">
-        <h3 class="truncate text-base font-medium text-grey-700">
+        <!-- `title` because this heading truncates: it has always been able to, and in
+             edit mode the two controls beside it take 56px more. The info icon's tooltip
+             carries the definition, which is a different question from "what is this
+             card called". -->
+        <h3 :title="metric.label" class="truncate text-base font-medium text-grey-700">
           {{ metric.label
           }}<span v-if="activeConfigLabel" class="font-normal text-grey-500">
             · {{ activeConfigLabel }}</span>
@@ -359,26 +368,35 @@ const skeletonBars = computed(() =>
         </span>
       </div>
 
-      <!-- While editing, this slot holds remove instead of the menu: one control in one
-           place, changing with the mode, rather than two routes to the same card. Always
-           visible here — hidden-until-hover is wrong for the mode you entered to find it,
-           and unreachable by touch. -->
+      <!-- Remove, while editing. Always visible: hidden-until-hover is wrong for the mode
+           you entered to find it, and unreachable by touch. 32px, the app's control size —
+           it was 24px, exactly on the WCAG 2.5.8 floor, for the most destructive control
+           on the page.
+           `-my-1` gives the extra 8px back to layout: at 32px the button is the tallest
+           thing in this header, and without it every card grew 8px on entering the mode
+           (measured: the heatmap went 326 → 334). The target stays 32; only its footprint
+           is 24, which is the same trick the renameable heading uses for its outline. -->
       <button
         v-if="editing"
         type="button"
-        class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm border border-grey-300 bg-white text-grey-600 transition-colors hover:border-error-500 hover:bg-error-500 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        class="-my-1 inline-flex size-8 shrink-0 items-center justify-center rounded-base border border-grey-300 bg-white text-grey-600 transition-colors hover:border-error-500 hover:bg-error-500 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         :aria-label="`Remove ${metric?.label ?? 'widget'}`"
         @click="onRemove"
       >
-        <Icon name="Trash" :size="14" />
+        <Icon name="Trash" :size="20" />
       </button>
 
-      <!-- More menu (kebab, secondary-button style) -->
-      <Popover v-else-if="!loading" v-model:open="menuOpen">
+      <!-- More menu (kebab, secondary-button style). It used to be REPLACED by remove,
+           which meant entering edit mode took Export as CSV and Break down by away — the
+           mode subtracted function instead of adding it. Now it keeps its place beside
+           remove, and while editing it stops hiding until hover, by the same argument the
+           remove button makes. -->
+      <Popover v-if="!loading" v-model:open="menuOpen">
         <PopoverTrigger as-child>
           <button
             type="button"
-            class="inline-flex h-6 w-0 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-grey-300 bg-white text-grey-500 opacity-0 transition-[color,background-color,opacity,width] hover:bg-grey-100 hover:text-grey-700 focus:outline-none focus-visible:w-6 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:w-6 group-hover:opacity-100 data-[state=open]:w-6 data-[state=open]:opacity-100 data-[state=open]:bg-grey-100"
+            class="inline-flex h-6 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-grey-300 bg-white text-grey-600 transition-[color,background-color,opacity,width] hover:bg-grey-100 hover:text-grey-700 focus:outline-none focus-visible:w-6 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:w-6 group-hover:opacity-100 data-[state=open]:w-6 data-[state=open]:opacity-100 data-[state=open]:bg-grey-100"
+            :class="editing ? 'w-6 opacity-100' : 'w-0 opacity-0'"
             aria-label="More options"
           >
             <Icon name="MoreHoriz" variant="filled" :size="20" />

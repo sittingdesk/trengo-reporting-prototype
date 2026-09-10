@@ -159,19 +159,28 @@ const save = () => {
       <!-- Scope, then Edit. Both belong to the dashboard, so both belong on its row. -->
       <div class="flex shrink-0 flex-col items-end gap-1">
         <div class="flex items-center gap-2">
-          <!-- Never compact: with no active state, this label is the only thing telling
-               you which period you're looking at. -->
-          <DateRangeFilter />
-          <ChannelFilter :compact="compactFilters" />
-          <SelectFilter
-            label="Team"
-            icon="Users"
-            :options="TEAMS"
-            :selected-ids="teamIds"
-            :compact="compactFilters"
-            @toggle="toggleTeam"
-            @clear="clearTeams"
-          />
+          <!-- The filters give way while editing. Two reasons: the row has no space for a
+               sixth control (three filters already cost 432px and drop their labels below
+               800px), and refining what you're looking at isn't what you're doing while
+               you restructure it. The scope is unchanged underneath — leaving the mode
+               brings the filters back exactly as they were.
+               The mode's own actions live in the sticky bar rather than here, because
+               here they would scroll away, which is the problem the bar exists to fix. -->
+          <template v-if="!editing">
+            <!-- Never compact: with no active state, this label is the only thing telling
+                 you which period you're looking at. -->
+            <DateRangeFilter />
+            <ChannelFilter :compact="compactFilters" />
+            <SelectFilter
+              label="Team"
+              icon="Users"
+              :options="TEAMS"
+              :selected-ids="teamIds"
+              :compact="compactFilters"
+              @toggle="toggleTeam"
+              @clear="clearTeams"
+            />
+          </template>
 
           <!-- Absent on Trengo, not disabled: there is nothing to edit, and a control
                that refuses is worse than no control. Drops its label when the row is
@@ -182,21 +191,22 @@ const save = () => {
                differs (buttons stay `pill`, per design.md §7.5). In edit mode it goes
                dark — the one state that should NOT look like a filter. -->
           <Button
-            v-if="!dashboard.readonly"
-            :variant="editing ? 'default' : 'field'"
+            v-if="!dashboard.readonly && !editing"
+            variant="field"
             :size="compactFilters ? 'icon' : 'sm'"
-            :aria-label="compactFilters ? (editing ? 'Done editing' : 'Edit dashboard') : undefined"
-            :title="compactFilters ? (editing ? 'Done editing' : 'Edit dashboard') : undefined"
+            :aria-pressed="editing"
+            :aria-label="compactFilters ? 'Edit dashboard' : undefined"
+            :title="compactFilters ? 'Edit dashboard' : undefined"
             @click="toggleEdit()"
           >
-            <Icon :name="editing ? 'Check' : 'Edit'" :size="20" />
-            <span v-if="!compactFilters">{{ editing ? 'Done' : 'Edit' }}</span>
+            <Icon name="Edit" :size="20" />
+            <span v-if="!compactFilters">Edit</span>
           </Button>
 
           <!-- Dashboard actions. 32×32 on the same surface, so at `pill` radius it reads
                as the circular button design.md §3.3 documents. It keeps its label off
                screen at every width: a ⋯ has no words to lose. -->
-          <Popover v-if="!dashboard.readonly" v-model:open="menuOpen">
+          <Popover v-if="!dashboard.readonly && !editing" v-model:open="menuOpen">
             <PopoverTrigger as-child>
               <Button variant="field" size="icon" aria-label="Dashboard actions">
                 <Icon name="MoreHoriz" :size="20" />
