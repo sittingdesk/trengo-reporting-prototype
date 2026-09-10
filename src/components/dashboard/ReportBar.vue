@@ -230,15 +230,19 @@ async function goTo(reportId: string) {
 // `pill` variant) — same height, padding, radius, weight and 1px transparent border — so
 // selecting a report can't move the row by a pixel.
 //
-// Ground: nothing. An unselected segment is a hole in the track, and hover lifts it
-// halfway towards white, previewing what selecting it does.
+// Ground: nothing — an unselected segment is a hole in the track. Hover fills it with
+// grey-300, one step DARKER than the grey-200 track, which is the same rule every other
+// hover in the app follows (design.md §10: transparent → grey-200 on a white ground).
+// It first lifted towards white instead, to preview what selecting does; darker is the
+// better read, because hovering is not a preview of selection — the white-and-lifted
+// treatment stays unique to the one segment that IS selected.
 //
 // Text is grey-700 where the DS component specifies grey-600. grey-600 on the grey-200
 // track measures 4.27:1, under the 4.5:1 AA floor for 14px semibold (which is not large
 // text); grey-700 is 7.3:1. Same call as the delta text and the "+" glyph before it.
 const SEGMENT =
   'inline-flex h-8 max-w-[14rem] shrink-0 items-center gap-1 truncate rounded-pill border border-transparent px-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-const UNSELECTED = 'text-grey-700 hover:bg-white/60 hover:text-grey-900'
+const UNSELECTED = 'text-grey-700 hover:bg-grey-300 hover:text-grey-900'
 </script>
 
 <template>
