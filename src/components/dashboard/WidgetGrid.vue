@@ -85,11 +85,16 @@ const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-6 lg:grid-col
        It goes on the ROOT, outside the px-8/py-6 the grid keeps, so nothing moves by a
        pixel when the mode changes; and the root flexes inside min-h-full, so the ground
        fills to the bottom of the viewport even on a one-widget report.
+       The hairline is carried in BOTH modes and only coloured in one. It used to appear
+       with the mode, and a border is layout — every card measured 1px lower while
+       editing. Same fix as InlineEditName's transparent border: reserve the pixel always,
+       so revealing the line can't move anything. It costs 1px of the gap above the grid
+       in both modes, which is invisible, and it's the cheaper half of the trade.
        Not grey-300: that erases every card's grey-300 hairline and inverts the report
        bar's track above it. -->
   <div
-    class="flex flex-1 flex-col transition-colors"
-    :class="editing ? 'border-t border-grey-300 bg-grey-200' : ''"
+    class="flex flex-1 flex-col border-t border-transparent transition-colors"
+    :class="editing ? 'border-grey-300 bg-grey-200' : ''"
   >
     <!-- Empty report: nothing added yet. Flexes so it centres in whatever height is left
          below the dashboard header. -->

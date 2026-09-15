@@ -17,7 +17,6 @@ import { useWorkspace } from '@/composables/useWorkspace'
 import { useFilters } from '@/composables/useFilters'
 import DashboardHeader from '@/components/dashboard/DashboardHeader.vue'
 import ReportBar from '@/components/dashboard/ReportBar.vue'
-import EditModeBar from '@/components/dashboard/EditModeBar.vue'
 import WidgetGrid from '@/components/dashboard/WidgetGrid.vue'
 
 const route = useRoute()
@@ -64,7 +63,11 @@ watch(editing, async (on) => {
     : 'Editing finished.'
   if (!on) {
     await nextTick()
-    gridEl.value?.focus()
+    // preventScroll, and it matters: .focus() scrolls its target into view, so leaving
+    // the mode was yanking the page down to the grid and taking the header with it. The
+    // focus move itself still earns its keep for the Escape exit — Done no longer
+    // unmounts itself now that it lives in the header, but Escape leaves focus nowhere.
+    gridEl.value?.focus({ preventScroll: true })
   }
 })
 
@@ -113,18 +116,11 @@ watch(
 
 <template>
   <div v-if="dashboard && report" class="flex min-h-full flex-col">
-    <DashboardHeader :dashboard="dashboard" />
+    <!-- The mode's actions live in this row, in the slot the filters vacate — same
+         height, same place, so entering edit mode moves nothing. There is no separate
+         edit bar: a band has to push something down to exist. -->
+    <DashboardHeader :dashboard="dashboard" @add="openWidgetLibrary(dashboard.id, report.id)" />
     <ReportBar :dashboard="dashboard" :active-report-id="report.id" :editing="editing" />
-    <!-- Sticky, so the mode and its exit stay reachable from the bottom of a long
-         report. Sits under the report bar rather than above the title: it belongs to the
-         thing you're editing, and pinning it at the very top would push the dashboard's
-         own name off screen. -->
-    <EditModeBar
-      v-if="editing"
-      :can-add="!dashboard.readonly"
-      @add="openWidgetLibrary(dashboard.id, report.id)"
-      @done="setEditing(false)"
-    />
     <!-- tabindex -1 so focus has somewhere to land when the mode's Done button unmounts
          itself. Never in the tab order. -->
     <div ref="gridEl" tabindex="-1" class="flex flex-1 flex-col focus:outline-none">

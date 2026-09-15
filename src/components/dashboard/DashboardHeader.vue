@@ -37,6 +37,9 @@ import { TEAMS } from '@/data/filters'
 import type { Dashboard } from '@/data/dashboards'
 
 const props = defineProps<{ dashboard: Dashboard }>()
+/** The library needs a dashboard AND a report; this row only knows the dashboard, so the
+ *  view that owns the route handles it. */
+const emit = defineEmits<{ add: [] }>()
 
 const { teamIds, toggleTeam, clearTeams, applyScope, currentScope, isCustomRange, isDirty } =
   useFilters()
@@ -145,7 +148,18 @@ const save = () => {
 </script>
 
 <template>
-  <header ref="rowEl" class="px-8 pt-6">
+  <!-- Sticky ONLY while editing. The mode's exit lives in this row now, and `<main>` is
+       the single scroll container, so on a long report an unpinned row would take Done
+       with it. View mode keeps the recorded "nothing is sticky, the dashboard reads as
+       one page" rule; the asymmetry is what makes the mode legible without spending a
+       row on it. `bg-grey-100` because the page ground would otherwise scroll through a
+       transparent pinned row, and `shadow-100` rather than a border — a border is 1px of
+       layout, and the whole point of this arrangement is that nothing moves. -->
+  <header
+    ref="rowEl"
+    class="px-8 pt-6"
+    :class="editing ? 'sticky top-0 z-10 bg-grey-100 shadow-100' : ''"
+  >
     <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <h1 class="min-w-0 flex-1">
         <InlineEditName
@@ -164,8 +178,10 @@ const save = () => {
                800px), and refining what you're looking at isn't what you're doing while
                you restructure it. The scope is unchanged underneath — leaving the mode
                brings the filters back exactly as they were.
-               The mode's own actions live in the sticky bar rather than here, because
-               here they would scroll away, which is the problem the bar exists to fix. -->
+               The mode's own actions take their place, at the same 32px height and in
+               the same slot, so entering edit mode swaps this cluster's contents without
+               moving a pixel — a flip, not an insertion. That is why there is no separate
+               edit bar: a band had to push something down to exist. -->
           <template v-if="!editing">
             <!-- Never compact: with no active state, this label is the only thing telling
                  you which period you're looking at. -->
@@ -182,31 +198,51 @@ const save = () => {
             />
           </template>
 
+          <!-- The repeatable action of the mode, so it sits left of the one that ends it.
+               `field`: the same surface the chips it replaced were wearing. -->
+          <Button
+            v-if="!dashboard.readonly && editing"
+            variant="field"
+            :size="compactFilters ? 'icon' : 'sm'"
+            :aria-label="compactFilters ? 'Add widget' : undefined"
+            :title="compactFilters ? 'Add widget' : undefined"
+            @click="emit('add')"
+          >
+            <Icon name="Plus" :size="20" />
+            <span v-if="!compactFilters">Add widget</span>
+          </Button>
+
           <!-- Absent on Trengo, not disabled: there is nothing to edit, and a control
                that refuses is worse than no control. Drops its label when the row is
                tight, on the same signal the filters use — one rule, "when space runs
                short, controls lose their words before navigation does".
-               `field`, not `outline`: it wears the same surface as the chips it sits
-               beside, so the row reads as one set of controls, and only the radius
-               differs (buttons stay `pill`, per design.md §7.5). In edit mode it goes
-               dark — the one state that should NOT look like a filter. -->
+               It FLIPS rather than moves: same button, same slot, `field` → dark and
+               Edit → Done. The mode's one dark control, and the anchor the rest of the
+               flip reads against. -->
           <Button
-            v-if="!dashboard.readonly && !editing"
-            variant="field"
+            v-if="!dashboard.readonly"
+            :variant="editing ? 'default' : 'field'"
             :size="compactFilters ? 'icon' : 'sm'"
             :aria-pressed="editing"
-            :aria-label="compactFilters ? 'Edit dashboard' : undefined"
-            :title="compactFilters ? 'Edit dashboard' : undefined"
+            :aria-label="
+              compactFilters ? (editing ? 'Done editing' : 'Edit dashboard') : undefined
+            "
+            :title="compactFilters ? (editing ? 'Done editing' : 'Edit dashboard') : undefined"
             @click="toggleEdit()"
           >
-            <Icon name="Edit" :size="20" />
-            <span v-if="!compactFilters">Edit</span>
+            <Icon :name="editing ? 'Check' : 'Edit'" :size="20" />
+            <span v-if="!compactFilters">{{ editing ? 'Done' : 'Edit' }}</span>
           </Button>
 
           <!-- Dashboard actions. 32×32 on the same surface, so at `pill` radius it reads
                as the circular button design.md §3.3 documents. It keeps its label off
-               screen at every width: a ⋯ has no words to lose. -->
-          <Popover v-if="!dashboard.readonly && !editing" v-model:open="menuOpen">
+               screen at every width: a ⋯ has no words to lose.
+               Stays in BOTH modes. Two reasons: removing the dashboard is more relevant
+               while you're restructuring it, not less — and it's what makes the flip
+               exact. Hidden in edit mode, it took 40px with it and Done slid right into
+               the space, so the one control that's meant to change face in place moved
+               instead. -->
+          <Popover v-if="!dashboard.readonly" v-model:open="menuOpen">
             <PopoverTrigger as-child>
               <Button variant="field" size="icon" aria-label="Dashboard actions">
                 <Icon name="MoreHoriz" :size="20" />
