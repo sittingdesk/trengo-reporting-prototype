@@ -369,34 +369,33 @@ const skeletonBars = computed(() =>
       </div>
 
       <!-- Remove, while editing. Always visible: hidden-until-hover is wrong for the mode
-           you entered to find it, and unreachable by touch. 32px, the app's control size —
-           it was 24px, exactly on the WCAG 2.5.8 floor, for the most destructive control
-           on the page.
-           `-my-1` gives the extra 8px back to layout: at 32px the button is the tallest
-           thing in this header, and without it every card grew 8px on entering the mode
-           (measured: the heatmap went 326 → 334). The target stays 32; only its footprint
-           is 24, which is the same trick the renameable heading uses for its outline. -->
+           you entered to find it, and unreachable by touch.
+           It wears the KEBAB'S BOX exactly — same 24px, same `rounded-sm`, same hairline,
+           same slot — because the two never appear together: the kebab steps aside while
+           editing and this takes its place. So the card's one control flips its face the
+           way the header's Edit button does, instead of two differently-sized buttons
+           trading places. 24px is the WCAG 2.5.8 floor; it sat at 32 while both were on
+           screen at once, which is what made the mismatch visible. -->
       <button
         v-if="editing"
         type="button"
-        class="-my-1 inline-flex size-8 shrink-0 items-center justify-center rounded-base border border-grey-300 bg-white text-grey-600 transition-colors hover:border-error-500 hover:bg-error-500 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm border border-grey-300 bg-white text-grey-600 transition-colors hover:border-error-500 hover:bg-error-500 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         :aria-label="`Remove ${metric?.label ?? 'widget'}`"
         @click="onRemove"
       >
-        <Icon name="Trash" :size="20" />
+        <Icon name="Trash" :size="16" />
       </button>
 
-      <!-- More menu (kebab, secondary-button style). It used to be REPLACED by remove,
-           which meant entering edit mode took Export as CSV and Break down by away — the
-           mode subtracted function instead of adding it. Now it keeps its place beside
-           remove, and while editing it stops hiding until hover, by the same argument the
-           remove button makes. -->
-      <Popover v-if="!loading" v-model:open="menuOpen">
+      <!-- More menu (kebab, secondary-button style), in VIEW mode only. Editing a card is
+           a decision about whether it stays, so remove is the only control that belongs in
+           that slot — and two same-sized icon buttons on every one of eleven cards is
+           noise. The cost, stated: Export as CSV and Break down by are unreachable while
+           editing, and leaving the mode brings them straight back. -->
+      <Popover v-if="!loading && !editing" v-model:open="menuOpen">
         <PopoverTrigger as-child>
           <button
             type="button"
-            class="inline-flex h-6 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-grey-300 bg-white text-grey-600 transition-[color,background-color,opacity,width] hover:bg-grey-100 hover:text-grey-700 focus:outline-none focus-visible:w-6 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:w-6 group-hover:opacity-100 data-[state=open]:w-6 data-[state=open]:opacity-100 data-[state=open]:bg-grey-100"
-            :class="editing ? 'w-6 opacity-100' : 'w-0 opacity-0'"
+            class="inline-flex h-6 w-0 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-grey-300 bg-white text-grey-600 opacity-0 transition-[color,background-color,opacity,width] hover:bg-grey-100 hover:text-grey-700 focus:outline-none focus-visible:w-6 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:w-6 group-hover:opacity-100 data-[state=open]:w-6 data-[state=open]:opacity-100 data-[state=open]:bg-grey-100"
             aria-label="More options"
           >
             <Icon name="MoreHoriz" variant="filled" :size="20" />
