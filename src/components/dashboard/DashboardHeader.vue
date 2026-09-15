@@ -148,18 +148,13 @@ const save = () => {
 </script>
 
 <template>
-  <!-- Sticky ONLY while editing. The mode's exit lives in this row now, and `<main>` is
-       the single scroll container, so on a long report an unpinned row would take Done
-       with it. View mode keeps the recorded "nothing is sticky, the dashboard reads as
-       one page" rule; the asymmetry is what makes the mode legible without spending a
-       row on it. `bg-grey-100` because the page ground would otherwise scroll through a
-       transparent pinned row, and `shadow-100` rather than a border — a border is 1px of
-       layout, and the whole point of this arrangement is that nothing moves. -->
-  <header
-    ref="rowEl"
-    class="px-8 pt-6"
-    :class="editing ? 'sticky top-0 z-10 bg-grey-100 shadow-100' : ''"
-  >
+  <!-- Never sticky, in either mode. This row pinned itself while editing for a while, so
+       the mode's exit stayed reachable down a long report; it isn't worth the chrome.
+       Nothing else in the app is sticky (see DashboardView's header comment) and the mode
+       survives scrolling without it: the grey canvas and the lifted cards are page-wide,
+       so "am I editing" is answered at any depth, and Escape leaves the mode from
+       anywhere without hunting for a button. -->
+  <header ref="rowEl" class="px-8 pt-6">
     <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <h1 class="min-w-0 flex-1">
         <InlineEditName
