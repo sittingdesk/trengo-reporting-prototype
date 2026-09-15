@@ -115,7 +115,20 @@ watch(
 </script>
 
 <template>
-  <div v-if="dashboard && report" class="flex min-h-full flex-col">
+  <!-- The editing ground sits HERE, on the whole dashboard, not on the grid alone. It
+       started under the widgets, which left a colour seam right below the report pills —
+       the header and the pills stayed on the page's grey-100 while the cards sat on
+       grey-200, so the mode looked like it applied to half the page. It applies to all of
+       it: the name is renameable, the reports are removable, the widgets are both. One
+       ground says that; two said the opposite.
+       `min-h-full` is what makes it cover — the root fills `main` even when the report is
+       short, so the ground reaches the bottom of the viewport rather than stopping under
+       the last card. -->
+  <div
+    v-if="dashboard && report"
+    class="flex min-h-full flex-col transition-colors"
+    :class="editing ? 'bg-grey-200' : ''"
+  >
     <!-- The mode's actions live in this row, in the slot the filters vacate — same
          height, same place, so entering edit mode moves nothing. There is no separate
          edit bar: a band has to push something down to exist. -->

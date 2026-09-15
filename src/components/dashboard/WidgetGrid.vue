@@ -78,24 +78,14 @@ const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-6 lg:grid-col
 </script>
 
 <template>
-  <!-- The editing surface. grey-200 with a top hairline while editing: an inset ground
-       that says "these are the things you arrange", which is the same idiom the report
-       bar's segmented track already uses one row above. The hairline is what makes it
-       legible — grey-200 on the grey-100 page is 1.04:1 on its own.
-       It goes on the ROOT, outside the px-8/py-6 the grid keeps, so nothing moves by a
-       pixel when the mode changes; and the root flexes inside min-h-full, so the ground
-       fills to the bottom of the viewport even on a one-widget report.
-       The hairline is carried in BOTH modes and only coloured in one. It used to appear
-       with the mode, and a border is layout — every card measured 1px lower while
-       editing. Same fix as InlineEditName's transparent border: reserve the pixel always,
-       so revealing the line can't move anything. It costs 1px of the gap above the grid
-       in both modes, which is invisible, and it's the cheaper half of the trade.
-       Not grey-300: that erases every card's grey-300 hairline and inverts the report
-       bar's track above it. -->
-  <div
-    class="flex flex-1 flex-col border-t border-transparent transition-colors"
-    :class="editing ? 'border-grey-300 bg-grey-200' : ''"
-  >
+  <!-- No ground of its own. The editing surface used to be painted here, which made the
+       grid the only part of the page wearing it and left a colour seam under the report
+       pills. It belongs to the whole dashboard (DashboardView's root) — the name, the
+       reports and the widgets are all editable, so one ground covers all three.
+       It also takes a 1px bug with it: the band's top hairline was a border, and a border
+       is layout, so every card measured 1px lower in edit mode until it was carried
+       transparently in both. With no border here, there's nothing to reserve. -->
+  <div class="flex flex-1 flex-col">
     <!-- Empty report: nothing added yet. Flexes so it centres in whatever height is left
          below the dashboard header. -->
     <div
