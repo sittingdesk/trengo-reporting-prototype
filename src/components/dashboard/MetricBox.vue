@@ -130,8 +130,12 @@ const BODY_HEIGHT: Record<string, number> = {
   heatmap: 252,
   table: 288,
 }
-const bodyMinHeight = computed(() =>
-  resultType.value ? BODY_HEIGHT[resultType.value] : undefined,
+// A metric may override the height its result type would take — `sales_by_board` is a
+// table that wants a chart's 274px card rather than a full table's 362. One value drives
+// BOTH the healthy body and the empty/error states, so they can't disagree and the card
+// can't change height when its data fails.
+const bodyMinHeight = computed(
+  () => metric.value?.bodyHeight ?? (resultType.value ? BODY_HEIGHT[resultType.value] : undefined),
 )
 
 const formatted = computed(() => {
@@ -537,7 +541,12 @@ const skeletonBars = computed(() =>
 
       <!-- Table -->
       <div v-else-if="resultType === 'table'" class="flex flex-1 flex-col">
-        <DataTable v-if="sample?.table" :columns="tableColumns" :rows="sample.table.rows" />
+        <DataTable
+          v-if="sample?.table"
+          :columns="tableColumns"
+          :rows="sample.table.rows"
+          :height="bodyMinHeight"
+        />
       </div>
 
       <!-- Value (default) — number + trend, grouped and bottom-anchored (Figma 6986:72319) -->

@@ -2,11 +2,35 @@
 import type { Unit } from '@/data/metrics'
 
 const intFmt = new Intl.NumberFormat('en-GB')
-const eurFmt = new Intl.NumberFormat('en-IE', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 0,
-})
+
+// Currency formatting, built per currency and cached.
+//
+// The locale has to travel WITH the currency, not stay fixed: `Intl.NumberFormat('en-IE',
+// { currency: 'USD' })` renders "US$1,240", which reads as a bug. Each currency gets the
+// locale that writes it the way its readers expect.
+const CURRENCY_LOCALE: Record<string, string> = { EUR: 'en-IE', USD: 'en-US', GBP: 'en-GB' }
+const currencyFmts = new Map<string, Intl.NumberFormat>()
+function currencyFmt(currency: string): Intl.NumberFormat {
+  let fmt = currencyFmts.get(currency)
+  if (!fmt) {
+    fmt = new Intl.NumberFormat(CURRENCY_LOCALE[currency] ?? 'en-IE', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 0,
+    })
+    currencyFmts.set(currency, fmt)
+  }
+  return fmt
+}
+
+/** The bare symbol, for the compact path — "€", "$". Asked of Intl rather than written
+ *  down, so a new currency needs no second edit. */
+function currencySymbol(currency: string): string {
+  const part = currencyFmt(currency)
+    .formatToParts(0)
+    .find((p) => p.type === 'currency')
+  return part?.value ?? currency
+}
 
 export function fmtCount(n: number): string {
   return intFmt.format(Math.round(n))
@@ -35,14 +59,26 @@ export function fmtPercent(ratio: number): string {
   return `${Math.round(ratio * 100)}%`
 }
 
-/** Compact EUR — "€1,240" / "€18k". */
-export function fmtCurrency(amount: number): string {
-  if (amount >= 10000) return `€${Math.round(amount / 1000)}k`
-  return eurFmt.format(Math.round(amount))
+/**
+ * Compact money — "€1,240" / "€18k" / "$310k".
+ *
+ * Defaults to EUR so every existing call site is unchanged. The currency is a real
+ * argument because amounts here come from a BOARD, and two boards can be denominated
+ * differently — see src/data/boards.ts.
+ *
+ * The compact path used to hard-code a "€" glyph, which meant `pipeline_value` (248,000)
+ * rendered "€248k" from a string literal and never reached Intl at all: the card asserted
+ * a single-currency workspace, asserted it was EUR, and — by showing one number across
+ * every board — asserted that deals in different currencies add up. None of the three was
+ * ever true.
+ */
+export function fmtCurrency(amount: number, currency = 'EUR'): string {
+  if (amount >= 10000) return `${currencySymbol(currency)}${Math.round(amount / 1000)}k`
+  return currencyFmt(currency).format(Math.round(amount))
 }
 
-/** Format a raw value according to its unit. */
-export function formatValue(value: number, unit: Unit): string {
+/** Format a raw value according to its unit. `currency` applies only to money. */
+export function formatValue(value: number, unit: Unit, currency?: string): string {
   switch (unit) {
     case 'percentage':
       return fmtPercent(value)
@@ -53,7 +89,7 @@ export function formatValue(value: number, unit: Unit): string {
     case 'days':
       return fmtDays(value) // stored in days, not seconds (e.g. sales cycle)
     case 'currency':
-      return fmtCurrency(value)
+      return fmtCurrency(value, currency)
     case 'count':
     default:
       return fmtCount(value)

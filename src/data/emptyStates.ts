@@ -26,6 +26,7 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   conversations_by_hour: { noun: 'tickets', icon: 'Inbox' },
   avg_csat: { noun: 'ratings', icon: 'EmotionSmile' },
   win_rate: { noun: 'decided deals', icon: 'Target' },
+  sales_by_board: { noun: 'deals', icon: 'Target' },
   time_to_answer: { noun: 'calls', icon: 'Phone' },
   longest_wait_time: { noun: 'answered calls', icon: 'Phone' },
   avg_call_duration: { noun: 'calls', icon: 'Phone' },

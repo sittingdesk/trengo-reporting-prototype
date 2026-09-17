@@ -130,11 +130,12 @@ export const TEMPLATES: Template[] = [
       { metricId: 'calls_volume' },
       { metricId: 'missed_calls' },
       { metricId: 'voip_calls_by_day_hour' }, // day × hour heatmap (replaced Tickets by hour)
-      // Sales
-      { metricId: 'win_rate' },
-      { metricId: 'avg_deal_size' },
-      { metricId: 'pipeline_value' },
-      { metricId: 'average_sales_cycle' },
+      // Sales — one table, boards as rows. It was these four as separate KPI cards, which
+      // could only show one workspace-wide number each: fine until you notice a board
+      // declares its own currency, at which point a single "pipeline value" is summing
+      // euros and dollars. The four metrics still exist and stay addable from the widget
+      // library; what changed is that this page says which board it's talking about.
+      { metricId: 'sales_by_board', span: 6, newRow: true },
     ],
   },
   {

@@ -89,6 +89,11 @@ export interface MetricDef {
   /** Capability this metric depends on. Widgets bound to it are omitted from a page
    *  entirely while the capability is off. */
   requires?: FeatureFlag
+  /** Override the body height its `resultType` would get (MetricBox's BODY_HEIGHT). A
+   *  table defaults to 288 → a 362px card; a short one that wants to sit beside charts
+   *  sets 200 and lands on 274. Drives the healthy render AND the empty/error states, so
+   *  they can't disagree. */
+  bodyHeight?: number
 }
 
 export const METRICS: MetricDef[] = [
@@ -463,7 +468,12 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'sales',
     base: 600,
-    caveat: 'Open deals by Boards pipeline stage in this period.',
+    // Was "by Boards pipeline stage", against a stage list that knows nothing about
+    // boards (see mock.ts) — a caveat is a promise, so the claim goes until the funnel
+    // can actually be scoped to one. That's where a board PICKER belongs, incidentally:
+    // stages are sequential and boards have different ones, so overlaying them is
+    // unreadable and one-at-a-time is the honest read.
+    caveat: 'Open deals by pipeline stage in this period.',
   },
   // --- Not yet showing a value — presentation comes from src/data/emptyStates.ts ---
   {
@@ -500,6 +510,31 @@ export const METRICS: MetricDef[] = [
     category: 'sales',
     base: 248000, // EUR — a current stock: doesn't scale with the date range
     caveat: 'Total value of all deals currently open. Not affected by the date range.',
+  },
+  {
+    // The four sales measures above, per board, in one widget.
+    //
+    // They used to be four KPI cards showing one workspace-wide number each — which only
+    // works if every deal is in one currency and boards are worth summing. Neither holds:
+    // a board declares its own currency (src/data/boards.ts), so "€248k of pipeline" was
+    // a hard-coded glyph over an illegal sum.
+    //
+    // Rows over a picker, deliberately. The reason to merge four cards is that the
+    // question became "how do our boards differ" — and a single-select answers that by
+    // hiding every board but one, so you'd compare by clicking and remembering. Rows
+    // compare in parallel, and they degrade the right way: at one board this is four
+    // labelled numbers, which is a perfectly good card.
+    //
+    // No total row, ever. Adding EUR to USD is a category error, not a rounding one.
+    id: 'sales_by_board',
+    label: 'Sales by board',
+    unit: 'count', // inert: a table formats its own cells
+    resultType: 'table',
+    status: 'ready',
+    category: 'sales',
+    bodyHeight: 200, // 274px card — the same footprint as Customer satisfaction
+    caveat:
+      'Deal metrics for each Boards pipeline in this period. Amounts are shown in each board’s own currency and are never converted, so they don’t add up to a workspace total.',
   },
   {
     // registry: voip_total_calls [Overview]

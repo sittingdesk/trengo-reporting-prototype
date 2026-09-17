@@ -92,6 +92,7 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
     id: 'deals',
     label: 'Deals',
     metricIds: [
+      'sales_by_board',
       'win_rate',
       'avg_deal_size',
       'average_sales_cycle',

@@ -7,7 +7,8 @@ import { getLocalTimeZone, startOfMonth, type DateValue } from '@internationaliz
 import type { MetricDef, FeatureFlag } from '@/data/metrics'
 import { TEAMS } from '@/data/filters'
 import { CHANNEL_INSTANCE_IDS, CATALOG } from '@/data/channelData'
-import { fmtCount, fmtDuration, fmtPercent } from '@/lib/format'
+import { fmtCount, fmtCurrency, fmtDays, fmtDuration, fmtPercent } from '@/lib/format'
+import { BOARDS } from '@/data/boards'
 
 export interface TableColumn {
   key: string
@@ -446,9 +447,19 @@ export function metricValue(
     return { value, previous: value * jitter(rng, 0.2), funnel }
   }
 
-  // Tables: per-agent / per-channel rows (pre-formatted, filter-scaled).
+  // Tables: per-agent / per-channel / per-board rows (pre-formatted, filter-scaled).
   if (def.resultType === 'table') {
-    return { value: 0, previous: 0, table: tableData(def.id, rng, chFactor, tmFactor, days) }
+    return {
+      value: 0,
+      previous: 0,
+      table: tableData(def.id, rng, chFactor, tmFactor, days),
+      // The one fact a screenshot of this card must not lose. It goes in the header note
+      // slot, which costs no card height — and it sits exactly where a board PICKER would
+      // have gone, which is the trade: information instead of a control.
+      ...(def.id === 'sales_by_board'
+        ? { note: 'Amounts in each board’s currency' }
+        : {}),
+    }
   }
 
   // SLA compliance: met ÷ measured. The supporting figure carries the DENOMINATOR,
@@ -489,10 +500,30 @@ export function metricValue(
     }
   }
 
+  // Share of DECIDED deals that were won — open deals aren't counted, which the caveat
+  // already promises and nothing was honouring. Needs its own branch for the same reason
+  // missed_calls does: the generic clamp below would distort it. Until this existed,
+  // win_rate rendered exactly 40% under every filter with a permanent 0.0% delta, because
+  // base 0.34 × ±6% can never clear the old 0.4 floor.
+  if (def.id === 'win_rate') {
+    const decided = Math.max(1, Math.round(240 * Math.sqrt(days / 7) * chFactor * tmFactor))
+    const won = Math.max(0, Math.round(decided * base * jitter(rng, 0.18)))
+    const prevWon = Math.max(0, Math.round(decided * base * jitter(rng, 0.18)))
+    return {
+      value: won / decided,
+      previous: prevWon / decided,
+      secondary: `${fmtCount(won)} of ${fmtCount(decided)} decided deals`,
+    }
+  }
+
   // Percentages / rates: bounded, not scaled by volume.
+  // The floor is 0.05, not 0.4. Every rate that belongs near the top of its range is
+  // intercepted above (sla_*, *_compliance, missed_calls, win_rate) and avg_csat is a
+  // breakdown, so nothing reaches this clamp today — but a 0.4 floor silently pins any
+  // future sub-40% rate to exactly 40%, which is how win_rate was broken.
   if (def.unit === 'percentage') {
-    const value = Math.min(0.99, Math.max(0.4, base * jitter(rng, 0.06)))
-    const previous = Math.min(0.99, Math.max(0.4, base * jitter(rng, 0.06)))
+    const value = Math.min(0.99, Math.max(0.05, base * jitter(rng, 0.06)))
+    const previous = Math.min(0.99, Math.max(0.05, base * jitter(rng, 0.06)))
     return { value, previous }
   }
 
@@ -527,6 +558,76 @@ function tableData(
     [key]: fmt(raw),
     [`${key}Raw`]: Math.round(raw),
   })
+
+  if (id === 'sales_by_board') {
+    return {
+      columns: [
+        { key: 'board', label: 'Board', align: 'left', sortable: true },
+        {
+          key: 'win',
+          label: 'Win rate',
+          align: 'left',
+          sortable: true,
+          sortKey: 'winRaw',
+          // The default ranking, and the only column that can carry one honestly: it's
+          // unitless, so ordering by it makes no currency claim. Sorting by Pipeline
+          // would put €248k above $310k and assert a comparison that doesn't exist.
+          defaultSort: 'desc',
+          hint: 'Share of this board’s decided deals that were won. Open deals aren’t counted.',
+        },
+        {
+          key: 'deal',
+          label: 'Avg. deal',
+          align: 'left',
+          sortable: true,
+          sortKey: 'dealRaw',
+          hint: 'Average value of a deal won in this period, in this board’s own currency.',
+        },
+        {
+          key: 'pipeline',
+          label: 'Pipeline',
+          align: 'left',
+          sortable: true,
+          sortKey: 'pipelineRaw',
+          hint: 'Value of all deals currently open on this board, in its own currency. Boards are never converted or added together.',
+        },
+        {
+          key: 'cycle',
+          label: 'Cycle',
+          align: 'left',
+          sortable: true,
+          sortKey: 'cycleRaw',
+          hint: 'Average days from creation to close, across won and lost deals.',
+        },
+      ],
+      // Seeded per BOARD id, not per row index: a board's numbers then stay put when the
+      // table is re-sorted, and adding a board doesn't reshuffle the others.
+      rows: BOARDS.map((b) => {
+        const r = mulberry32(hashString(`sales_by_board|${b.id}|${chFactor}|${tmFactor}|${days}`))
+        // A board-specific bias so the rows differ by more than noise — that difference is
+        // the whole reason the widget exists. Range 0.55–1.45 rather than 0.6–2.0: the
+        // wider one put every board's win rate in the high forties to sixties, which reads
+        // as a fantasy sales team and undersells the spread between boards.
+        const bias = 0.55 + 0.9 * r()
+        const win = Math.min(0.75, Math.max(0.08, 0.34 * bias * jitter(r, 0.2)))
+        return {
+          board: b.label,
+          win: fmtPercent(win),
+          // NOT via num(): it rounds, so a 0–1 rate would collapse to 0 and sorting would
+          // die. Same trick channelCompliance uses — rank on whole percents.
+          winRaw: Math.round(win * 100),
+          ...num('deal', 3450 * bias * jitter(r, 0.2), (n) => fmtCurrency(n, b.currency)),
+          // The one column that answers to the filter bar: deals carry a channel and an
+          // owner, so narrowing either narrows the open pipeline. Rates and cycle lengths
+          // describe the deals that are there, so they don't scale with subset size.
+          ...num('pipeline', 248000 * bias * chFactor * tmFactor * jitter(r, 0.25), (n) =>
+            fmtCurrency(n, b.currency),
+          ),
+          ...num('cycle', 18 * bias * jitter(r, 0.2), fmtDays),
+        }
+      }),
+    }
+  }
 
   if (id === 'workload_by_agent') {
     return {

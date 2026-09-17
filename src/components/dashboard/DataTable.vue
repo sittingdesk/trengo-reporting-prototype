@@ -6,10 +6,18 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import type { TableColumn } from '@/lib/mock'
 import { Tooltip } from '@/components/ui/tooltip'
 
-const props = defineProps<{
-  columns: TableColumn[]
-  rows: Record<string, string | number>[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    columns: TableColumn[]
+    rows: Record<string, string | number>[]
+    /** The body budget this table has to fill, in px — the card's height minus its chrome.
+     *  288 is the full-width table's, which puts its card on 362. A half-width table that
+     *  wants to sit beside 274px charts passes 200. It is both a MIN and a MAX: the body
+     *  holds its footprint at one row, and scrolls rather than growing at ten. */
+    height?: number
+  }>(),
+  { height: 288 },
+)
 
 const sortKeyOf = (c: TableColumn) => c.sortKey ?? c.key
 
@@ -95,7 +103,12 @@ watch(sortedRows, () => nextTick(updateFade))
 
 <template>
   <div class="relative">
-    <div ref="scroller" class="max-h-[288px] overflow-auto scroll-thin" @scroll="updateFade">
+    <div
+      ref="scroller"
+      class="overflow-auto scroll-thin"
+      :style="{ minHeight: `${height}px`, maxHeight: `${height}px` }"
+      @scroll="updateFade"
+    >
     <table class="w-full border-collapse text-sm">
       <thead class="sticky top-0 z-[1] bg-white">
         <tr>
