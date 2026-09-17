@@ -453,12 +453,9 @@ export function metricValue(
       value: 0,
       previous: 0,
       table: tableData(def.id, rng, chFactor, tmFactor, days),
-      // The one fact a screenshot of this card must not lose. It goes in the header note
-      // slot, which costs no card height — and it sits exactly where a board PICKER would
-      // have gone, which is the trade: information instead of a control.
-      ...(def.id === 'sales_by_board'
-        ? { note: 'Amounts in each board’s currency' }
-        : {}),
+      // No header note. It used to say "Amounts in each board's currency" — the fact now
+      // lives in the two money columns' own ⓘ hints, which is where a column-specific
+      // caveat belongs and where the rest of the app already puts definitions.
     }
   }
 

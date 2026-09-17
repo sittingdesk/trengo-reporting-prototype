@@ -182,39 +182,58 @@ watch(open, (isOpen) => {
             >
               {{ section.label }}
             </h3>
-            <button
-              v-for="row in section.rows"
-              :key="row.id"
-              type="button"
-              :disabled="row.added"
-              :aria-label="row.added ? `${row.label} — already added` : `Add ${row.label}`"
-              class="flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors focus:outline-none focus-visible:shadow-focus-sm enabled:hover:bg-grey-100 disabled:cursor-default"
-              @click="add(row.id)"
-            >
-              <span
-                class="flex size-8 shrink-0 items-center justify-center rounded-base transition-colors"
-                :class="row.added ? 'bg-grey-100 text-grey-400' : 'bg-grey-200 text-grey-700'"
+            <!-- A row is two lines and a control, not four lines of prose.
+                 The definition used to sit in the row as two clamped lines, which made
+                 every row four lines tall and the list unscannable — you read paragraphs
+                 to find a widget you already knew the name of. It moves behind the ⓘ,
+                 which is where this app already keeps definitions (the same caveat, the
+                 same Tooltip, on every metric card's header).
+                 What replaces it as the second line is the SHAPE — "Number", "Bar chart ·
+                 full width". That's the thing you can't infer from the title and the thing
+                 you're actually choosing between when two rows measure the same subject.
+                 The ⓘ is a SIBLING of the row, not a child: a button inside a button is
+                 invalid markup and a coin-toss click target. Absolutely positioned over
+                 the row's trailing edge, with `pr-11` reserving its width so no title can
+                 run underneath it — the same arrangement the report pills use for their ×. -->
+            <span v-for="row in section.rows" :key="row.id" class="relative block">
+              <button
+                type="button"
+                :disabled="row.added"
+                :aria-label="row.added ? `${row.label} — already added` : `Add ${row.label}`"
+                class="flex w-full items-center gap-3 py-2.5 pl-4 pr-11 text-left transition-colors focus:outline-none focus-visible:shadow-focus-sm enabled:hover:bg-grey-100 disabled:cursor-default"
+                @click="add(row.id)"
               >
-                <Icon :name="row.icon" :size="20" />
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="flex items-center gap-2">
-                  <span
-                    class="truncate text-sm font-semibold"
-                    :class="row.added ? 'text-grey-600' : 'text-grey-900'"
-                  >{{ row.label }}</span>
-                  <Badge v-if="row.added" variant="muted">Added</Badge>
+                <span
+                  class="flex size-8 shrink-0 items-center justify-center rounded-base transition-colors"
+                  :class="row.added ? 'bg-grey-100 text-grey-400' : 'bg-grey-200 text-grey-700'"
+                >
+                  <Icon :name="row.icon" :size="20" />
                 </span>
-                <!-- The metric's own definition, which is what tells four rows that all
-                     start with "Tickets" apart. Two lines here, the whole thing on hover. -->
-                <Tooltip :text="row.description">
-                  <span class="mt-0.5 line-clamp-2 block text-xs text-grey-600">
-                    {{ row.description }}
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-center gap-2">
+                    <span
+                      class="truncate text-sm font-semibold"
+                      :class="row.added ? 'text-grey-600' : 'text-grey-900'"
+                    >{{ row.label }}</span>
+                    <Badge v-if="row.added" variant="muted">Added</Badge>
                   </span>
-                </Tooltip>
-                <span class="mt-1 block text-xs font-medium text-grey-600">{{ row.meta }}</span>
-              </span>
-            </button>
+                  <span class="mt-0.5 block truncate text-xs text-grey-600">{{ row.meta }}</span>
+                </span>
+              </button>
+              <!-- Always visible, never hover-only: it is the ONLY route to the
+                   definition, and a control you have to discover by hovering is no control
+                   at all on a touch screen. Quiet enough (grey-400 at 16px) to read as
+                   texture until you want it. -->
+              <Tooltip :text="row.description">
+                <button
+                  type="button"
+                  class="absolute right-3 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-grey-400 transition-colors hover:bg-grey-200 hover:text-grey-700 focus:outline-none focus-visible:shadow-focus-sm"
+                  :aria-label="`What ${row.label} measures`"
+                >
+                  <Icon name="Info" :size="16" />
+                </button>
+              </Tooltip>
+            </span>
           </section>
         </div>
       </ScrollArea>
