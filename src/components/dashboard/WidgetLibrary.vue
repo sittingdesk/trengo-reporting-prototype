@@ -17,7 +17,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from '@/components/Icon.vue'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useWorkspace } from '@/composables/useWorkspace'
 import { useSettings } from '@/composables/useSettings'
@@ -153,32 +152,40 @@ watch(open, (isOpen) => {
       role="region"
       aria-label="Widget library"
     >
-      <header class="flex items-start gap-2 border-b border-grey-200 p-4">
-        <div class="min-w-0 flex-1">
-          <h2 class="text-base font-semibold text-grey-900">Add a widget</h2>
-          <!-- Names the target explicitly. The panel outlives a report switch, so leaving
-               this implicit is how you add to the report you just navigated away from. -->
-          <p class="truncate text-sm text-grey-600">
-            Adding to <span class="font-medium text-grey-800">{{ report.name }}</span>
-          </p>
-        </div>
+      <!-- The Analytics sidebar's heading row, verbatim: `px-4 pb-2 pt-5`, an 18/700
+           title, and a 28px quiet icon button on the right where that sidebar puts its
+           "+". Two panels either side of the same page should not introduce each other
+           differently. -->
+      <div class="flex items-center justify-between px-4 pb-2 pt-5">
+        <h2 class="text-lg font-bold text-grey-900">Add a widget</h2>
         <button
           type="button"
           aria-label="Close widget library"
-          class="inline-flex size-8 shrink-0 items-center justify-center rounded-pill text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          class="flex size-7 shrink-0 items-center justify-center rounded-base text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           @click="closeWidgetLibrary()"
         >
           <Icon name="Cross" :size="20" />
         </button>
-      </header>
+      </div>
+      <!-- Names the target explicitly. The panel outlives a report switch, so leaving
+           this implicit is how you add to the report you just navigated away from. -->
+      <p class="truncate px-4 pb-2 text-sm text-grey-600">
+        Adding to <span class="font-medium text-grey-800">{{ report.name }}</span>
+      </p>
 
-      <ScrollArea class="min-h-0 flex-1">
-        <div class="pb-4">
+      <!-- The sidebar's list container, down to the scrollbar: `gap-2 px-2 py-1` with
+           `overflow-y-auto scroll-thin`, rather than the ScrollArea component. Same
+           spacing rhythm, same thin scrollbar — the two lists scroll identically. -->
+      <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-1 pb-4 scroll-thin">
           <section v-for="section in sections" :key="section.id">
             <!-- Sticky so the subject stays legible while you scan a long group (Calls is
                  ten rows). White ground, or the rows would show through it. -->
+            <!-- The sidebar separates its two groups with a gap and no heading, on the
+                 grounds that two labels organised less than they labelled. Seven subjects
+                 is the case that flips it back: without a heading you can't tell where
+                 Calls ends and Deals starts. Sticky, so it survives a long group. -->
             <h3
-              class="sticky top-0 z-[1] bg-white px-4 pb-1 pt-3 text-xs font-semibold text-grey-600"
+              class="sticky top-0 z-[1] bg-white px-2.5 pb-1 pt-2 text-xs font-semibold text-grey-600"
             >
               {{ section.label }}
             </h3>
@@ -196,11 +203,16 @@ watch(open, (isOpen) => {
                  the row's trailing edge, with `pr-11` reserving its width so no title can
                  run underneath it — the same arrangement the report pills use for their ×. -->
             <span v-for="row in section.rows" :key="row.id" class="relative block">
+              <!-- The Analytics sidebar's row, unchanged: `flex items-center gap-2
+                   rounded-base px-2.5 py-2`, `hover:bg-grey-200`, and a name-over-subtitle
+                   stack in 14/500 over 12/400. The one addition is the leading icon —
+                   a dashboard row has nothing to distinguish it but its name, where a
+                   widget row has a shape worth showing. -->
               <button
                 type="button"
                 :disabled="row.added"
                 :aria-label="row.added ? `${row.label} — already added` : `Add ${row.label}`"
-                class="flex w-full items-center gap-3 py-2.5 pl-4 pr-11 text-left transition-colors focus:outline-none focus-visible:shadow-focus-sm enabled:hover:bg-grey-100 disabled:cursor-default"
+                class="flex w-full items-center gap-2 rounded-base py-2 pl-2.5 pr-9 text-left transition-colors focus:outline-none focus-visible:shadow-focus-sm enabled:hover:bg-grey-200 disabled:cursor-default"
                 @click="add(row.id)"
               >
                 <span
@@ -209,15 +221,15 @@ watch(open, (isOpen) => {
                 >
                   <Icon :name="row.icon" :size="20" />
                 </span>
-                <span class="min-w-0 flex-1">
+                <span class="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span class="flex items-center gap-2">
                     <span
-                      class="truncate text-sm font-semibold"
-                      :class="row.added ? 'text-grey-600' : 'text-grey-900'"
+                      class="truncate text-sm font-medium"
+                      :class="row.added ? 'text-grey-600' : 'text-grey-700'"
                     >{{ row.label }}</span>
                     <Badge v-if="row.added" variant="muted">Added</Badge>
                   </span>
-                  <span class="mt-0.5 block truncate text-xs text-grey-600">{{ row.meta }}</span>
+                  <span class="truncate text-xs text-grey-600">{{ row.meta }}</span>
                 </span>
               </button>
               <!-- Always visible, never hover-only: it is the ONLY route to the
@@ -227,7 +239,7 @@ watch(open, (isOpen) => {
               <Tooltip :text="row.description">
                 <button
                   type="button"
-                  class="absolute right-3 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-grey-400 transition-colors hover:bg-grey-200 hover:text-grey-700 focus:outline-none focus-visible:shadow-focus-sm"
+                  class="absolute right-2.5 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-grey-600 transition-colors hover:bg-grey-300 hover:text-grey-900 focus:outline-none focus-visible:shadow-focus-sm"
                   :aria-label="`What ${row.label} measures`"
                 >
                   <Icon name="Info" :size="16" />
@@ -235,8 +247,7 @@ watch(open, (isOpen) => {
               </Tooltip>
             </span>
           </section>
-        </div>
-      </ScrollArea>
+      </div>
 
       <p class="sr-only" role="status" aria-live="polite">{{ announcement }}</p>
     </aside>
