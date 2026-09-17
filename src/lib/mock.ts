@@ -8,6 +8,7 @@ import type { MetricDef, FeatureFlag } from '@/data/metrics'
 import { TEAMS } from '@/data/filters'
 import { CHANNEL_INSTANCE_IDS, CATALOG } from '@/data/channelData'
 import { fmtCount, fmtCurrency, fmtDays, fmtDuration, fmtPercent } from '@/lib/format'
+import type { Direction } from '@/lib/delta'
 import { BOARDS } from '@/data/boards'
 
 export interface TableColumn {
@@ -24,6 +25,13 @@ export interface TableColumn {
   /** Capability the column depends on; dropped from the table when it's off. Same
    *  rule as widget-level `requires`, one level down. */
   requires?: FeatureFlag
+  /** Which way is good for this column, if it carries a period-over-period change.
+   *  NO DIRECTION, NO DELTA — that is how a column opts out, and it's why Pipeline has
+   *  none: it's a current stock, so "vs the previous period" has nothing to compare to.
+   *  It lives here rather than on MetricDef because one table's columns need four
+   *  different answers and there is nowhere above them to put it. Pairs with a
+   *  `<key>Prev` raw value on each row. */
+  direction?: Direction
   /** Makes this the table's initial ranking, in this direction. Without it the table
    *  falls back to the first sortable numeric column, descending. */
   defaultSort?: 'asc' | 'desc'
@@ -570,6 +578,7 @@ function tableData(
           // unitless, so ordering by it makes no currency claim. Sorting by Pipeline
           // would put €248k above $310k and assert a comparison that doesn't exist.
           defaultSort: 'desc',
+          direction: 'up_good',
           hint: 'Share of this board’s decided deals that were won. Open deals aren’t counted.',
         },
         {
@@ -578,6 +587,10 @@ function tableData(
           align: 'left',
           sortable: true,
           sortKey: 'dealRaw',
+          // Shown, not judged: a rise can be a mix shift toward slower enterprise deals
+          // and a fall can be healthy volume growth, so the movement is a fact worth
+          // showing and the colour is a claim we can't make.
+          direction: 'neutral',
           hint: 'Average value of a deal won in this period, in this board’s own currency.',
         },
         {
@@ -586,7 +599,12 @@ function tableData(
           align: 'left',
           sortable: true,
           sortKey: 'pipelineRaw',
-          hint: 'Value of all deals currently open on this board, in its own currency. Boards are never converted or added together.',
+          // No `direction`, so no change column — and that is the point. This is a
+          // CURRENT STOCK, not a flow over the selected range ("not affected by the date
+          // range", per the metric's own caveat), so a period-over-period change has
+          // nothing to compare against. The hint says so, which turns an apparent
+          // omission into a statement.
+          hint: 'Value of all deals currently open on this board, in its own currency. A current total rather than a period measure, so it has no period-over-period change. Boards are never converted or added together.',
         },
         {
           key: 'cycle',
@@ -594,6 +612,7 @@ function tableData(
           align: 'left',
           sortable: true,
           sortKey: 'cycleRaw',
+          direction: 'down_good', // a shorter cycle is the good direction
           hint: 'Average days from creation to close, across won and lost deals.',
         },
       ],
@@ -621,6 +640,21 @@ function tableData(
             fmtCurrency(n, b.currency),
           ),
           ...num('cycle', 18 * bias * jitter(r, 0.2), fmtDays),
+          // Previous-period values for the three columns that carry a change. Drawn from
+          // the SAME rng and AFTER the current values, so adding them moved no number
+          // already on the page — a seeded generator only stays comparable if new draws
+          // go on the end. Pipeline gets none: see its column's comment.
+          //
+          // ⚠️ Each must be in the SAME UNITS as the value it's compared against, which is
+          // the column's sortKey — so `winPrev` is whole percent, matching `winRaw`, not
+          // the 0–1 rate `win` is. It was the rate first, and the table read "9123.4%".
+          //
+          // ±12%: enough that boards differ and some changes land inside the 5% dead band
+          // (which is the band doing its job, not a bug), without the ±25% that made every
+          // quarter look like a crisis.
+          winPrev: Math.round(win * jitter(r, 0.12) * 100),
+          dealPrev: 3450 * bias * jitter(r, 0.12),
+          cyclePrev: 18 * bias * jitter(r, 0.12),
         }
       }),
     }

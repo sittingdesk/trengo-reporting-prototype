@@ -19,6 +19,7 @@ import { getMetric } from '@/data/metrics'
 import { resolveEmptyState, COPY } from '@/data/emptyStates'
 import { formatValue, fmtDuration } from '@/lib/format'
 import { metricValue, filterSignature } from '@/lib/mock'
+import { deltaOf, toneClassFor, type Direction } from '@/lib/delta'
 import { CHART_HEIGHT } from '@/lib/chart'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
@@ -223,48 +224,21 @@ const deltaEligible = computed(() => {
   return resultType.value === 'time_series' && sample.value?.lines?.length === 1
 })
 
-/** Movement smaller than this is noise, not news — below it the delta shows the change
- *  but stays neutral. Previously 0.05%, which made a 0.2% wobble render as a red alarm
- *  and left whole pages with no uncoloured card at all. 5% matches the noise floor the
- *  comparison framework uses for efficiency metrics; per-metric overrides (pipeline value
- *  and win rate are genuinely more volatile) would attach to MetricDef. */
-const FLAT_BAND_PCT = 5
-
 // Delta — direction-aware (lower-is-better metrics invert the colour).
+//
+// The rules live in @/lib/delta now, because the sales table shows one per cell and two
+// implementations would drift. The mapping below is where this file's two optional
+// booleans become the explicit direction that helper takes: per-metric band overrides
+// (pipeline value and win rate are genuinely more volatile) would attach to MetricDef.
 const delta = computed(() => {
   const m = metric.value
   const s = sample.value
   if (!m || !s || m.status !== 'ready' || !deltaEligible.value) return null
-  const pct = ((s.value - s.previous) / (s.previous || 1)) * 100
-  // Arrow direction is a fact at any size; only the JUDGEMENT needs a threshold.
-  const up = pct > 0.05
-  const down = pct < -0.05
-  // One ordered scale over signed change, so every value lands in exactly one band —
-  // no gap where a change matches no rule. Positive = moved the good way.
-  const signed = m.lowerIsBetter ? -pct : pct
-  const tone = m.neutral
-    ? 'neutral'
-    : signed >= FLAT_BAND_PCT
-      ? 'good'
-      : signed <= -FLAT_BAND_PCT
-        ? 'bad'
-        : 'flat'
-  return { pct: `${Math.abs(pct).toFixed(1)}%`, up, down, tone }
+  const direction: Direction = m.neutral ? 'neutral' : m.lowerIsBetter ? 'down_good' : 'up_good'
+  return deltaOf(s.value, s.previous, direction)
 })
 
-/** leaf-600 rather than leaf-500: at the 12px this renders, leaf-500 is 3.55:1 on white
- *  and fails WCAG AA (leaf-600 is 5.14:1). ⚠️ error-500 is 4.13:1 and also fails, but
- *  it's the only error stop in design.md — fixing it needs a darker token. */
-const toneClass = computed(() => {
-  switch (delta.value?.tone) {
-    case 'good':
-      return 'text-leaf-600'
-    case 'bad':
-      return 'text-error-500'
-    default:
-      return 'text-grey-600' // flat (too small to matter) and neutral (not ours to judge)
-  }
-})
+const toneClass = computed(() => toneClassFor(delta.value?.tone))
 
 // Delta row exists ONLY in the value state (fully hidden in every empty state),
 // and not during the "no events" demo (no events → nothing to compare).

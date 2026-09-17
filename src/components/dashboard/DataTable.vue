@@ -4,6 +4,8 @@
 // and scannable/rankable even with many rows (e.g. 50 agents). No "Load more".
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import type { TableColumn } from '@/lib/mock'
+import Icon from '@/components/Icon.vue'
+import { deltaOf, toneClassFor } from '@/lib/delta'
 import { Tooltip } from '@/components/ui/tooltip'
 
 const props = withDefaults(
@@ -90,6 +92,33 @@ const sortedRows = computed(() => {
   })
 })
 
+/**
+ * Period-over-period change per cell, computed once per render rather than per reference.
+ *
+ * Two conditions, both required: the column states which way is good (`direction`), and
+ * the row carries a `<key>Prev` raw value. A column with no direction shows no change —
+ * that is how Pipeline opts out, and it means a column can never render a change whose
+ * meaning nobody decided.
+ *
+ * Same rules as a metric card's delta, because it is the same function: ±5% before any
+ * colour, an arrow from ±0.05%, unsigned text. A table that judged a 3% wobble while the
+ * card beside it called the same move nothing would be the worst of both.
+ */
+const cellDeltas = computed(() =>
+  sortedRows.value.map((row) => {
+    const out: Record<string, ReturnType<typeof deltaOf> | undefined> = {}
+    for (const col of props.columns) {
+      if (!col.direction) continue
+      const prev = row[`${col.key}Prev`]
+      const current = row[sortKeyOf(col)]
+      if (typeof prev === 'number' && typeof current === 'number') {
+        out[col.key] = deltaOf(current, prev, col.direction)
+      }
+    }
+    return out
+  }),
+)
+
 // Bottom fade — hints there's more to scroll; hides once the last row is reached.
 const scroller = ref<HTMLElement | null>(null)
 const showFade = ref(false)
@@ -168,6 +197,27 @@ watch(sortedRows, () => nextTick(updateFade))
               >{{ initials(String(row[col.key])) }}</span>
               {{ row[col.key] }}
             </span>
+            <!-- Value, then its change — inline, so a delta costs the row no height and
+                 `tableBodyHeight`'s 41px per row stays true. The arrow carries the sign
+                 and the direction, which is what keeps this readable when the colour
+                 can't be (error-500 is 4.13:1 at this size — flagged, not fixed here). -->
+            <template v-else-if="cellDeltas[i]?.[col.key]">
+              <span class="inline-flex items-baseline gap-1.5">
+                {{ row[col.key] }}
+                <span class="inline-flex items-center gap-0.5 text-xs font-medium">
+                  <Icon
+                    v-if="cellDeltas[i][col.key]!.up || cellDeltas[i][col.key]!.down"
+                    :name="cellDeltas[i][col.key]!.up ? 'TrendUp' : 'TrendDown'"
+                    :size="14"
+                    class="shrink-0 self-center"
+                    :class="toneClassFor(cellDeltas[i][col.key]!.tone)"
+                  />
+                  <span :class="toneClassFor(cellDeltas[i][col.key]!.tone)">{{
+                    cellDeltas[i][col.key]!.pct
+                  }}</span>
+                </span>
+              </span>
+            </template>
             <template v-else>{{ row[col.key] }}</template>
           </td>
         </tr>
