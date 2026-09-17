@@ -87,3 +87,19 @@ export function spanClass(widget: Widget): string {
   // is not. `newRow` pushes the widget back to column 1 (literal class — Tailwind JIT).
   return isMetricWidget(widget) && widget.newRow ? `${base} lg:col-start-1` : base
 }
+
+/**
+ * The body height a DataTable needs for `rows` rows — header + rows, no slack.
+ *
+ * Row geometry lives here rather than being guessed at the call site: a header row is
+ * 25px (12px text + `pb-2` + the 1px rule) and a body row is 41px (14/20 text + `py-2.5`
+ * + a 1px border), with the last border not counted because nothing follows it.
+ *
+ * Capped at the full-width table's 288, so a list that grows scrolls instead of pushing
+ * the card down the page. A table that states its height this way keeps the healthy
+ * render and the empty/error states on the same number — which is the whole point of
+ * MetricBox's BODY_HEIGHT map, applied to a table whose row count we know up front.
+ */
+export function tableBodyHeight(rows: number): number {
+  return Math.min(288, 25 + rows * 41 - 1)
+}

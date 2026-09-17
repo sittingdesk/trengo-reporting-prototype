@@ -135,7 +135,7 @@ export const TEMPLATES: Template[] = [
       // declares its own currency, at which point a single "pipeline value" is summing
       // euros and dollars. The four metrics still exist and stay addable from the widget
       // library; what changed is that this page says which board it's talking about.
-      { metricId: 'sales_by_board', span: 6, newRow: true },
+      { metricId: 'sales_by_board' },
     ],
   },
   {

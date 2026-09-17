@@ -7,6 +7,9 @@
 // (the neutral empty state) lives in src/data/emptyStates.ts.
 
 /** Controlled vocab from §6. */
+import { BOARDS } from '@/data/boards'
+import { tableBodyHeight } from '@/lib/widgetLayout'
+
 export type Unit =
   | 'count'
   | 'seconds'
@@ -532,7 +535,10 @@ export const METRICS: MetricDef[] = [
     resultType: 'table',
     status: 'ready',
     category: 'sales',
-    bodyHeight: 200, // 274px card — the same footprint as Customer satisfaction
+    // Exactly the rows it has — no reserved slack under the last board. Full width, so
+    // it owns its row and nothing sits beside it to go ragged against; the 160/274/362
+    // ladder only has to hold for cards that share a row.
+    bodyHeight: tableBodyHeight(BOARDS.length),
     caveat:
       'Deal metrics for each Boards pipeline in this period. Amounts are shown in each board’s own currency and are never converted, so they don’t add up to a workspace total.',
   },
