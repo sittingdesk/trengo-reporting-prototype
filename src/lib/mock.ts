@@ -228,6 +228,10 @@ const CALLS_PER_WEEK = 90 // calls_volume's base
 const INBOUND_SHARE = 0.32 // per call_volume's inbound/outbound split
 const ABANDON_RATE = 0.16 // missed_calls' base
 const ANSWERED_QUEUE_WAIT = 42 // time_to_answer's base
+/** Share of calls that carry a team at all. VoIP1 has no team signal anywhere, and ~47% of
+ *  VoIP2 calls get none either (mostly unanswered) — so calls_by_team is roughly half of
+ *  Total calls, and is supposed to look that way. */
+const TEAM_COVERAGE = 0.5
 
 /**
  * One queue, read by three cards: Missed calls, Time to answer and Average wait time.
@@ -505,6 +509,34 @@ export function metricValue(
       note: `Response rate ${fmtPercent(total / offered)}`,
       labels: ['5 ★', '4 ★', '3 ★', '2 ★', '1 ★'],
       series: counts,
+    }
+  }
+
+  // Calls per team — a COUNT, so unlike the wait durations it grows with the window.
+  //
+  // Deliberately reconciles with NOTHING: the registry says "Totals will not match
+  // voip_total_calls: VoIP1 volume is fully excluded (no team signal exists for it), and
+  // ~47% of VoIP2 calls get no team either (mostly unanswered — expected)." So the bars are
+  // modelled at roughly half of `calls_volume` and the card carries a footnote saying why.
+  // Making them add up to Total calls would be the comfortable lie.
+  //
+  // Must sit above the generic breakdown fallback, which spreads a base across CHANNELS.
+  if (def.id === 'calls_by_team') {
+    const attributed = base * TEAM_COVERAGE * Math.sqrt(days / 7) * chFactor * tmFactor
+    const teams = tm === 'all' ? TEAMS : TEAMS.filter((t) => tm.split(',').includes(t.id))
+    const rows = teams
+      .map((t) => ({
+        label: t.label,
+        // Uneven on purpose — an even split across five teams reads as placeholder data.
+        value: Math.max(1, Math.round((attributed / teams.length) * jitter(rng, 0.6))),
+      }))
+      .sort((a, b) => b.value - a.value) // busiest team first, as the channel table ranks
+    const total = rows.reduce((a, r) => a + r.value, 0)
+    return {
+      value: total,
+      previous: total * jitter(rng, 0.2),
+      labels: rows.map((r) => r.label),
+      series: rows.map((r) => r.value),
     }
   }
 

@@ -187,11 +187,13 @@ export const TEMPLATES: Template[] = [
       { metricId: 'avg_call_duration' },
       { metricId: 'shortest_call_duration' },
       { metricId: 'longest_call_duration' },
-      // Full width, and no `newRow` needed: at span 12 the grid's sparse flow breaks the
-      // row by itself. It was narrowed to 6 only to pair with the wait-time trend below,
-      // and alone at that width it sat beside a 585px hole — chart-shaped, where the
-      // trailing gaps this page treats as deliberate are KPI-shaped.
-      { metricId: 'created_vs_closed' },
+      // Back to half width with a partner beside it. It went full width when the wait-time
+      // trend was retired and it was left alone next to a 585px hole; Calls by team is
+      // exactly the span-6 neighbour it lost. `newRow` because the KPI block above can
+      // leave a trailing gap, and without it the grid pulls this 274px chart up beside two
+      // 160px cards.
+      { metricId: 'created_vs_closed', span: 6, newRow: true },
+      { metricId: 'calls_by_team', span: 6 },
       // Temporarily hidden — bring back later. Average queue wait per day, which is the
       // Time to answer KPI two cards above at a finer grain; the page carried both a number
       // and a chart of one measure. Metric, mock branch and empty state all stay, so it is

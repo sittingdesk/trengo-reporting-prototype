@@ -35,6 +35,7 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   time_to_answer: { noun: 'answered calls', icon: 'Phone' },
   average_wait_time: { noun: 'queued calls', icon: 'Phone' },
   longest_wait_time: { noun: 'answered calls', icon: 'Phone' },
+  calls_by_team: { noun: 'calls', icon: 'Phone' },
   avg_call_duration: { noun: 'calls', icon: 'Phone' },
   shortest_call_duration: { noun: 'calls', icon: 'Phone' },
   longest_call_duration: { noun: 'calls', icon: 'Phone' },

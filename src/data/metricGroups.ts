@@ -96,6 +96,7 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
       'avg_call_duration',
       'shortest_call_duration',
       'longest_call_duration',
+      'calls_by_team',
       'voip_calls_by_day_hour',
     ],
   },

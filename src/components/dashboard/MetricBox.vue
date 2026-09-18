@@ -493,9 +493,14 @@ const skeletonBars = computed(() =>
           :legend="false"
           :unit="metric.unit === 'seconds' ? 'duration' : 'count'"
           :show-all-labels="true"
-          :height="sample?.secondary ? CHART_HEIGHT - 52 : CHART_HEIGHT"
+          :height="CHART_HEIGHT - (sample?.secondary ? 52 : 0) - (metric.footnote ? 24 : 0)"
         />
-        <p v-if="metric.footnote" class="mt-2 text-xs text-grey-500">{{ metric.footnote }}</p>
+        <!-- A footnote is layout too, so the chart gives back exactly what it takes (mt-2 =
+             8 + a 16px line = 24) and the card still measures 274px beside any other chart.
+             Same arrangement as the headline above. It has to stay ONE line for that to
+             hold — at the narrowest span-6 card the interior is ~408px, which is about 70
+             characters at 12px, so keep footnote copy well under that. -->
+        <p v-if="metric.footnote" class="mt-2 text-xs leading-4 text-grey-500">{{ metric.footnote }}</p>
       </div>
 
       <!-- Donut (share of a total across segments) -->

@@ -327,6 +327,47 @@ export const METRICS: MetricDef[] = [
       "Average time callers wait in the queue, including calls that are missed or abandoned. Time in the phone menu isn't counted.",
   },
   {
+    // registry: calls_by_team [Operate] — COUNT(*) GROUP BY agent_team_name.
+    //
+    // This was HELD since September, and the block was specific: neither team field could
+    // carry a COUNT. ticket_team_name had ~0.7% coverage (queue routing was never written
+    // back to the ticket), and agent_team_name FANNED OUT — one row per team an agent
+    // belonged to, so a call answered by someone in three teams counted three times. The
+    // question we wrote down was "can a call be attributed to exactly one team?".
+    //
+    // The registry answers it, verbatim: "Safe to sum across teams as of 2026-08-27 —
+    // trengodb__voip_call_agent_teams was fixed to dedupe to one row per call
+    // (is_primary_team), so this isn't measuring an inflated total the way it would have
+    // been before that fix." Coverage moved with it, ~0.7% → ~95% for answered calls.
+    // Note they solved it differently from how we asked: we wanted the ROUTED QUEUE team,
+    // they gave the ANSWERING AGENT's primary team. Fine for a count; it's what the caveat
+    // below has to describe, and it's why an unanswered call has no team at all.
+    //
+    // Single series on purpose: the entry is COUNT(*) with no voip_call_type, so an
+    // inbound/outbound split would be a second ask. The field is on the same table and
+    // clean if we ever want it.
+    id: 'calls_by_team',
+    label: 'Calls by team',
+    unit: 'count',
+    resultType: 'breakdown',
+    status: 'ready',
+    category: 'voice',
+    base: 90, // calls_volume's base — the coverage factor is applied in mock.ts
+    // No lowerIsBetter and no neutral: a breakdown never renders a delta, so a direction
+    // here would be decoration. Volume isn't good or bad on its own either way.
+    caveat:
+      "Calls grouped by the team of the agent who handled them. A call nobody answered has no team, so it isn't counted — which is why the bars add up to less than Total calls.",
+    // The registry's own caveat, made visible instead of buried: "Totals will not match
+    // voip_total_calls: VoIP1 volume is fully excluded (no team signal exists for it), and
+    // ~47% of VoIP2 calls get no team either (mostly unanswered — expected)." Without a
+    // visible line, the first person to add the bars up and compare them to Total calls
+    // files a bug. Short on purpose — it must not wrap, or the card outgrows the chart
+    // beside it (see the height arithmetic in MetricBox's breakdown branch); the why is one
+    // hover away in the caveat.
+    footnote: 'Fewer than Total calls — some calls have no team.',
+    csvColumns: { dimension: 'team', measure: 'calls' },
+  },
+  {
     // registry: voip_longest_wait_time [Operate] — now page-tagged, closing the "which
     // one does the Linear ticket mean" question. MAX(voip_queue_wait_seconds), no grouping,
     // so it shares the QUEUE basis with Time to answer, not the total-wait basis.
