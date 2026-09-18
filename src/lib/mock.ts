@@ -596,20 +596,15 @@ export function metricValue(
   }
 
   // The two queue-wait cards. Same queue, two populations — the whole reason they're two
-  // cards, and the reason they share one draw (see voiceQueue). Each carries its own
-  // population as the supporting figure, so the difference is visible without reading a
-  // tooltip: "25 answered" beside "29 queued" is four people who gave up.
+  // cards, and the reason they share one draw (see voiceQueue).
+  // Each briefly carried its population as a supporting figure ("24 answered" / "29
+  // queued") so the pair read apart without a tooltip. Removed: both were specified as a
+  // single value, and the figure was a differentiator nobody asked for. They are told apart
+  // by title and tooltip, like every other pair on the page.
   if (def.id === 'time_to_answer' || def.id === 'average_wait_time') {
     const q = voiceQueue(signature, days, chFactor, tmFactor)
-    const answeredOnly = def.id === 'time_to_answer'
-    const value = answeredOnly ? q.answeredWait : q.blendedWait
-    return {
-      value,
-      previous: value * jitter(rng, 0.18),
-      secondary: answeredOnly
-        ? `${fmtCount(q.answered)} answered`
-        : `${fmtCount(q.inbound)} queued`,
-    }
+    const value = def.id === 'time_to_answer' ? q.answeredWait : q.blendedWait
+    return { value, previous: value * jitter(rng, 0.18) }
   }
 
   // Share of DECIDED deals that were won — open deals aren't counted, which the caveat
