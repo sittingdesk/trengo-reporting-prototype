@@ -12,9 +12,13 @@
 // shrinks. That is the cheapest possible bet on where the catalogue is going.
 //
 // Kept HERE rather than as a field on MetricDef: `src/data/metrics.ts` mirrors the data
-// team's registry, and this grouping is ours. The cost is that a new metric has to be
-// added to a subject below, or it won't be offerable — which `orphanedMetricIds()` in the
-// library's own dev check will tell you about.
+// team's registry, and this grouping is ours. The cost is that a new metric has to be added
+// to a subject below, or it won't be offerable — silently. ⚠️ An earlier version of this
+// note promised an `orphanedMetricIds()` dev check would catch that; no such function was
+// ever written, so nothing warns you today. Worth building if this list grows.
+//
+// It cuts the other way too, which is the useful part: commenting an id out below is how a
+// metric is taken out of circulation without deleting it.
 
 export interface MetricSubject {
   id: string
@@ -81,7 +85,12 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
       'call_volume',
       'missed_calls',
       'time_to_answer',
-      'time_to_answer_over_time',
+      // Temporarily hidden — bring back later, with the widget it was parked alongside
+      // (see the Operate template). Commenting it out here is what actually takes it out of
+      // circulation: the library builds its list from THIS file, so a metric that is off
+      // every page but still listed here is one click from coming back, which is not
+      // "removed" by any reading a user would recognise.
+      // 'time_to_answer_over_time',
       'longest_wait_time',
       'avg_call_duration',
       'shortest_call_duration',
