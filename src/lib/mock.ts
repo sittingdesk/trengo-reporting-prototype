@@ -517,8 +517,8 @@ export function metricValue(
   // Deliberately reconciles with NOTHING: the registry says "Totals will not match
   // voip_total_calls: VoIP1 volume is fully excluded (no team signal exists for it), and
   // ~47% of VoIP2 calls get no team either (mostly unanswered — expected)." So the bars are
-  // modelled at roughly half of `calls_volume` and the card carries a footnote saying why.
-  // Making them add up to Total calls would be the comfortable lie.
+  // modelled at roughly half of `calls_volume`, and the card's caveat says why. Making them
+  // add up to Total calls would be the comfortable lie.
   //
   // Must sit above the generic breakdown fallback, which spreads a base across CHANNELS.
   if (def.id === 'calls_by_team') {

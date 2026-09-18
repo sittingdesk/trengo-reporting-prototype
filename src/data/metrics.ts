@@ -357,14 +357,12 @@ export const METRICS: MetricDef[] = [
     // here would be decoration. Volume isn't good or bad on its own either way.
     caveat:
       "Calls grouped by the team of the agent who handled them. A call nobody answered has no team, so it isn't counted — which is why the bars add up to less than Total calls.",
-    // The registry's own caveat, made visible instead of buried: "Totals will not match
+    // No footnote. One briefly sat under the chart — "Fewer than Total calls — some calls
+    // have no team." — because the registry warns that "Totals will not match
     // voip_total_calls: VoIP1 volume is fully excluded (no team signal exists for it), and
-    // ~47% of VoIP2 calls get no team either (mostly unanswered — expected)." Without a
-    // visible line, the first person to add the bars up and compare them to Total calls
-    // files a bug. Short on purpose — it must not wrap, or the card outgrows the chart
-    // beside it (see the height arithmetic in MetricBox's breakdown branch); the why is one
-    // hover away in the caveat.
-    footnote: 'Fewer than Total calls — some calls have no team.',
+    // ~47% of VoIP2 calls get no team either". Removed on Jeff's call; the caveat above
+    // still carries the explanation, so the mismatch is disclosed on hover rather than
+    // always on screen.
     csvColumns: { dimension: 'team', measure: 'calls' },
   },
   {
