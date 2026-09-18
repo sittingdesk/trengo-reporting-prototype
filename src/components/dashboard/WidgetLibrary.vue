@@ -17,6 +17,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from '@/components/Icon.vue'
 import { Badge } from '@/components/ui/badge'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import FilterChip from '@/components/layout/filters/FilterChip.vue'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useWorkspace } from '@/composables/useWorkspace'
 import { useSettings } from '@/composables/useSettings'
@@ -80,8 +82,62 @@ const sections = computed(() =>
   })).filter((s) => s.rows.length > 0),
 )
 
+/**
+ * The metric-type filter.
+ *
+ * It FILTERS rather than jumps to a section. The catalogue is seven groups and thirty
+ * rows, so scrolling to Deals still leaves you picking one row out of thirty with the
+ * other six groups either side of it; narrowing the list is the thing that actually makes
+ * the choice smaller.
+ *
+ * Options are derived from `sections`, not from METRIC_SUBJECTS, so the filter can only
+ * ever offer a group that has something in it — the capability gate removes SLA metrics
+ * from both at once, and an empty group would be a dead option.
+ */
+const subjectFilter = ref('all')
+const filterOpen = ref(false)
+
+const filterOptions = computed(() => [
+  {
+    id: 'all',
+    label: 'All metrics',
+    count: sections.value.reduce((n, s) => n + s.rows.length, 0),
+  },
+  ...sections.value.map((s) => ({ id: s.id, label: s.label, count: s.rows.length })),
+])
+
+const filterLabel = computed(
+  () => filterOptions.value.find((o) => o.id === subjectFilter.value)?.label ?? 'All metrics',
+)
+
+const visibleSections = computed(() =>
+  subjectFilter.value === 'all'
+    ? sections.value
+    : sections.value.filter((s) => s.id === subjectFilter.value),
+)
+
 /** What a screen reader hears after an add — the only feedback that isn't visual. */
 const announcement = ref('')
+
+function pickSubject(id: string) {
+  subjectFilter.value = id
+  filterOpen.value = false
+  // Filtering changes the whole list without moving focus, so the only signal a screen
+  // reader gets is this one. Same region the adds announce through — both answer "what
+  // just changed".
+  const opt = filterOptions.value.find((o) => o.id === id)
+  announcement.value =
+    id === 'all'
+      ? `Showing all ${opt?.count ?? 0} widgets.`
+      : `Showing ${opt?.count ?? 0} ${opt?.label} widgets.`
+}
+
+// A group that stops existing — its only metrics gated away while the panel is open, which
+// it can be, since the panel is non-modal and the SLA switch is two panels over — would
+// leave the chip naming a group and the list showing nothing.
+watch(filterOptions, (opts) => {
+  if (!opts.some((o) => o.id === subjectFilter.value)) subjectFilter.value = 'all'
+})
 
 function add(metricId: string) {
   const target = widgetLibrary.value
@@ -129,9 +185,13 @@ function onKeydown(e: KeyboardEvent) {
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
-// A stale announcement read out on reopen would be a lie about what just happened.
+// A stale announcement read out on reopen would be a lie about what just happened. The
+// filter resets with it: a panel that reopens already narrowed hides five sixths of the
+// catalogue behind a chip you have to notice — the rule NewDashboardDialog already follows
+// for its own state.
 watch(open, (isOpen) => {
   if (!isOpen) announcement.value = ''
+  else subjectFilter.value = 'all'
 })
 </script>
 
@@ -173,18 +233,64 @@ watch(open, (isOpen) => {
         Adding to <span class="font-medium text-grey-800">{{ report.name }}</span>
       </p>
 
+      <!-- Metric type. The dashboard's own filter chip, not a new control: this is a
+           filter over a list, which is the thing that chip means everywhere else on the
+           page, and its `active` state (leaf) already says "something is being narrowed"
+           — the one fact you need when the list is short and you've forgotten why.
+           Content width rather than full width, so it reads as a control rather than as a
+           required field. The menu is the app's canonical single-select list: a leaf
+           Check on the chosen row, the same markup the break-down menu uses. -->
+      <div class="px-4 pb-3 pt-1">
+        <Popover v-model:open="filterOpen">
+          <PopoverTrigger as-child>
+            <FilterChip
+              icon="Layers"
+              :active="subjectFilter !== 'all'"
+              label="Metric type"
+              :value="filterLabel"
+            >{{ filterLabel }}</FilterChip>
+          </PopoverTrigger>
+          <PopoverContent align="start" class="p-1">
+            <button
+              v-for="opt in filterOptions"
+              :key="opt.id"
+              type="button"
+              class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm transition-colors hover:bg-grey-100 focus:outline-none focus-visible:bg-grey-100"
+              :class="subjectFilter === opt.id ? 'font-semibold text-grey-900' : 'text-grey-700'"
+              @click="pickSubject(opt.id)"
+            >
+              <Icon
+                name="Check"
+                :size="16"
+                class="shrink-0"
+                :class="subjectFilter === opt.id ? 'text-leaf-500' : 'text-transparent'"
+              />
+              <span class="min-w-0 flex-1 truncate">{{ opt.label }}</span>
+              <!-- How many widgets you'd be choosing between. Cheap, and it's the
+                   question the label alone can't answer. -->
+              <span class="shrink-0 text-xs font-medium tabular-nums text-grey-600">
+                {{ opt.count }}
+              </span>
+            </button>
+          </PopoverContent>
+        </Popover>
+      </div>
+
       <!-- The sidebar's list container, down to the scrollbar: `gap-2 px-2 py-1` with
            `overflow-y-auto scroll-thin`, rather than the ScrollArea component. Same
            spacing rhythm, same thin scrollbar — the two lists scroll identically. -->
       <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-1 pb-4 scroll-thin">
-          <section v-for="section in sections" :key="section.id">
+          <section v-for="section in visibleSections" :key="section.id">
             <!-- Sticky so the subject stays legible while you scan a long group (Calls is
                  ten rows). White ground, or the rows would show through it. -->
             <!-- The sidebar separates its two groups with a gap and no heading, on the
                  grounds that two labels organised less than they labelled. Seven subjects
                  is the case that flips it back: without a heading you can't tell where
                  Calls ends and Deals starts. Sticky, so it survives a long group. -->
+            <!-- Hidden when one group is showing: the chip 40px above already names it,
+                 and a heading that repeats the filter is a line of chrome saying nothing. -->
             <h3
+              v-if="subjectFilter === 'all'"
               class="sticky top-0 z-[1] bg-white px-2.5 pb-1 pt-2 text-xs font-semibold text-grey-600"
             >
               {{ section.label }}
