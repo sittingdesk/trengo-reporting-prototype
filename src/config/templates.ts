@@ -183,10 +183,16 @@ export const TEMPLATES: Template[] = [
       { metricId: 'avg_call_duration' },
       { metricId: 'shortest_call_duration' },
       { metricId: 'longest_call_duration' },
-      // Starts a new row: the KPI block above leaves a trailing gap, and without this the
-      // grid would pull this 274px chart up beside two 160px cards.
-      { metricId: 'created_vs_closed', span: 6, newRow: true }, // 50/50 with the wait-time trend
-      { metricId: 'time_to_answer_over_time', span: 6 }, // the Time to answer KPI, per day
+      // Full width, and no `newRow` needed: at span 12 the grid's sparse flow breaks the
+      // row by itself. It was narrowed to 6 only to pair with the wait-time trend below,
+      // and alone at that width it sat beside a 585px hole — chart-shaped, where the
+      // trailing gaps this page treats as deliberate are KPI-shaped.
+      { metricId: 'created_vs_closed' },
+      // Temporarily hidden — bring back later. Average queue wait per day, which is the
+      // Time to answer KPI two cards above at a finer grain; the page carried both a number
+      // and a chart of one measure. Metric, mock branch and empty state all stay, so it is
+      // still addable from the widget library and restoring it here is one line.
+      // { metricId: 'time_to_answer_over_time', span: 6 },
       { metricId: 'workload_by_agent' },
       { metricId: 'performance_by_channel' },
     ],
