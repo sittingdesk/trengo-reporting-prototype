@@ -198,31 +198,51 @@ export const METRICS: MetricDef[] = [
     caveat:
       'Share of tickets closed within their resolution target. Counts every measured ticket, including those the AI resolved on its own.',
   },
+  // ── Satisfaction: two widgets, two questions ───────────────────────────────────────
+  // Split from one card that carried both halves — an 84% headline over the rating bars.
+  // Adding the verdict to Overview would have reprinted the top half of the Improve card
+  // on another page, so the halves became the widgets: a number with no chart, and a chart
+  // with no number. They read one shared set of responses (`csatResponses` in mock.ts), so
+  // the rate and the bars cannot disagree.
+  //
+  // ⚠️ DATA ASK — NEITHER of these is in the registry. It has exactly two survey entries,
+  // `csat_average_score` (AVG of the raw rating) and `csat_response_rate`, and the average
+  // is the one thing neither widget shows: rescaling an average into a percentage is what
+  // the old "92%" card did, borrowing the credibility of a rate for a different
+  // calculation. Both asks derive from `csat_ticket_rating` on `trengodb__csat_tickets`,
+  // which already exists — no new events, unlike the SLA asks:
+  //   csat_satisfied_rate      → SAFE_DIVIDE(COUNTIF(csat_ticket_rating >= 4), COUNT(*))
+  //   csat_rating_distribution → COUNT(*) GROUP BY csat_ticket_rating
+  //
+  // ⚠️ BOTH ASSUME A 1–5 SCALE. The registry only says "raw scale as stored in Trengo" and
+  // never says what it is; 1–5 is what the original copy spec stated. If it's 1–10 or
+  // thumbs, the 4–5 bucketing and the bar count both change.
   {
-    // registry: csat_average_score (no pages tag) — we place it on Improve
-    // registry: needs TWO small entries, both derived from csat_ticket_rating on
-    // trengodb__csat_tickets (which exists — no new events, unlike the SLA asks):
-    //   headline → SAFE_DIVIDE(COUNTIF(csat_ticket_rating >= 4), COUNT(*))
-    //   bars     → COUNT(*) GROUP BY csat_ticket_rating
-    //
-    // Replaced a value card showing "92%", which was csat_average_score (AVG of the raw
-    // rating) rescaled to look like a percentage. The registry is explicit that it is an
-    // "average rating on the native CSAT scale, NOT a row count" — so the old card
-    // borrowed the credibility of a rate for a different calculation. Every support tool
-    // headlines a rate and supports it with the spread; nobody headlines a raw average.
-    //
-    // ⚠️ ASSUMES A 1–5 SCALE. The registry only says "raw scale as stored in Trengo" and
-    // never says what it is; 1–5 is what the original copy spec stated. If it's 1–10 or
-    // thumbs, the 4–5 bucketing and the bar count both change.
-    id: 'avg_csat',
+    id: 'csat_satisfied_rate',
     label: 'Customer satisfaction',
     unit: 'percentage',
-    resultType: 'breakdown',
+    resultType: 'value',
     status: 'ready',
     category: 'quality',
     base: 0.83, // share rated 4–5
+    // Higher is better and that is knowable, so this is neither `lowerIsBetter` nor
+    // `neutral` — a satisfaction rate is the clearest case in the registry for a direction.
     caveat:
-      'Share of answered surveys rated 4 or 5 out of 5. The bars show every rating, so a good average with a tail of unhappy customers is still visible.',
+      "Share of answered surveys rated 4 or 5 out of 5. Only answered surveys count, so it says nothing about the customers who didn't reply.",
+  },
+  {
+    id: 'csat_rating_distribution',
+    label: 'Satisfaction ratings',
+    // The unit describes the BARS (a count per rating), not a rate — the percentage lives
+    // on the card above. Renamed from `avg_csat`, which named an average while rendering
+    // first a rate and now a distribution.
+    unit: 'count',
+    resultType: 'breakdown',
+    status: 'ready',
+    category: 'quality',
+    base: 120, // responses in a 7-day window
+    caveat:
+      'How many responses landed on each rating, 5 down to 1. A good headline with a tail of 1s is a different business from one without, and only the spread shows it.',
     csvColumns: { dimension: 'rating', measure: 'responses' },
   },
   {

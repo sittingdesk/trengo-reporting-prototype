@@ -24,7 +24,10 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   first_response_compliance: { noun: 'tickets with a first-response target', icon: 'Inbox' },
   resolution_compliance: { noun: 'measured tickets', icon: 'Inbox' },
   conversations_by_hour: { noun: 'tickets', icon: 'Inbox' },
-  avg_csat: { noun: 'ratings', icon: 'EmotionSmile' },
+  // Different nouns on purpose: two satisfaction cards reading the identical sentence
+  // would undo the split at exactly the moment there is nothing else to tell them apart.
+  csat_satisfied_rate: { noun: 'answered surveys', icon: 'EmotionSmile' },
+  csat_rating_distribution: { noun: 'ratings', icon: 'EmotionSmile' },
   win_rate: { noun: 'decided deals', icon: 'Target' },
   sales_by_board: { noun: 'deals', icon: 'Target' },
   time_to_answer: { noun: 'calls', icon: 'Phone' },

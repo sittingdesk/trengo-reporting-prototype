@@ -221,6 +221,41 @@ function slaCompliance(signature: string, days: number, chFactor: number, tmFact
   }
 }
 
+/**
+ * One set of survey responses, shared by both satisfaction widgets.
+ *
+ * A helper rather than two branches, for one reason: `metricValue` seeds itself per metric
+ * (`hashString(`${def.id}|${signature}`)`), so two ids get two RNG streams — Customer
+ * satisfaction would headline 84% while Satisfaction ratings' bars implied 81%, for the
+ * same filters, on two pages of the same dashboard.
+ *
+ * Seeded on `csat|<signature>` so BOTH widgets draw the same responses: `slaCompliance()`'s
+ * arrangement above, applied to the other split measure. One set, read twice, cannot drift.
+ *
+ * The shape is deliberately realistic — mostly 5s and 4s with a small unhappy tail, which
+ * is exactly the case a bare average hides and the reason the distribution earns a widget.
+ */
+function csatResponses(signature: string, days: number, chFactor: number, tmFactor: number) {
+  const rng = mulberry32(hashString(`csat|${signature}`))
+  const responses = Math.max(1, Math.round(120 * Math.sqrt(days / 7) * chFactor * tmFactor))
+  // Share of responses per rating, 5★ → 1★. Sums to 1.
+  const shape = [0.62, 0.21, 0.08, 0.05, 0.04].map((w) => Math.max(0.01, w * jitter(rng, 0.25)))
+  const sum = shape.reduce((a, b) => a + b, 0)
+  const counts = shape.map((w) => Math.max(0, Math.round((w / sum) * responses)))
+  const total = counts.reduce((a, b) => a + b, 0) || 1
+  const satisfied = counts[0] + counts[1] // 5★ + 4★
+  // Response rate = answered ÷ surveys SENT — a different denominator from the satisfaction
+  // rate (rated 4–5 ÷ answered), which is why it sits in the ratings card's header rather
+  // than beside a figure: two denominators side by side read as one.
+  // ⚠️ registry `csat_response_rate` is SAFE_DIVIDE(..., <OFFERED_COUNT_TBD>) — the
+  // denominator is undefined, so this figure is illustrative only.
+  const offered = Math.max(
+    total,
+    Math.round(total / Math.min(0.9, Math.max(0.15, 0.34 * jitter(rng, 0.2)))),
+  )
+  return { counts, total, satisfied, offered, rate: satisfied / total }
+}
+
 export function metricValue(
   def: MetricDef,
   signature: string,
@@ -391,27 +426,38 @@ export function metricValue(
     return { value: total, previous: total * jitter(rng, 0.2), labels, lines }
   }
 
-  // CSAT: the distribution IS the metric — the rate and the bars come from one set of
-  // responses so they can't disagree. Shape is deliberately realistic: mostly 5s and 4s
-  // with a small unhappy tail, which is the case a bare average hides.
-  if (def.id === 'avg_csat') {
-    const responses = Math.max(1, Math.round(120 * Math.sqrt(days / 7) * chFactor * tmFactor))
-    // Share of responses per rating, 5★ → 1★. Sums to 1.
-    const shape = [0.62, 0.21, 0.08, 0.05, 0.04].map((w) => Math.max(0.01, w * jitter(rng, 0.25)))
-    const sum = shape.reduce((a, b) => a + b, 0)
-    const counts = shape.map((w) => Math.max(0, Math.round((w / sum) * responses)))
-    const total = counts.reduce((a, b) => a + b, 0) || 1
-    const satisfied = counts[0] + counts[1] // 5★ + 4★
-    // Response rate = answered ÷ surveys SENT — a different denominator from the
-    // satisfaction rate above (answered ÷ answered-and-rated), which is why it sits in the
-    // header rather than on the same line: two denominators side by side read as one.
-    // ⚠️ registry `csat_response_rate` is SAFE_DIVIDE(..., <OFFERED_COUNT_TBD>) — the
-    // denominator is undefined, so this figure is illustrative only.
-    const offered = Math.max(total, Math.round(total / Math.min(0.9, Math.max(0.15, 0.34 * jitter(rng, 0.2)))))
+  // The satisfaction rate — the verdict, on Overview. A number and its denominator; the
+  // spread is the other widget's job. Only `previous` comes from this metric's own rng,
+  // since only the CURRENT period has to agree across the two cards.
+  if (def.id === 'csat_satisfied_rate') {
+    const { satisfied, total, rate } = csatResponses(signature, days, chFactor, tmFactor)
     return {
-      value: satisfied / total,
-      previous: (satisfied / total) * jitter(rng, 0.05),
-      secondary: `${fmtCount(satisfied)} of ${fmtCount(total)} responses`,
+      value: rate,
+      // ±8%, not the ±5% this branch inherited. FLAT_BAND_PCT is 5, so a prior drawn
+      // within ±5% can only ever render a grey delta — the card would look broken in the
+      // same way win_rate did when its clamp pinned it. 8 lets green and red be reached
+      // while satisfaction stays the slow-moving number it is.
+      previous: rate * jitter(rng, 0.08),
+      // No trailing noun, for the reason sla_compliance has none: at 4-up the card is
+      // 213px wide at 1280, and "103 of 120 responses" wraps below the number. The floor
+      // of 160px absorbs it so the row doesn't break, but the card then reads as two lines
+      // where its neighbours read as one. The noun is in the tooltip.
+      secondary: `${fmtCount(satisfied)} of ${fmtCount(total)}`,
+    }
+  }
+
+  // The ratings themselves — the shape, on Improve. NO `secondary`, deliberately: that is
+  // the field that switches MetricBox's breakdown headline on, and a 36px number here would
+  // reprint the Overview card on another page. The bars are the content; the response rate
+  // says how much they're worth.
+  if (def.id === 'csat_rating_distribution') {
+    const { counts, total, offered } = csatResponses(signature, days, chFactor, tmFactor)
+    return {
+      // `value` is the response count, which drives the empty state rather than any
+      // rendered figure — a breakdown shows no headline and no delta. `previous` is
+      // required by the type and goes nowhere; it stays on this metric's own rng.
+      value: total,
+      previous: total * jitter(rng, 0.15),
       note: `Response rate ${fmtPercent(total / offered)}`,
       labels: ['5 ★', '4 ★', '3 ★', '2 ★', '1 ★'],
       series: counts,
@@ -523,9 +569,9 @@ export function metricValue(
 
   // Percentages / rates: bounded, not scaled by volume.
   // The floor is 0.05, not 0.4. Every rate that belongs near the top of its range is
-  // intercepted above (sla_*, *_compliance, missed_calls, win_rate) and avg_csat is a
-  // breakdown, so nothing reaches this clamp today — but a 0.4 floor silently pins any
-  // future sub-40% rate to exactly 40%, which is how win_rate was broken.
+  // intercepted above (sla_*, *_compliance, missed_calls, win_rate, csat_satisfied_rate),
+  // so nothing reaches this clamp today — but a 0.4 floor silently pins any future
+  // sub-40% rate to exactly 40%, which is how win_rate was broken.
   if (def.unit === 'percentage') {
     const value = Math.min(0.99, Math.max(0.05, base * jitter(rng, 0.06)))
     const previous = Math.min(0.99, Math.max(0.05, base * jitter(rng, 0.06)))

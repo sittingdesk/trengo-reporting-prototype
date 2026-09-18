@@ -117,15 +117,18 @@ export const TEMPLATES: Template[] = [
     recommended: true,
     widgets: [
       // 4-up KPI rows via the value-card default (span 3) — the same card width Operate
-      // uses. Grouped by domain, and at this width the groups land on their own rows:
-      // four support KPIs, then the two voice ones, then the full-width heatmap, then
-      // sales. The two-slot gap beside Missed calls is the deliberate trailing gap — it
-      // sits on a domain boundary, and it's where "+ Add widget" will go.
+      // uses. Grouped by domain, and the reading order is the argument: four support KPIs,
+      // then the verdict on them, then voice, then the full-width heatmap, then sales.
+      // One slot is left over at the end of row 2 — the deliberate trailing gap, and it is
+      // exactly the width of the "+ Add widget" tile that fills it in edit mode.
       // Support
       { metricId: 'open_tickets' },
       { metricId: 'assigned_tickets' },
       { metricId: 'first_response_time' },
       { metricId: 'resolution_time_all' },
+      // Quality — the number only. The ratings behind it are a widget of their own, on
+      // Improve, where acting on a tail of 1s belongs.
+      { metricId: 'csat_satisfied_rate' },
       // Voice
       { metricId: 'calls_volume' },
       { metricId: 'missed_calls' },
@@ -193,9 +196,10 @@ export const TEMPLATES: Template[] = [
     name: 'Improve',
     description: 'Where to prioritise change — knowledge, process, automation.',
     recommended: true,
-    // Quality signals live here: avg_csat is our only `quality`-category metric, and
-    // Overview is otherwise volume/efficiency/voice/sales.
-    widgets: [{ metricId: 'avg_csat', span: 6 }],
+    // The ratings, not the rate: the rate is Overview's job (a number you glance at), and
+    // this page is where you'd act on the shape — a healthy headline sitting on a tail of
+    // 1s is the case this chart exists to expose.
+    widgets: [{ metricId: 'csat_rating_distribution', span: 6 }],
   },
   {
     id: 'automate',
