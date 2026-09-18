@@ -148,12 +148,15 @@ const save = () => {
 </script>
 
 <template>
-  <!-- Never sticky, in either mode. This row pinned itself while editing for a while, so
-       the mode's exit stayed reachable down a long report; it isn't worth the chrome.
-       Nothing else in the app is sticky (see DashboardView's header comment) and the mode
-       survives scrolling without it: the grey canvas and the lifted cards are page-wide,
-       so "am I editing" is answered at any depth, and Escape leaves the mode from
-       anywhere without hunting for a button. -->
+  <!-- This row is pinned, but it doesn't pin itself: DashboardView wraps it and the report
+       bar in one sticky block, so there is a single pinned height and no `top` offset to
+       keep in sync. That also means this row must stay TRANSPARENT and in flow — the
+       wrapper paints the ground (which differs by mode), and `rowEl`'s ResizeObserver
+       measures this element to decide when the filters drop their labels, which only works
+       while it still has a width of its own.
+       An earlier version pinned this row by itself and only while editing, which made
+       pinning a property of the mode and read as the mode's chrome. It is both modes now,
+       or neither. -->
   <header ref="rowEl" class="px-8 pt-6">
     <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <h1 class="min-w-0 flex-1">

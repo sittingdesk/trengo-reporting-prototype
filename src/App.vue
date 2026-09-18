@@ -26,7 +26,16 @@ import WidgetLibrary from '@/components/dashboard/WidgetLibrary.vue'
            layout space, so without this a short dashboard (one blank report, nothing to
            scroll) widened the content by 6px and everything shifted sideways when you
            switched to it. -->
-      <main class="scroll-thin flex-1 overflow-y-auto bg-grey-100 [scrollbar-gutter:stable]">
+      <!-- scroll-pt-32 (128px) clears the dashboard's pinned chrome, which is 106px and
+           128px while the "Filters changed" row is up. Scroll padding has to live on the
+           scroll container, so it can only go here. It is not a second copy of that height
+           to keep in sync: being generous only lands a focused control slightly lower than
+           it had to, where a wrong `top` offset would visibly detach the chrome. What needs
+           it is Shift+Tab out of the grid — sequential focus scrolls its target to the very
+           top of the scrollport, i.e. underneath the pinned block. -->
+      <main
+        class="scroll-thin flex-1 overflow-y-auto scroll-pt-32 bg-grey-100 [scrollbar-gutter:stable]"
+      >
         <router-view />
       </main>
     </div>
