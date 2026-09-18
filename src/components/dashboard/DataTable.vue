@@ -200,15 +200,34 @@ watch(sortedRows, () => nextTick(updateFade))
             <!-- Value, then its change — inline, so a delta costs the row no height and
                  `tableBodyHeight`'s 41px per row stays true. The arrow carries the sign
                  and the direction, which is what keeps this readable when the colour
-                 can't be (error-500 is 4.13:1 at this size — flagged, not fixed here). -->
+                 can't be (error-500 is 4.13:1 at this size — flagged, not fixed here).
+                 The change is the cell's OWN size, not a step down. On a card the delta is
+                 12px against a 36px number — 3×, unmistakably another tier. Here it would
+                 be 12 against 14, a ratio of 1.17 that reads as a mistake rather than a
+                 hierarchy. Same size, and the separation comes from tone and the arrow —
+                 which is what MetricBox's header totals already do with a label and its
+                 number at one size.
+                 The value stays primary without being made heavier: inside the 5% band the
+                 change is grey-600 against the cell's grey-700, a shade quieter, and it
+                 only takes a colour once it clears the band. The colour then means "worth
+                 looking at", which is what the band is for. -->
             <template v-else-if="cellDeltas[i]?.[col.key]">
-              <span class="inline-flex items-baseline gap-1.5">
+              <!-- items-center, not items-baseline. Baseline alignment was right while the
+                   change was smaller than the value; now they're the same size their
+                   baselines and centres coincide anyway, and centring stops a 16px icon
+                   hanging below the baseline and growing the row from 41px to 44. -->
+              <span class="inline-flex items-center gap-2">
                 {{ row[col.key] }}
-                <span class="inline-flex items-center gap-0.5 text-xs font-medium">
+                <!-- h-5/leading-5 pins this group to the cell's 20px line box. A 16px
+                     icon is taller than a 14px text baseline allows, so without it the
+                     arrow pushed every row from 41px to 44 — and `tableBodyHeight` says
+                     41, so the rows would have outgrown the body height the card derives
+                     from it. -->
+                <span class="inline-flex h-5 items-center gap-1 leading-5">
                   <Icon
                     v-if="cellDeltas[i][col.key]!.up || cellDeltas[i][col.key]!.down"
                     :name="cellDeltas[i][col.key]!.up ? 'TrendUp' : 'TrendDown'"
-                    :size="14"
+                    :size="16"
                     class="shrink-0 self-center"
                     :class="toneClassFor(cellDeltas[i][col.key]!.tone)"
                   />
