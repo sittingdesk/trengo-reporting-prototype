@@ -355,8 +355,16 @@ export const METRICS: MetricDef[] = [
     base: 90, // calls_volume's base — the coverage factor is applied in mock.ts
     // No lowerIsBetter and no neutral: a breakdown never renders a delta, so a direction
     // here would be decoration. Volume isn't good or bad on its own either way.
+    // "the agent who handled them", not "answered": the team comes from the person who took
+    // the call, not the queue it was routed to, and this counts outbound calls too.
+    // "Calls with no team" rather than naming a reason, because there are two — an
+    // unanswered call has no agent, and VoIP1 carries no team signal at all — and the
+    // second is plumbing a customer shouldn't have to know about.
+    // Lowercase "your total calls", not "Total calls": that card lives on Overview, and a
+    // tooltip that names a card this page doesn't have sends the reader hunting. Same
+    // defect as time_to_answer's old "see Average wait time for that".
     caveat:
-      "Calls grouped by the team of the agent who handled them. A call nobody answered has no team, so it isn't counted — which is why the bars add up to less than Total calls.",
+      'Calls grouped by the team of the agent who handled them. Calls with no team aren\'t counted, so this is fewer than your total calls.',
     // No footnote. One briefly sat under the chart — "Fewer than Total calls — some calls
     // have no team." — because the registry warns that "Totals will not match
     // voip_total_calls: VoIP1 volume is fully excluded (no team signal exists for it), and
