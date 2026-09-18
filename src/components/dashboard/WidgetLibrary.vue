@@ -14,6 +14,13 @@
 // would give us — Escape and a portal — is one listener and `position: fixed`.
 //
 // Mounted once in App.vue, driven by `widgetLibrary` state, so any trigger can open it.
+//
+// It FLOATS: 12px clear of the viewport on three sides, rounded, with a full border. Not a
+// new look — it is the treatment both dialogs already use (`rounded-2xl border border-grey-300
+// bg-white shadow-500`), which is the app's one established "surface above the page". Flush
+// to the edge it read as a second pane of the window; inset it reads as something laid over
+// the report, which is what a non-modal panel is. `overflow-hidden` matters: without it the
+// scrolling list paints over the rounded corners it is supposed to be clipped by.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from '@/components/Icon.vue'
 import { Badge } from '@/components/ui/badge'
@@ -252,16 +259,20 @@ watch(open, (isOpen) => {
   <!-- Slide from the right at design.md §6.1's documented `transform 0.2s`. A Vue
        <Transition> rather than a utility class: `animate-in` / `animate-out` are
        referenced all over this project's shadcn wrappers and emit nothing — there is no
-       animation plugin and no keyframes in index.css. -->
+       animation plugin and no keyframes in index.css.
+       The off-screen position is 100% PLUS the 12px margin below. At a plain
+       `translate-x-full` a floating panel stops 12px short of gone, so a sliver of white
+       and its shadow sit against the right edge for the whole 200ms. If the margin
+       changes, this changes with it. -->
   <Transition
     enter-active-class="transition-transform duration-200"
     leave-active-class="transition-transform duration-200"
-    enter-from-class="translate-x-full"
-    leave-to-class="translate-x-full"
+    enter-from-class="translate-x-[calc(100%+12px)]"
+    leave-to-class="translate-x-[calc(100%+12px)]"
   >
     <aside
       v-if="open && report"
-      class="fixed right-0 top-0 z-40 flex h-full w-[400px] flex-col border-l border-grey-300 bg-white shadow-500"
+      class="fixed inset-y-3 right-3 z-40 flex w-[400px] flex-col overflow-hidden rounded-2xl border border-grey-300 bg-white shadow-500"
       role="region"
       aria-label="Widget library"
     >
