@@ -14,7 +14,7 @@
 // would give us — Escape and a portal — is one listener and `position: fixed`.
 //
 // Mounted once in App.vue, driven by `widgetLibrary` state, so any trigger can open it.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from '@/components/Icon.vue'
 import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
@@ -214,13 +214,37 @@ function onKeydown(e: KeyboardEvent) {
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
+/**
+ * Has the list been scrolled?
+ *
+ * Drives the top edge: a hairline under the panel's own header plus a short fade, both of
+ * which appear only once there is content underneath them. The headings used to be sticky
+ * instead, which meant the panel had a heading pinned under a title under a filter chip —
+ * three layers of label before the first row. The filter answers "which group am I in"
+ * better than a pinned heading did, so the heading can just scroll away with its group.
+ *
+ * Shape borrowed from DataTable's bottom fade, down to the 4px dead zone and the re-check
+ * on data change: filtering shortens the list, and a clamped scrollTop doesn't reliably
+ * fire a scroll event.
+ */
+const listEl = ref<HTMLElement | null>(null)
+const scrolled = ref(false)
+function updateScrolled() {
+  const el = listEl.value
+  if (el) scrolled.value = el.scrollTop > 4
+}
+watch(visibleSections, () => nextTick(updateScrolled))
+
 // A stale announcement read out on reopen would be a lie about what just happened. The
 // filter resets with it: a panel that reopens already narrowed hides five sixths of the
 // catalogue behind a chip you have to notice — the rule NewDashboardDialog already follows
 // for its own state.
 watch(open, (isOpen) => {
   if (!isOpen) announcement.value = ''
-  else subjectFilter.value = 'all'
+  else {
+    subjectFilter.value = 'all'
+    scrolled.value = false
+  }
 })
 </script>
 
@@ -305,22 +329,42 @@ watch(open, (isOpen) => {
         </Popover>
       </div>
 
-      <!-- The sidebar's list container, down to the scrollbar: `gap-2 px-2 py-1` with
-           `overflow-y-auto scroll-thin`, rather than the ScrollArea component. Same
-           spacing rhythm, same thin scrollbar — the two lists scroll identically. -->
-      <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-1 pb-4 scroll-thin">
+      <!-- The scrolled edge. The hairline is carried TRANSPARENT at rest and only takes a
+           colour once the list has moved — a border is layout, so revealing one that wasn't
+           already reserved would shift every row down a pixel. Same trick InlineEditName
+           uses for its hover outline. Both colours are bound, never one static and one
+           bound: `border-transparent` alongside `border-grey-300` is a fight between two
+           border-colour utilities that the stylesheet's order decides, and transparent wins.
+           Line and fade appear together: the line says where
+           the list starts, the fade says the rows are passing under it rather than being
+           cut off by it. -->
+      <div
+        class="relative flex min-h-0 flex-1 flex-col border-t transition-colors"
+        :class="scrolled ? 'border-grey-300' : 'border-transparent'"
+      >
+        <!-- The sidebar's list container, down to the scrollbar: `gap-2 px-2 py-1` with
+             `overflow-y-auto scroll-thin`, rather than the ScrollArea component. Same
+             spacing rhythm, same thin scrollbar — the two lists scroll identically. -->
+        <div
+          ref="listEl"
+          class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-1 pb-4 scroll-thin"
+          @scroll="updateScrolled"
+        >
           <section v-for="section in visibleSections" :key="section.id">
-            <!-- Sticky so the subject stays legible while you scan a long group (Calls is
-                 ten rows). White ground, or the rows would show through it. -->
             <!-- The sidebar separates its two groups with a gap and no heading, on the
                  grounds that two labels organised less than they labelled. Seven subjects
                  is the case that flips it back: without a heading you can't tell where
-                 Calls ends and Deals starts. Sticky, so it survives a long group. -->
-            <!-- Hidden when one group is showing: the chip 40px above already names it,
-                 and a heading that repeats the filter is a line of chrome saying nothing. -->
+                 Calls ends and Deals starts.
+                 Not sticky, deliberately: pinned, it was a third label stacked under the
+                 panel's title and the filter chip, and a heading sliding under another
+                 heading is the kind of chrome you stop reading. The filter now answers
+                 "which group is this" better, and the scrolled edge above does the work the
+                 pinned heading was borrowing.
+                 Hidden entirely when one group is showing: the chip 40px above already
+                 names it, and a heading that repeats the filter says nothing. -->
             <h3
               v-if="subjectFilter === 'all'"
-              class="sticky top-0 z-[1] bg-white px-2.5 pb-1 pt-2 text-xs font-semibold text-grey-600"
+              class="px-2.5 pb-1 pt-2 text-xs font-semibold text-grey-600"
             >
               {{ section.label }}
             </h3>
@@ -386,6 +430,14 @@ watch(open, (isOpen) => {
               </Tooltip>
             </span>
           </section>
+        </div>
+        <!-- Opacity rather than v-if: a fade that mounts on the first scroll pops in. The
+             same device DataTable uses at the bottom of a table, pointed the other way. -->
+        <div
+          class="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-white to-transparent transition-opacity duration-200"
+          :class="scrolled ? 'opacity-100' : 'opacity-0'"
+          aria-hidden="true"
+        />
       </div>
 
       <p class="sr-only" role="status" aria-live="polite">{{ announcement }}</p>
