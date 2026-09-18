@@ -85,6 +85,7 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
       'call_volume',
       'missed_calls',
       'time_to_answer',
+      'average_wait_time',
       // Temporarily hidden — bring back later, with the widget it was parked alongside
       // (see the Operate template). Commenting it out here is what actually takes it out of
       // circulation: the library builds its list from THIS file, so a metric that is off

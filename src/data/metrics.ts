@@ -280,10 +280,51 @@ export const METRICS: MetricDef[] = [
     resultType: 'value',
     status: 'ready',
     category: 'voice',
-    base: 42, // ~42s
+    base: 42, // illustrative — voiceQueue() in mock.ts owns the number these cards share
+    lowerIsBetter: true,
+    // Jeff's wording, verbatim, and its sibling below carries his other definition
+    // verbatim too. The pair only works if each says which callers it counts, so the
+    // populations are the first clause in both.
+    caveat:
+      'Average time a call waits in the queue before an agent picks up. Only answered calls count.',
+  },
+  {
+    // ⚠️ DATA ASK — this combination is in NO registry entry. The registry has exactly two
+    // wait columns and neither is "queue only AND including abandoned":
+    //   voip_queue_wait_seconds    queue only ✓, but NULL for an abandoned call (its
+    //                              derivation needs a first_in_progress event, which an
+    //                              abandoned call never reaches), so the standard
+    //                              IS NOT NULL filter drops exactly the callers we want.
+    //                              VoIP1 + VoIP2.
+    //   voip_call_total_wait_time  includes abandoned ✓, but is a 5-component sum that
+    //                              also counts IVR, initial audio, forward and transfer —
+    //                              the registry sizes that at ~34.9s (~35%) on a ~137s
+    //                              number, not a rounding difference. VoIP2 only.
+    // The one column that is structurally queue-only and written for abandoned calls is the
+    // raw voip_call_initial_queue_wait_time, which the registry names once as a validation
+    // target and never gives population semantics for.
+    //
+    // ASK: can a queue wait be recorded for a call nobody answered — i.e. is
+    // voip_call_initial_queue_wait_time populated for abandoned-in-queue calls, and for
+    // VoIP1 as well as VoIP2?
+    //
+    // ⚠️ Also note the LABEL collision, which is the registry's, not ours:
+    // voip_avg_wait_time_suite is labelled "Average wait time" but computes
+    // AVG(voip_queue_wait_seconds) — answered only. That entry is our Time to answer card
+    // above. Nothing in the registry computes what this card shows.
+    id: 'average_wait_time',
+    label: 'Average wait time',
+    unit: 'seconds',
+    resultType: 'value',
+    status: 'ready',
+    category: 'voice',
+    // Above time_to_answer's 42s and by a knowable amount: the registry's spot check has
+    // abandoned callers waiting almost twice as long as answered ones, so blending them in
+    // can only raise the average. voiceQueue() derives it rather than reading this.
+    base: 50,
     lowerIsBetter: true,
     caveat:
-      "Average queue wait before an agent picks up, across answered calls. Doesn't include IVR or transfer time — see Average wait time for that.",
+      "Average time callers wait in the queue, including calls that are missed or abandoned. Time in the phone menu isn't counted.",
   },
   {
     // registry: voip_longest_wait_time [Operate] — now page-tagged, closing the "which

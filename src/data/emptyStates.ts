@@ -30,7 +30,10 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   csat_rating_distribution: { noun: 'ratings', icon: 'EmotionSmile' },
   win_rate: { noun: 'decided deals', icon: 'Target' },
   sales_by_board: { noun: 'deals', icon: 'Target' },
-  time_to_answer: { noun: 'calls', icon: 'Phone' },
+  // The two wait cards read different populations, so their empty states say different
+  // things — "no answered calls" and "no queued calls" are genuinely different facts.
+  time_to_answer: { noun: 'answered calls', icon: 'Phone' },
+  average_wait_time: { noun: 'queued calls', icon: 'Phone' },
   longest_wait_time: { noun: 'answered calls', icon: 'Phone' },
   avg_call_duration: { noun: 'calls', icon: 'Phone' },
   shortest_call_duration: { noun: 'calls', icon: 'Phone' },

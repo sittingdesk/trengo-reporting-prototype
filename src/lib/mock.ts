@@ -221,6 +221,50 @@ function slaCompliance(signature: string, days: number, chFactor: number, tmFact
   }
 }
 
+/** Anchors for the voice queue, each matching the MetricDef it is named after. They live
+ *  here because three cards read them and the numbers have to agree; the `base` on those
+ *  defs is documentation now. */
+const CALLS_PER_WEEK = 90 // calls_volume's base
+const INBOUND_SHARE = 0.32 // per call_volume's inbound/outbound split
+const ABANDON_RATE = 0.16 // missed_calls' base
+const ANSWERED_QUEUE_WAIT = 42 // time_to_answer's base
+
+/**
+ * One queue, read by three cards: Missed calls, Time to answer and Average wait time.
+ *
+ * The two wait cards differ ONLY by population — one counts the callers an agent reached,
+ * the other counts everyone who queued, including the ones who hung up. Generated
+ * separately they would contradict each other in public: `metricValue` seeds per metric id
+ * (`hashString(`${def.id}|${signature}`)`), so on some filter combination the blended
+ * average would land BELOW the answered-only one, which says abandoned callers waited less
+ * than answered ones — the opposite of what both tooltips claim. Seeded on
+ * `voice|<signature>` instead, all three read one draw, and `blendedWait > answeredWait`
+ * holds by construction rather than by luck.
+ *
+ * ⚠️ The DIRECTION is the registry's, not a guess: its spot check has abandoned callers
+ * waiting almost twice as long as answered ones (179s vs 93s) — people wait, then give up.
+ * So the blend runs above the answered-only figure, and the gap between the two cards is
+ * the thing worth reading.
+ *
+ * Same arrangement as `slaCompliance` and `csatResponses` above.
+ */
+function voiceQueue(signature: string, days: number, chFactor: number, tmFactor: number) {
+  const rng = mulberry32(hashString(`voice|${signature}`))
+  const totalCalls = CALLS_PER_WEEK * Math.sqrt(days / 7) * chFactor * tmFactor
+  // Every inbound call queues; outbound never does, which is also why the registry's wait
+  // columns are simply NULL for them rather than filtered by call type.
+  const inbound = Math.max(1, Math.round(totalCalls * INBOUND_SHARE))
+  const abandoned = Math.max(0, Math.round(inbound * ABANDON_RATE * jitter(rng, 0.3)))
+  const answered = Math.max(1, inbound - abandoned)
+  const answeredWait = Math.max(5, Math.round(ANSWERED_QUEUE_WAIT * jitter(rng, 0.18)))
+  // 1.7–2.3× the answered wait, straddling the registry's ~2×.
+  const abandonedWait = Math.round(answeredWait * (1.7 + 0.6 * rng()))
+  // A true blend over the whole queue, not an average of two averages — the same rule the
+  // SLA helper follows, and the reason it can't drift from its parts.
+  const blendedWait = Math.round((answeredWait * answered + abandonedWait * abandoned) / inbound)
+  return { inbound, abandoned, answered, answeredWait, abandonedWait, blendedWait }
+}
+
 /**
  * One set of survey responses, shared by both satisfaction widgets.
  *
@@ -540,14 +584,31 @@ export function metricValue(
   // inbound only: outbound calls can't be "missed". Must sit before the percentage
   // branch below, which clamps to 0.4–0.99 and would distort a ~16% rate.
   if (def.id === 'missed_calls') {
-    const totalCalls = 90 * Math.sqrt(days / 7) * chFactor * tmFactor // matches calls_volume
-    const inbound = Math.max(1, Math.round(totalCalls * 0.32)) // inbound share, per call_volume
-    const missed = Math.max(0, Math.round(inbound * base * jitter(rng, 0.3)))
+    // Reads the shared queue so its count and the two wait cards' populations add up:
+    // answered + missed = queued, on screen, at every filter combination.
+    const { inbound, abandoned } = voiceQueue(signature, days, chFactor, tmFactor)
     const prevMissed = Math.max(0, Math.round(inbound * base * jitter(rng, 0.3)))
     return {
-      value: missed / inbound,
+      value: abandoned / inbound,
       previous: prevMissed / inbound,
-      secondary: `${fmtCount(missed)} of ${fmtCount(inbound)} inbound`,
+      secondary: `${fmtCount(abandoned)} of ${fmtCount(inbound)} inbound`,
+    }
+  }
+
+  // The two queue-wait cards. Same queue, two populations — the whole reason they're two
+  // cards, and the reason they share one draw (see voiceQueue). Each carries its own
+  // population as the supporting figure, so the difference is visible without reading a
+  // tooltip: "25 answered" beside "29 queued" is four people who gave up.
+  if (def.id === 'time_to_answer' || def.id === 'average_wait_time') {
+    const q = voiceQueue(signature, days, chFactor, tmFactor)
+    const answeredOnly = def.id === 'time_to_answer'
+    const value = answeredOnly ? q.answeredWait : q.blendedWait
+    return {
+      value,
+      previous: value * jitter(rng, 0.18),
+      secondary: answeredOnly
+        ? `${fmtCount(q.answered)} answered`
+        : `${fmtCount(q.inbound)} queued`,
     }
   }
 

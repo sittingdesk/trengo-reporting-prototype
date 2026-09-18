@@ -178,7 +178,11 @@ export const TEMPLATES: Template[] = [
       // { metricId: 'resolution_compliance' },
       { metricId: 'first_response_time' },
       { metricId: 'resolution_time_all' },
+      // The queue, three ways: how long the people who got through waited, how long
+      // everyone waited including the ones who gave up, and the worst single wait. Adjacent
+      // on purpose — each only means something against the other two.
       { metricId: 'time_to_answer' },
+      { metricId: 'average_wait_time' },
       { metricId: 'longest_wait_time' },
       { metricId: 'avg_call_duration' },
       { metricId: 'shortest_call_duration' },
