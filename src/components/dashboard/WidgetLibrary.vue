@@ -24,7 +24,12 @@ import { useWorkspace } from '@/composables/useWorkspace'
 import { useSettings } from '@/composables/useSettings'
 import { isMetricWidget } from '@/config/templates'
 import { getMetric } from '@/data/metrics'
-import { METRIC_SUBJECTS, SHAPE_BY_RESULT_TYPE, sizeLabel } from '@/data/metricGroups'
+import {
+  METRIC_SUBJECTS,
+  SHAPE_BY_RESULT_TYPE,
+  sizeLabel,
+  type ShapeTint,
+} from '@/data/metricGroups'
 import { defaultSpanForMetric } from '@/lib/widgetLayout'
 
 const { widgetLibrary, closeWidgetLibrary, addWidget, getDashboard } = useWorkspace()
@@ -37,6 +42,28 @@ const dashboard = computed(() =>
 const report = computed(() =>
   dashboard.value?.reports.find((r) => r.id === widgetLibrary.value?.reportId),
 )
+
+/**
+ * Tile colours, straight off the DS Foundations palette — a -200 pastel behind a -700 icon.
+ *
+ * Measured rather than picked by eye: at that pairing the icon reads at 5.6 (leaf), 4.8
+ * (sky), 5.4 (purple) and 3.3 (peach) against its own tile, all clear of the 3:1 WCAG floor
+ * for a graphic. The -100 stops were the obvious first choice and lose: sky-100 is 1.04
+ * against white and purple-100 is 1.08, so those tiles disappear into the panel entirely.
+ *
+ * ⚠️ Sun is absent, and it is the one family that can't do this. Being yellow, even its
+ * darkest stop only reaches 3.6 on its own pastel, and at that point (sun-900, #C55E00) it
+ * is a burnt orange indistinguishable from peach-700. Worth knowing before anyone reaches
+ * for it as a fifth tile colour.
+ *
+ * Full literal strings — Tailwind's JIT can't see a class built from a variable.
+ */
+const TINT_CLASS: Record<ShapeTint, string> = {
+  leaf: 'bg-leaf-200 text-leaf-700',
+  sky: 'bg-sky-200 text-sky-700',
+  purple: 'bg-purple-200 text-purple-700',
+  peach: 'bg-peach-200 text-peach-700',
+}
 
 /** Metric ids already on the target report — what the "Added" state reads. */
 const present = computed(
@@ -68,12 +95,14 @@ const sections = computed(() =>
         const shape = SHAPE_BY_RESULT_TYPE[metric.resultType] ?? {
           label: 'Widget',
           icon: 'Grid',
+          tint: 'sky' as ShapeTint,
         }
         return {
           id: metric.id,
           label: metric.label,
           description: metric.caveat ?? '',
           icon: shape.icon,
+          tint: shape.tint,
           // The size can't lie: it comes from the same span map the grid renders with.
           meta: `${shape.label} · ${sizeLabel(defaultSpanForMetric(metric.id))}`,
           added: present.value.has(metric.id),
@@ -321,9 +350,13 @@ watch(open, (isOpen) => {
                 class="flex w-full items-center gap-2 rounded-base py-2 pl-2.5 pr-9 text-left transition-colors focus:outline-none focus-visible:shadow-focus-sm enabled:hover:bg-grey-200 disabled:cursor-default"
                 @click="add(row.id)"
               >
+                <!-- Colour is the widget's KIND: a number, a trend, a chart, a table.
+                     An added row drops it and goes grey — desaturating is the quietest way
+                     to say "not this one, you have it", and it leaves colour meaning
+                     exactly one thing on rows you can still click. -->
                 <span
                   class="flex size-8 shrink-0 items-center justify-center rounded-base transition-colors"
-                  :class="row.added ? 'bg-grey-100 text-grey-400' : 'bg-grey-200 text-grey-700'"
+                  :class="row.added ? 'bg-grey-100 text-grey-400' : TINT_CLASS[row.tint]"
                 >
                   <Icon :name="row.icon" :size="20" />
                 </span>

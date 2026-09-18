@@ -103,6 +103,25 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
 ]
 
 /**
+ * The colour a widget's icon tile wears — one hue per KIND of widget.
+ *
+ * Four kinds, not eight: a number, a trend, a chart, a table. Colour and glyph then say the
+ * same thing, which is the point — the tile is 32px and has room for one meaning. Colouring
+ * by SUBJECT instead was the other candidate and it loses: the sticky heading and the filter
+ * chip already name the subject, while the shape is the thing you are actually choosing
+ * between inside a group ("Total calls" or "Call volume" — a number or a line).
+ *
+ * Intensity runs INVERSELY to how common the kind is. Numbers are 18 of the 33 rows, so
+ * they take the palest tint (sky-200 is 1.16 against white, leaf-200 is 1.40) — put the
+ * strongest colour on the commonest row and the list becomes a wall of it, with the charts
+ * you are hunting for hidden inside it. This way the staple recedes and the five trends,
+ * six charts and four tables are what the eye lands on.
+ *
+ * Grey is not in here on purpose: it is the ADDED state, and a live row must never wear it.
+ */
+export type ShapeTint = 'leaf' | 'sky' | 'purple' | 'peach'
+
+/**
  * What shape a widget takes, by result type — the honest alternative to a live preview.
  * A shrunken chart of mock data would misrepresent both the size and the numbers; a shape
  * word and a size word can only ever be true, because the size comes from the same span
@@ -110,15 +129,19 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
  *
  * Icons are local (`svg icons/linear/`), rendered through Icon.vue's fuzzy match.
  */
-export const SHAPE_BY_RESULT_TYPE: Record<string, { label: string; icon: string }> = {
-  value: { label: 'Number', icon: 'Hashtag' },
-  time_series: { label: 'Over time', icon: 'ChartLine' },
-  breakdown: { label: 'Bar chart', icon: 'ChartBar' },
-  histogram: { label: 'Distribution', icon: 'ChartColumn' },
-  donut: { label: 'Donut', icon: 'ChartPie' },
-  table: { label: 'Table', icon: 'Grid' },
-  heatmap: { label: 'Heatmap', icon: 'Grid' },
-  funnel: { label: 'Funnel', icon: 'Filter' },
+export const SHAPE_BY_RESULT_TYPE: Record<
+  string,
+  { label: string; icon: string; tint: ShapeTint }
+> = {
+  value: { label: 'Number', icon: 'Hashtag', tint: 'sky' },
+  // Leaf for the trend, which is also the colour the line itself is drawn in.
+  time_series: { label: 'Over time', icon: 'ChartLine', tint: 'leaf' },
+  breakdown: { label: 'Bar chart', icon: 'ChartBar', tint: 'purple' },
+  histogram: { label: 'Distribution', icon: 'ChartColumn', tint: 'purple' },
+  donut: { label: 'Donut', icon: 'ChartPie', tint: 'purple' },
+  funnel: { label: 'Funnel', icon: 'Filter', tint: 'purple' },
+  table: { label: 'Table', icon: 'Grid', tint: 'peach' },
+  heatmap: { label: 'Heatmap', icon: 'Grid', tint: 'peach' },
 }
 
 /** How wide it will land, in words. Spans come from `@/lib/widgetLayout`. */
