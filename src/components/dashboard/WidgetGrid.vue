@@ -102,8 +102,12 @@ const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-6 lg:grid-col
       <!-- The way in. It used to only enter edit mode, which left you looking at an
            empty grid and a dashed tile — two clicks with a dead end between them. Now it
            opens the library directly (which enters the mode on the way). Absent when the
-           dashboard can't be edited, since there'd be nothing behind it. -->
-      <Button v-if="canEdit" variant="secondary" size="sm" class="mt-1" @click="emit('add')">
+           dashboard can't be edited, since there'd be nothing behind it.
+           Primary, because an empty report has exactly one thing to do — and `default`
+           (Grey-900) rather than the leaf `primary` variant, which design.md §7.5 keeps for
+           the rare emphasised action and nothing in the app currently wears. Same variant
+           and size as WelcomeEmpty's CTA, the app's only other full-page empty state. -->
+      <Button v-if="canEdit" variant="default" size="default" class="mt-1" @click="emit('add')">
         <Icon name="Plus" :size="16" />
         Add widget
       </Button>
