@@ -322,7 +322,7 @@ const UNSELECTED = 'text-grey-700 hover:bg-grey-300 hover:text-grey-900'
         <button
           v-if="r.id === removableId"
           type="button"
-          class="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-pill text-grey-600 transition-colors hover:bg-grey-300 hover:text-error-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          class="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-pill text-grey-600 transition-colors hover:bg-grey-300 hover:text-error-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           :aria-label="`Remove ${r.name}`"
           @click="askRemove(r)"
         >

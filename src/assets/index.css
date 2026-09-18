@@ -93,6 +93,15 @@
 
   /* Semantic — design.md §1 */
   --color-error-500: #e8374c;
+  /* The red that carries MEANING. error-500 is 4.13:1 on white and 3.95:1 on grey-100 —
+     under the 4.5 AA floor at every size we render it, so a delta, a destructive menu item
+     and a destructive button's own label were all failing. Same relationship leaf already
+     has: leaf-500 is the brand/graphic green at 3.55:1, leaf-600 the one text uses at 5.14.
+     This lands at 4.74 on white and 4.54 on grey-100 — Jeff's #E51F40 one step darker,
+     because his exact value clears white (4.56) but not the grey-100 hover ground (4.37).
+     ⚠️ NOT from the DS: its Status Error scale is 100/300/500/700/900 and has no 600. If
+     Status Error/700 clears these floors, adopt it and delete this. */
+  --color-error-600: #e01e3f;
   --color-error-bg: #fad7db;
 
   /* Border radius — design.md §4 */
@@ -141,7 +150,7 @@
   --muted-foreground: var(--color-grey-600);
   --accent: var(--color-grey-200);
   --accent-foreground: var(--color-grey-900);
-  --destructive: var(--color-error-500);
+  --destructive: var(--color-error-600);
   --destructive-foreground: var(--color-white);
   --border: var(--color-grey-300);
   --input: var(--color-grey-300);

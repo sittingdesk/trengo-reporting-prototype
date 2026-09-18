@@ -249,7 +249,7 @@ const save = () => {
             <PopoverContent align="end" class="w-52" @close-auto-focus="onMenuCloseFocus">
               <button
                 type="button"
-                class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm text-grey-900 transition-colors hover:bg-grey-100 hover:text-error-500 focus:outline-none focus-visible:bg-grey-100"
+                class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm text-grey-900 transition-colors hover:bg-grey-100 hover:text-error-600 focus:outline-none focus-visible:bg-grey-100"
                 @click="askRemove()"
               >
                 <Icon name="Trash" :size="16" />

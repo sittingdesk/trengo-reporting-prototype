@@ -357,7 +357,7 @@ const skeletonBars = computed(() =>
       <button
         v-if="editing"
         type="button"
-        class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm border border-grey-300 bg-white text-grey-600 transition-colors hover:border-error-500 hover:bg-error-500 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        class="inline-flex size-6 shrink-0 items-center justify-center rounded-sm border border-grey-300 bg-white text-grey-600 transition-colors hover:border-error-600 hover:bg-error-600 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         :aria-label="`Remove ${metric?.label ?? 'widget'}`"
         @click="onRemove"
       >

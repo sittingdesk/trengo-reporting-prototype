@@ -64,17 +64,16 @@ export function deltaOf(current: number, previous: number, direction: Direction)
   return { pct: `${Math.abs(pct).toFixed(1)}%`, up: pct > ARROW_PCT, down: pct < -ARROW_PCT, tone }
 }
 
-/** Text colour for a tone. leaf-600 rather than leaf-500: at the 12px a delta renders,
- *  leaf-500 is 3.55:1 on white and fails WCAG AA (leaf-600 is 5.14:1).
- *  ⚠️ error-500 is 4.13:1 and also fails, but it's the only error stop in design.md —
- *  fixing it needs a darker token, which is a design-system decision. The arrow is what
- *  carries the meaning meanwhile, so colour is never the only signal. */
+/** Text colour for a tone. The -600 stops, not the -500s: at the sizes a delta renders
+ *  (12px on a card, 14px in a table cell) leaf-500 is 3.55:1 and error-500 4.13:1, both
+ *  under AA's 4.5. leaf-600 is 5.14 and error-600 4.74. The arrow carries the direction
+ *  regardless, so colour is never the only signal — but it is now also legible. */
 export function toneClassFor(tone: Delta['tone'] | undefined): string {
   switch (tone) {
     case 'good':
       return 'text-leaf-600'
     case 'bad':
-      return 'text-error-500'
+      return 'text-error-600'
     default:
       // flat (too small to matter) and neutral (not ours to judge) read the same to a
       // customer; they're distinguished in code because only one of them is a decision.

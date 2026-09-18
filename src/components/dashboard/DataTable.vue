@@ -199,8 +199,8 @@ watch(sortedRows, () => nextTick(updateFade))
             </span>
             <!-- Value, then its change — inline, so a delta costs the row no height and
                  `tableBodyHeight`'s 41px per row stays true. The arrow carries the sign
-                 and the direction, which is what keeps this readable when the colour
-                 can't be (error-500 is 4.13:1 at this size — flagged, not fixed here).
+                 and the direction, so the colour is never the only signal — and since
+                 error-600 landed, the colour clears AA at this size too.
                  The change is the cell's OWN size, not a step down. On a card the delta is
                  12px against a 36px number — 3×, unmistakably another tier. Here it would
                  be 12 against 14, a ratio of 1.17 that reads as a mistake rather than a
