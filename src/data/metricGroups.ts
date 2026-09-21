@@ -63,6 +63,7 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
       'csat_response_rate',
       'csat_score_over_time',
       'csat_surveys_received',
+      'csat_sentiment_breakdown',
       'csat_rating_distribution',
       'csat_by_channel',
     ],
@@ -158,6 +159,22 @@ export const SHAPE_BY_RESULT_TYPE: Record<
   funnel: { label: 'Funnel', icon: 'Filter', tint: 'purple' },
   table: { label: 'Table', icon: 'Grid', tint: 'peach' },
   heatmap: { label: 'Heatmap', icon: 'Grid', tint: 'peach' },
+}
+
+/**
+ * A `viz` that changes what the card actually LOOKS like overrides its result type's entry.
+ *
+ * `resultType: 'breakdown'` means "bar chart" everywhere except the sentiment card, which
+ * rides that result type to inherit its 274px body and span but renders three labelled rows
+ * with proportion bars instead. The library's shape line is a promise about what adding the
+ * row will produce — "Bar chart" there would be the picker lying, which is the one thing
+ * this line was written not to do.
+ *
+ * Keyed on `viz` rather than metric id so the next re-rendered result type is one entry.
+ * `combo` deliberately has no entry: a combo chart is still "Over time", which is true.
+ */
+export const SHAPE_BY_VIZ: Record<string, { label: string; icon: string; tint: ShapeTint }> = {
+  sentiment: { label: 'Shares', icon: 'ChartBar', tint: 'purple' },
 }
 
 /** How wide it will land, in words. Spans come from `@/lib/widgetLayout`. */

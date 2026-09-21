@@ -32,6 +32,7 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   csat_surveys_received: { noun: 'survey responses', icon: 'EmotionSmile' },
   csat_rating_distribution: { noun: 'ratings', icon: 'EmotionSmile' },
   csat_by_channel: { noun: 'answered surveys', icon: 'EmotionSmile' },
+  csat_sentiment_breakdown: { noun: 'answered surveys', icon: 'EmotionSmile' },
   win_rate: { noun: 'decided deals', icon: 'Target' },
   sales_by_board: { noun: 'deals', icon: 'Target' },
   // The two wait cards read different populations, so their empty states say different

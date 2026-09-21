@@ -630,6 +630,34 @@ export function metricValue(
     }
   }
 
+  // The three sentiment buckets — the SAME responses as every other CSAT widget, merged
+  // from five ratings into three.
+  //
+  // The invariant here is stronger than the by-channel card's, because there is nothing to
+  // reconcile: `positive` IS `satisfied`, the exact variable csat_satisfied_rate returns on
+  // Overview and csat_score_over_time plots as its line. So four widgets across two pages
+  // cannot disagree, at any filter combination, by construction rather than by checking.
+  //
+  // ⚠️ The 4–5 / 3 / 1–2 split assumes the 1–5 scale. It is not a guess — Freshdesk splits
+  // a 5-point scale 2-1-2 and Gorgias scores "4 or 5" — but on a thumbs workspace there are
+  // only two buckets and the neutral row has no source. See the metric's own comment.
+  //
+  // Must sit above the generic `breakdown` fallback, which spreads a base across channels.
+  if (def.id === 'csat_sentiment_breakdown') {
+    const { counts, total } = csatResponses(signature, days, chFactor, tmFactor)
+    return {
+      // Drives the empty state; a breakdown renders no headline and no delta. The component
+      // derives each share from the counts, so nothing here needs to carry a percentage.
+      value: total,
+      previous: total * jitter(rng, 0.15),
+      // Order is the contract SentimentBreakdown reads its tone and icon from — positive,
+      // neutral, negative, always. Not sorted: these are an ordinal scale, and ranking them
+      // by size would put "negative" first on a good week and last on a bad one.
+      labels: ['Positive', 'Neutral', 'Negative'],
+      series: [counts[0] + counts[1], counts[2], counts[3] + counts[4]],
+    }
+  }
+
   // Satisfaction per channel — the SAME responses as the ratings chart beside it and the
   // headline rate on Overview, re-cut by channel instead of by rating.
   //

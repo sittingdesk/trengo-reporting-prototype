@@ -83,7 +83,7 @@ export interface MetricDef {
   /** Picks the rendering when a result type supports more than one — a time series can be
    *  bars or a line. Same field as `MetricDimension.viz`, at the measure level for a
    *  metric that has no break-downs. */
-  viz?: 'bar' | 'line' | 'combo'
+  viz?: 'bar' | 'line' | 'combo' | 'sentiment'
   /** CSV header names for breakdown widgets (dimension + measure columns). */
   csvColumns?: { dimension: string; measure: string }
   /** Break-downs this measure supports. >1 renders a switcher in the card header;
@@ -325,6 +325,58 @@ export const METRICS: MetricDef[] = [
     caveat:
       'How many responses landed on each rating, 5 down to 1. A good headline with a tail of 1s is a different business from one without, and only the spread shows it.',
     csvColumns: { dimension: 'rating', measure: 'responses' },
+  },
+  {
+    // registry: NO NEW ASK. This is `COUNT(*) GROUP BY csat_ticket_rating` — the entry
+    // csat_rating_distribution already requests — bucketed into three on our side. Of the
+    // PM's five CSAT rows it is the only one that adds no data dependency at all. What it
+    // DOES need recorded is a decision: which ratings fall in which bucket.
+    //
+    // ⚠️ AND THE SCALE QUESTION IS NOW URGENT, not academic. Trengo's CSAT survey supports
+    // TWO scales — 1–5 or thumbs up/down (trengo.com; the help centre describes customers
+    // tapping "the emojis"). The registry only ever says "raw scale as stored in Trengo".
+    // That has a consequence nobody had drawn: csat_rating_distribution — our 5★→1★ bar
+    // chart — is BROKEN for a thumbs workspace, where it renders two bars and three
+    // permanently empty columns. A three-bucket breakdown is the only CSAT shape that
+    // survives both: thumbs-up → positive, thumbs-down → negative, and the neutral row
+    // simply has no source and drops out. That is the real argument for this widget, and
+    // it is why it takes the ratings chart's place on Improve rather than sitting beside it.
+    //
+    // ASK: which scale, and is it set per workspace or per survey?
+    //
+    // The bucketing is not invented — competitor research settles it. Freshdesk splits a
+    // 5-point scale 2-1-2 (positive / neutral / negative) and headlines the positive
+    // bucket; Gorgias defines its Satisfaction score as "rated 4 or 5". Both independently
+    // confirm csat_satisfied_rate's `COUNTIF(rating >= 4)`, which this project had been
+    // treating as a substitution the PM needed warning about. It is the industry
+    // definition; tell them that instead.
+    id: 'csat_sentiment_breakdown',
+    // "Satisfaction breakdown" — the PM's row name minus the acronym this project already
+    // strips from labels ("Average CSAT" → "Customer satisfaction"), and it sits in the
+    // page's family beside Satisfaction over time and Satisfaction by channel.
+    //
+    // Deliberately NOT "by sentiment", even though the definition uses the word: Zendesk
+    // uses "sentiment" for AI analysis of what the customer WROTE (Very positive → Very
+    // negative, out of intelligent triage), and Trengo is heading the same way — the
+    // registry already carries an `intent_trends` placeholder. The caveat rules that
+    // reading out in one clause rather than leaving the title to be misread.
+    label: 'Satisfaction breakdown',
+    // The bars are shares of the responses; the counts ride along as the supporting figure.
+    unit: 'percentage',
+    resultType: 'breakdown',
+    // Not a new result type. `viz` is documented as picking the rendering when a result
+    // type supports more than one, and `viz: 'combo'` already does exactly this on the
+    // time_series path. Riding `breakdown` inherits the 200px BODY_HEIGHT (→ a 274px card
+    // that pairs with Satisfaction by channel), the span-6 default, the skeleton variant,
+    // the CSV path and — the one that would actually break — the empty and error states,
+    // which read BODY_HEIGHT and collapse under a result type the map doesn't know.
+    viz: 'sentiment',
+    status: 'ready',
+    category: 'quality',
+    base: 120, // responses in a 7-day window; csatResponses() owns the number
+    caveat:
+      'Answered surveys grouped into positive, neutral and negative by what the customer rated. Not an analysis of what they wrote.',
+    csvColumns: { dimension: 'sentiment', measure: 'responses' },
   },
   {
     // registry: NO ENTRY — and the PM's own table agrees, naming no metric for its "CSAT

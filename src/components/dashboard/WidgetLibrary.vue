@@ -34,6 +34,7 @@ import { getMetric } from '@/data/metrics'
 import {
   METRIC_SUBJECTS,
   SHAPE_BY_RESULT_TYPE,
+  SHAPE_BY_VIZ,
   sizeLabel,
   type ShapeTint,
 } from '@/data/metricGroups'
@@ -99,11 +100,12 @@ const sections = computed(() =>
       .filter((m) => m!.requires !== 'sla' || slaEnabled.value)
       .map((m) => {
         const metric = m!
-        const shape = SHAPE_BY_RESULT_TYPE[metric.resultType] ?? {
-          label: 'Widget',
-          icon: 'Grid',
-          tint: 'sky' as ShapeTint,
-        }
+        const shape = (metric.viz ? SHAPE_BY_VIZ[metric.viz] : undefined) ??
+          SHAPE_BY_RESULT_TYPE[metric.resultType] ?? {
+            label: 'Widget',
+            icon: 'Grid',
+            tint: 'sky' as ShapeTint,
+          }
         return {
           id: metric.id,
           label: metric.label,

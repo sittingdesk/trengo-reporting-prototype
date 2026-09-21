@@ -9,6 +9,7 @@ import Icon from '@/components/Icon.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 import ComboChart from '@/components/charts/ComboChart.vue'
 import LineChart from '@/components/charts/LineChart.vue'
+import SentimentBreakdown from '@/components/charts/SentimentBreakdown.vue'
 import FunnelChart from '@/components/charts/FunnelChart.vue'
 import HeatmapChart from '@/components/charts/HeatmapChart.vue'
 import DonutChart from '@/components/charts/DonutChart.vue'
@@ -519,8 +520,17 @@ const skeletonBars = computed(() =>
           <span class="whitespace-nowrap text-[36px] font-bold leading-[40px] text-grey-900 tabular-nums">{{ formatted }}</span>
           <span class="text-xs font-medium leading-4 text-grey-600 tabular-nums">{{ sample.secondary }}</span>
         </div>
+        <!-- Three fixed buckets rather than a bar per category, so it reads as a
+             composition instead of a ranking. Chosen on `viz`, the same way the time_series
+             branch above picks ComboChart — one result type, two renderings. -->
+        <SentimentBreakdown
+          v-if="metric.viz === 'sentiment' && sample?.labels && sample?.series"
+          :labels="sample.labels"
+          :data="sample.series"
+          :height="CHART_HEIGHT - (metric.footnote ? 24 : 0)"
+        />
         <BarChart
-          v-if="sample?.labels && (sample?.series || sample?.lines)"
+          v-else-if="sample?.labels && (sample?.series || sample?.lines)"
           :labels="sample.labels"
           :data="sample.series"
           :series="sample.lines"
