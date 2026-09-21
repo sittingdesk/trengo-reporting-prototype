@@ -327,6 +327,50 @@ export const METRICS: MetricDef[] = [
     csvColumns: { dimension: 'rating', measure: 'responses' },
   },
   {
+    // registry: NO ENTRY — and the PM's own table agrees, naming no metric for its "CSAT
+    // breakdown" row. But this is NOT the dead end the first audit called it. That audit
+    // stopped at "trengodb__csat_tickets exposes no dimension column", which is true: it
+    // exposes exactly csat_ticket_rating, csat_ticket_submitted_at and ticket_id. The third
+    // one is the answer. `ticket_id` is a JOIN KEY, and trengodb__tickets already carries
+    // the channel columns three shipped metrics group by — performance_by_channel uses
+    // channel_type / channel_title / channel_id off that very table.
+    //
+    // THE ASK, one sentence: join trengodb__csat_tickets to trengodb__tickets on ticket_id
+    // and group the satisfied rate by channel_type. No new column, no new event, no new
+    // instrumentation — a join the registry has simply never declared. That is a materially
+    // smaller ask than the other two dimensions the PM's row could have meant:
+    //   • by intent — `intent_trends` is a placeholder with empty source_tables and
+    //     calculation "TBD". There is nothing to join TO. Genuinely blocked.
+    //   • by agent — reachable through the same join (trengodb__tickets.user_id /
+    //     user_full_name) and deliberately NOT built. A satisfaction score per named agent
+    //     is a performance verdict drawn from a self-selected sample of customers who chose
+    //     to answer; this project already refused to colour agent rows red for that reason
+    //     (see the comparison spec). It is a values question for the team, not a widget.
+    //
+    // ⚠️ The join carries an open question of its own: a survey belongs to a ticket, and a
+    // ticket has ONE entry channel — so a conversation that started on email and continued
+    // over WhatsApp lands entirely under email. Confirm that reading before this ships.
+    id: 'csat_by_channel',
+    // "Satisfaction by channel", not "CSAT breakdown": the page already has Satisfaction
+    // ratings and Satisfaction over time, and this is the third cut of one subject. The
+    // title says which cut, which is the only thing that separates the three.
+    label: 'Satisfaction by channel',
+    // A RATE per channel, not a count — the bars answer "where is it worst", and a count
+    // per channel would answer "where is the volume", which is a different widget.
+    unit: 'percentage',
+    resultType: 'breakdown',
+    status: 'ready',
+    category: 'quality',
+    base: 0.83, // the headline rate; csatResponses() owns the number this shares
+    caveat:
+      'Share of answered surveys rated 4 or 5, by the channel the ticket arrived on. Lowest first, so the channel to look at is on the left.',
+    // The footnote, not the tooltip, because this one has to be read without hovering: it
+    // is what stops a 50% bar built on four responses being mistaken for a finding. The
+    // per-bar tooltip carries the actual n.
+    footnote: 'A channel with only a handful of responses will swing hard.',
+    csvColumns: { dimension: 'channel', measure: 'satisfied_rate' },
+  },
+  {
     // registry: win_rate [Overview]
     id: 'win_rate',
     label: 'Win rate',

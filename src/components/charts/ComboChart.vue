@@ -91,7 +91,11 @@ function datasets() {
       borderSkipped: 'bottom' as const,
       categoryPercentage: 0.8,
       barPercentage: 0.9,
-      maxBarThickness: 48,
+      // 72, the same cap BarChart gives a single series, for the same reason: these bars
+      // are one per slot, so they should fill the column rather than float in it. It was
+      // 48 while this card was half width, which left 48px bars marooned in 134px slots
+      // once it went full width beside the two breakdowns.
+      maxBarThickness: 72,
       order: 1,
     },
   ]

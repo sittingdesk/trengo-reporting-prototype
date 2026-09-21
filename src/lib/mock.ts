@@ -53,6 +53,10 @@ export interface MetricSample {
   // time series / grouped bars. `dashed` renders the line dashed; `csvKey` overrides
   // the CSV column header for that series.
   lines?: { name: string; tint: 'leaf' | 'sky'; data: number[]; dashed?: boolean; csvKey?: string }[]
+  /** One extra tooltip line per breakdown bar, by index — the denominator a rate was
+   *  computed from. A bar reading 62% is a finding at n=80 and noise at n=8, and nothing
+   *  else on a bar chart can tell those apart. */
+  context?: string[]
   table?: TableData
   heatmap?: number[][] // 7 rows (Mon–Sun) × 24 hour columns (voip_calls_by_day_hour)
   funnel?: { stage: string; count: number }[] // funnel stages (deal_stage_funnel)
@@ -623,6 +627,81 @@ export function metricValue(
       // the rate is one row away in the library.
       labels: ['5 ★', '4 ★', '3 ★', '2 ★', '1 ★'],
       series: counts,
+    }
+  }
+
+  // Satisfaction per channel — the SAME responses as the ratings chart beside it and the
+  // headline rate on Overview, re-cut by channel instead of by rating.
+  //
+  // The invariant that makes it honest: the per-channel response counts sum to `total` and
+  // the per-channel satisfied counts sum to `satisfied`, so Σsatisfied ÷ Σresponses is the
+  // headline rate EXACTLY. That is the rule the SLA-per-target work wrote down — sum
+  // numerators and denominators, never average the rates — and it is what lets a channel at
+  // 62% sit beside one at 91% without either contradicting the 84% two cards up.
+  //
+  // Must sit above the generic `breakdown` fallback, which spreads a base across the same
+  // channels as a COUNT and would quietly turn these rates into volumes.
+  if (def.id === 'csat_by_channel') {
+    const { total, satisfied } = csatResponses(signature, days, chFactor, tmFactor)
+    const cats =
+      ch === 'all'
+        ? CATALOG
+        : CATALOG.filter((c) => c.instances.some((i) => ch.split(',').includes(i.id)))
+    // Its own stream, so adding this card can't shift the ratings bars beside it.
+    const chRng = mulberry32(hashString(`csat-ch|${signature}`))
+    const responses = splitToBuckets(total, cats.length, chRng)
+    // Vary the rate per channel by weighting an ALLOCATION, never by drawing a rate — draw
+    // one and the parts stop adding up to the whole.
+    //
+    // And allocate the UNHAPPY responses, not the happy ones. Weighting the satisfied side
+    // overflows on a base rate this high — 86% × a 1.3 weight is over 100%, so the per
+    // channel ceiling fires and saturates that channel at a 28-of-28 bar, which reads as
+    // placeholder data rather than as a good channel. Dissatisfaction is the scarce
+    // quantity here (17 of 120), so spreading THAT is both the realistic model and the one
+    // that cannot overflow. A 100% bar stays reachable at genuinely small n, which is
+    // correct: with five responses, five happy ones is an ordinary Tuesday.
+    const unhappyTotal = total - satisfied
+    // 0.7 rather than a polite 0.3: at these volumes dissatisfaction is ~17 responses over
+    // four channels, and a narrow jitter draws four bars within three points of each other.
+    // A chart whose bars are all the same height demonstrates nothing and reads as
+    // placeholder data — the same reason Calls by team splits its teams unevenly on
+    // purpose. Real channel satisfaction varies more than this, not less.
+    const raw = responses.map((n) => n * jitter(chRng, 0.7))
+    const rawSum = raw.reduce((a, b) => a + b, 0) || 1
+    const unhappy = raw.map((v, i) =>
+      Math.min(responses[i], Math.round((v / rawSum) * unhappyTotal)),
+    )
+    // Rounding and the per-channel ceiling each lose a response or two. Hand the remainder
+    // back to whichever channels still have room, so both sums hold exactly rather than
+    // approximately — "about" is what the shared draws exist to rule out.
+    let drift = unhappyTotal - unhappy.reduce((a, b) => a + b, 0)
+    for (let pass = 0; drift !== 0 && pass <= total; pass++) {
+      for (let i = 0; i < unhappy.length && drift !== 0; i++) {
+        if (drift > 0 && unhappy[i] < responses[i]) {
+          unhappy[i]++
+          drift--
+        } else if (drift < 0 && unhappy[i] > 0) {
+          unhappy[i]--
+          drift++
+        }
+      }
+    }
+    const happy = responses.map((n, i) => n - unhappy[i])
+    const rows = cats
+      .map((c, i) => ({ label: c.label, n: responses[i], happy: happy[i] }))
+      // A GROUP BY emits no row for a channel nobody answered on, and a 0% bar there would
+      // claim everyone was unhappy — the same "No policy, not 0%" rule the channel table
+      // follows. Absent is the truthful rendering of absent.
+      .filter((r) => r.n > 0)
+      .sort((a, b) => a.happy / a.n - b.happy / b.n) // worst first — this page is a queue
+    return {
+      // Drives the empty state only; a breakdown renders no headline and no delta.
+      value: total,
+      previous: total * jitter(rng, 0.15),
+      labels: rows.map((r) => r.label),
+      series: rows.map((r) => r.happy / r.n),
+      // The denominator per bar, so a 50% built on four responses can't pass for a finding.
+      context: rows.map((r) => `${r.happy} of ${r.n} responses`),
     }
   }
 

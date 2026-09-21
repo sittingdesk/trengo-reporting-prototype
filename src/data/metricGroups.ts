@@ -64,6 +64,7 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
       'csat_score_over_time',
       'csat_surveys_received',
       'csat_rating_distribution',
+      'csat_by_channel',
     ],
   },
   {

@@ -208,7 +208,7 @@ export const TEMPLATES: Template[] = [
     name: 'Improve',
     description: 'Where to prioritise change — knowledge, process, automation.',
     recommended: true,
-    // Being built up metric by metric against the PM's list; this is step 1 of 5.
+    // Being built up metric by metric against the PM's list; this is step 4 of 5.
     //
     // The ratings, not the rate: the satisfaction rate is Overview's job (a number you
     // glance at), and this page is where you'd act on the shape — a healthy headline
@@ -218,12 +218,22 @@ export const TEMPLATES: Template[] = [
     // `newRow` on the chart, or the grid pulls a 274px chart up beside a 160px KPI. The
     // trailing gap beside the KPI is the honest in-progress state — it fills as the rest of
     // the PM's list lands.
-    // Reads as one argument: what share of customers answered, how many that was day by
-    // day, and what they actually said. Volume before verdict.
+    // Reads as one argument: what share of customers answered, how that moved, what they
+    // actually said, and which channel to go and look at. Volume before verdict, verdict
+    // before target.
     widgets: [
       { metricId: 'csat_response_rate' },
-      { metricId: 'csat_score_over_time', span: 6, newRow: true },
+      // Full width, and it changed from span 6 when Satisfaction by channel arrived. The
+      // rule this page follows is that a chart's span tracks whether it has a PEER: the two
+      // categorical breakdowns below are peers — same shape, ~5 bars each, both answering
+      // "where does it sit" — so they pair, and the trend is then the odd one out, which is
+      // what full width means. It also has the most to gain from the room: at a 30-day range
+      // this chart draws 30 buckets, which is cramped at half width. `newRow` is redundant
+      // at span 12 (grid's sparse flow breaks the row on its own) but the KPI above leaves
+      // a 9-column gap, so it is stated rather than inferred.
+      { metricId: 'csat_score_over_time', span: 12, newRow: true },
       { metricId: 'csat_rating_distribution', span: 6 },
+      { metricId: 'csat_by_channel', span: 6 },
       // Surveys received came off when Satisfaction over time landed: its bars ARE the
       // survey volume, so keeping both printed the same seven bars twice on one page. The
       // metric, mock and empty state all stay, so it is still addable from the library for

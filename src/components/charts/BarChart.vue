@@ -4,7 +4,7 @@
 // Supports an optional second "Average" series drawn beside the primary one.
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Chart, CHART_HEIGHT } from '@/lib/chart'
-import { fmtDuration } from '@/lib/format'
+import { fmtDuration, fmtPercent } from '@/lib/format'
 
 const props = withDefaults(
   defineProps<{
@@ -16,8 +16,12 @@ const props = withDefaults(
     seriesLabel?: string
     averageLabel?: string
     legend?: boolean
-    // 'duration' formats the y-axis + tooltip as m/s (values stay raw seconds).
-    unit?: 'count' | 'duration'
+    // 'duration' formats the y-axis + tooltip as m/s (values stay raw seconds);
+    // 'percentage' takes 0–1 ratios and pins the axis to 0–100% (see the scale below).
+    unit?: 'count' | 'duration' | 'percentage'
+    /** One extra tooltip line per bar, by index — e.g. the n a rate was computed from.
+     *  A rate with no denominator beside it is the thing small samples hide behind. */
+    context?: string[]
     // Always render every x-axis label (no auto-skip) and truncate long ones —
     // for categorical bars (e.g. per-team) where every label must show.
     showAllLabels?: boolean
@@ -41,9 +45,13 @@ const props = withDefaults(
   },
 )
 
-// Axis/tooltip value formatter — raw counts, or seconds → "1m 20s".
+// Axis/tooltip value formatter — raw counts, seconds → "1m 20s", or a 0–1 ratio → "84%".
 const fmtVal = (v: number | string) =>
-  props.unit === 'duration' ? fmtDuration(Number(v)) : String(v)
+  props.unit === 'duration'
+    ? fmtDuration(Number(v))
+    : props.unit === 'percentage'
+      ? fmtPercent(Number(v))
+      : String(v)
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 let chart: InstanceType<typeof Chart> | null = null
@@ -158,6 +166,10 @@ function build() {
               const named = ctx.chart.data.datasets.length > 1 && ctx.dataset.label
               return `${named ? ctx.dataset.label + ': ' : ''}${fmtVal(ctx.parsed.y)}`
             },
+            // The denominator, when the caller has one. On a rate chart this is the
+            // difference between "62%" and "62% — 5 of 8 responses", i.e. between a
+            // finding and noise. Absent by default, so every other chart is unchanged.
+            afterLabel: (ctx: any) => props.context?.[ctx.dataIndex] ?? '',
           },
         },
       },
@@ -191,6 +203,11 @@ function build() {
         y: {
           stacked: props.stacked,
           beginAtZero: true,
+          // A percentage axis runs the full 0–100%, always. Let Chart.js fit it to the
+          // data and four channels sitting between 78% and 92% draw as a cliff — the
+          // same auto-scaling lie the sparkline was removed for, and ComboChart pins its
+          // score axis for exactly this reason.
+          max: props.unit === 'percentage' ? 1 : undefined,
           grid: { color: grid },
           border: { display: false },
           ticks: {

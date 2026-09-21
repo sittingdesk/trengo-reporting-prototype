@@ -55,6 +55,17 @@ const dimension = computed(
 /** The active break-down decides how this widget renders. */
 const resultType = computed(() => dimension.value?.resultType ?? metric.value?.resultType)
 
+/** How a breakdown's bars are formatted. The metric's unit is the source of truth — a
+ *  seconds breakdown reads "1m 20s", a percentage one reads "84%" off a pinned 0–100%
+ *  axis, and everything else is a raw count. */
+const breakdownUnit = computed<'count' | 'duration' | 'percentage'>(() =>
+  metric.value?.unit === 'seconds'
+    ? 'duration'
+    : metric.value?.unit === 'percentage'
+      ? 'percentage'
+      : 'count',
+)
+
 // Break-downs live in the ⋯ menu, so the card header stays clean regardless of how
 // many a measure declares — no width juggling, and room for more settings later.
 const dimensions = computed(() => metric.value?.dimensions ?? [])
@@ -514,7 +525,8 @@ const skeletonBars = computed(() =>
           :data="sample.series"
           :series="sample.lines"
           :legend="false"
-          :unit="metric.unit === 'seconds' ? 'duration' : 'count'"
+          :unit="breakdownUnit"
+          :context="sample.context"
           :show-all-labels="true"
           :height="CHART_HEIGHT - (sample?.secondary ? 52 : 0) - (metric.footnote ? 24 : 0)"
         />
