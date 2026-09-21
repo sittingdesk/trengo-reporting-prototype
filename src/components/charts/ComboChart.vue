@@ -49,8 +49,8 @@ function token(name: string, fallback: string): string {
  * The chart `tint` union is `'leaf' | 'sky'` — two peers, for series that are equals
  * (Created vs Closed, Inbound vs Outbound). These two aren't equals: one is the subject and
  * one is its context. So the line takes leaf-600, the darkest green already used for
- * meaning-carrying text, and the bars take grey-300 — the same grey BarChart already gives
- * its "Average" comparison series, for the same reason: it recedes.
+ * meaning-carrying text, and the bars take a grey — the same role BarChart's own "Average"
+ * comparison series plays, for the same reason: it recedes.
  *
  * The reference draws navy on lavender. There is no navy in the palette and purple isn't
  * reachable from a chart (the tint union would have to widen in four places), so this keeps
@@ -58,7 +58,11 @@ function token(name: string, fallback: string): string {
  */
 function datasets() {
   const line = token('--color-leaf-600', '#177b6b')
-  const bars = token('--color-grey-300', '#e1e3e5')
+  // grey-400, not grey-300. The bars themselves read either way as large areas, but the
+  // header legend's swatch is an 8px dot: grey-300 is 1.18:1 on white and effectively
+  // invisible at that size, grey-400 is 1.9:1. The dot and the bars have to be the same
+  // colour to be telling the truth, so the bars follow the dot rather than the reverse.
+  const bars = token('--color-grey-400', '#c6c9cd')
   return [
     {
       type: 'line' as const,
@@ -97,7 +101,6 @@ function build() {
   if (!canvas.value) return
   const grid = token('--color-grey-200', '#f4f5f6')
   const axis = token('--color-grey-600', '#70767b')
-  const legendText = token('--color-grey-700', '#4d5256')
 
   chart = new Chart(canvas.value, {
     // A bar chart that contains a line dataset — Chart.js's own way of mixing types.
@@ -108,19 +111,10 @@ function build() {
       maintainAspectRatio: false,
       interaction: { intersect: false, mode: 'index' },
       plugins: {
-        legend: {
-          display: true,
-          position: 'bottom',
-          align: 'center',
-          labels: {
-            usePointStyle: true,
-            pointStyle: 'circle',
-            boxWidth: 6,
-            boxHeight: 6,
-            color: legendText,
-            font: { size: 11 },
-          },
-        },
+        // Off: the legend lives in the CARD HEADER, top-right, where Created vs closed and
+        // Call volume already put theirs. Chart.js's own legend would sit inside the plot
+        // and cost the chart ~24px of height that the card can't give back.
+        legend: { display: false },
         tooltip: {
           usePointStyle: true,
           padding: 10,

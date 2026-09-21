@@ -327,6 +327,17 @@ const skeletonBars = computed(() =>
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-leaf-400" /> Today</span>
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-grey-300" /> Average</span>
       </div>
+      <!-- Combo (score line + volume bars): legend in the HEADER, where Created vs closed
+           puts its own, rather than inside the plot. Two swatches hard-coded because the
+           combo colours by ROLE and can't come from the leaf/sky tint ternary the blocks
+           below use — they must match ComboChart's own two colours exactly. -->
+      <div
+        v-else-if="resultType === 'time_series' && metric.viz === 'combo' && sample?.combo && showHeaderExtras"
+        class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
+      >
+        <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-leaf-600" /> {{ sample.combo.score.name }}</span>
+        <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-grey-400" /> {{ sample.combo.volume.name }}</span>
+      </div>
       <!-- Stacked time-series (e.g. Call volume): legend enriched with per-series totals + Total -->
       <div
         v-else-if="resultType === 'time_series' && metric.stacked && seriesTotals && showHeaderExtras"
