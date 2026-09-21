@@ -445,7 +445,16 @@ const skeletonBars = computed(() =>
       <MetricSkeleton v-if="loading" :variant="skeletonVariant" :bars="skeletonBars" />
 
       <!-- Error — before every other state, so a failure never reads as data -->
-      <MetricErrorState v-else-if="errored" :min-height="bodyMinHeight" :retrying="retrying" @retry="retry" />
+      <!-- `compact` on a KPI card: its 86px body can't hold the icon as well, and an
+           errored card that grows to 168px beside healthy 160px neighbours is the ragged
+           row the whole state-height discipline exists to stop. -->
+      <MetricErrorState
+        v-else-if="errored"
+        :min-height="bodyMinHeight"
+        :compact="resultType === 'value'"
+        :retrying="retrying"
+        @retry="retry"
+      />
 
       <!-- Restricted -->
       <div v-else-if="metric.status === 'restricted'" class="flex flex-1 flex-col items-center justify-center gap-1 text-center">
