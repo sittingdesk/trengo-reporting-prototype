@@ -111,8 +111,12 @@ const rows = computed(() => {
            wider than "8 responses" — and three bars on three different baselines can't be
            compared, which is the only reason to draw them. -->
       <div class="flex items-baseline justify-between gap-2">
-        <span class="flex items-center gap-1.5 truncate text-xs font-medium leading-4 text-grey-700">
-          <Icon :name="row.icon" :size="16" class="shrink-0" :class="row.text" />
+        <!-- 24px, not the 16 this started at: at 16 the faces read as punctuation beside
+             the 24px share rather than as the thing that names the row. 24 is on the icon
+             scale design.md's summary table gives (16 / 20 / 24), and it costs no height —
+             the line is already 32px tall because of the share number beside it. -->
+        <span class="flex items-center gap-2 truncate text-xs font-medium leading-4 text-grey-700">
+          <Icon :name="row.icon" :size="24" class="shrink-0" :class="row.text" />
           {{ row.label }}
         </span>
         <span class="flex shrink-0 items-baseline gap-2">
