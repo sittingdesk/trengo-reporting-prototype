@@ -116,7 +116,12 @@ const rows = computed(() => {
         <!-- 20px: the middle stop, and the only one both of design.md's two icon-size
              lists agree on (the summary table says 16/20/24, §8.1 says 16/20/32). At 16 the
              faces read as punctuation; at 24 they outweighed the label. -->
-        <span class="flex items-center gap-2 truncate text-xs font-medium leading-4 text-grey-700">
+        <!-- 14/600/20 — design.md §2.2's emphasised style, the only regular/emphasised pair
+             the scale actually names (14/500 body → 14/600). It was 12/500, the tooltip and
+             badge tier, which read as a caption under the number rather than as the thing
+             naming the row. Costs no height: the line is set by the 18px share's 24px
+             leading, not by this. -->
+        <span class="flex items-center gap-2 truncate text-sm font-semibold leading-5 text-grey-700">
           <Icon :name="row.icon" :size="20" class="shrink-0" :class="row.text" />
           {{ row.label }}
         </span>
