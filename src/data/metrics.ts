@@ -258,6 +258,36 @@ export const METRICS: MetricDef[] = [
       "Share of surveys that got an answer. What counts as a survey being sent isn't defined yet, so treat this figure as illustrative.",
   },
   {
+    // registry: NO ENTRY — but unlike the other CSAT asks this one is already computable.
+    // `COUNTIF(csat_ticket_submitted_at IS NOT NULL)` is the NUMERATOR of
+    // csat_response_rate, a real predicate on an existing column. What the registry lacks
+    // is the entry, not the data.
+    //
+    // ⚠️ THE ASSUMPTION THAT MAKES THIS BUILDABLE: "received" means surveys that came BACK
+    // (answered), not surveys that went OUT. The PM's table filed this under the same
+    // undefined "offered" concept as the response rate, which would make it unbuildable —
+    // there is no record of sends anywhere in the registry. Read as answered surveys it
+    // needs no new data at all. If the PM meant sends, this widget cannot exist yet and
+    // should come off rather than be quietly re-pointed.
+    //
+    // ASK: expose the numerator as its own entry, grouped by day. Note the registry has no
+    // daily grain anywhere — every entry is `per_period` — so the group-by is the new part,
+    // not the measure.
+    id: 'csat_surveys_received',
+    label: 'Surveys received',
+    unit: 'count',
+    resultType: 'time_series',
+    viz: 'bar', // Jeff's reference shows bars, and a daily count is a bar, not a line
+    status: 'ready',
+    category: 'quality',
+    base: 120, // matches csat_rating_distribution — one measure, and csatResponses owns it
+    // Volume, so no direction: more surveys back is usually good but it scales with ticket
+    // volume, which is exactly what `neutral` is for (same call as Total calls).
+    neutral: true,
+    caveat:
+      "Surveys customers answered, day by day. What went out isn't recorded, so this counts only what came back.",
+  },
+  {
     id: 'csat_rating_distribution',
     label: 'Satisfaction ratings',
     // The unit describes the BARS (a count per rating), not a rate — the percentage lives

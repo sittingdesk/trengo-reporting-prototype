@@ -218,9 +218,12 @@ export const TEMPLATES: Template[] = [
     // `newRow` on the chart, or the grid pulls a 274px chart up beside a 160px KPI. The
     // trailing gap beside the KPI is the honest in-progress state — it fills as the rest of
     // the PM's list lands.
+    // Reads as one argument: what share of customers answered, how many that was day by
+    // day, and what they actually said. Volume before verdict.
     widgets: [
       { metricId: 'csat_response_rate' },
-      { metricId: 'csat_rating_distribution', span: 6, newRow: true },
+      { metricId: 'csat_surveys_received', span: 6, newRow: true },
+      { metricId: 'csat_rating_distribution', span: 6 },
     ],
   },
   {

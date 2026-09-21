@@ -407,6 +407,41 @@ export function metricValue(
     return { value: total, previous: total * jitter(rng, 0.2), heatmap: grid }
   }
 
+  // Surveys received, per day. The bars sum EXACTLY to the response count the ratings chart
+  // beside it is built from — they are one measure at two grains, on one page, so a reader
+  // who adds the bars up has to land on the number the distribution totals.
+  //
+  // That is why it takes the shared draw's `total` and splits it, rather than falling
+  // through to the generic time_series branch below: that one derives its own volume from
+  // `base × days`, which would put two different survey counts on the same page.
+  if (def.id === 'csat_surveys_received') {
+    const { total } = csatResponses(signature, days, chFactor, tmFactor)
+    const bucketed = timeSeriesBuckets(dateRange?.start, dateRange?.end)
+    const labels = bucketed.labels.length ? bucketed.labels : ['—']
+    // Re-seeded on the window so a different range draws a different shape, the same way
+    // the generic branch does.
+    const tsRng = mulberry32(
+      hashString(`${def.id}|ts|${dateRange?.start?.toString() ?? ''}|${signature}`),
+    )
+    const weights = labels.map(() => jitter(tsRng, 0.5))
+    const sum = weights.reduce((a, b) => a + b, 0) || 1
+    const data = weights.map((w) => Math.max(0, Math.round((w / sum) * total)))
+    // Rounding leaves the parts a few short of or over the whole. Put the difference on the
+    // biggest bucket, where it's proportionally smallest — without this the bars sum to
+    // "about" the total, and "about" is what the shared draw exists to rule out.
+    const drift = total - data.reduce((a, b) => a + b, 0)
+    if (drift !== 0) {
+      const biggest = data.indexOf(Math.max(...data))
+      data[biggest] = Math.max(0, data[biggest] + drift)
+    }
+    return {
+      value: total,
+      previous: total * jitter(rng, 0.2),
+      labels,
+      lines: [{ name: 'Surveys received', tint: 'leaf', data, csvKey: 'surveys_received' }],
+    }
+  }
+
   // Time series: Created vs Closed over the period, bucketed by real dates
   // (daily / weekly / monthly depending on the selected range length).
   if (def.resultType === 'time_series') {
