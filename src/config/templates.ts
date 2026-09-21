@@ -222,8 +222,13 @@ export const TEMPLATES: Template[] = [
     // day, and what they actually said. Volume before verdict.
     widgets: [
       { metricId: 'csat_response_rate' },
-      { metricId: 'csat_surveys_received', span: 6, newRow: true },
+      { metricId: 'csat_score_over_time', span: 6, newRow: true },
       { metricId: 'csat_rating_distribution', span: 6 },
+      // Surveys received came off when Satisfaction over time landed: its bars ARE the
+      // survey volume, so keeping both printed the same seven bars twice on one page. The
+      // metric, mock and empty state all stay, so it is still addable from the library for
+      // anyone who wants volume on its own.
+      // { metricId: 'csat_surveys_received', span: 6 },
     ],
   },
   {

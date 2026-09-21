@@ -7,6 +7,7 @@
 import { computed, ref, watch } from 'vue'
 import Icon from '@/components/Icon.vue'
 import BarChart from '@/components/charts/BarChart.vue'
+import ComboChart from '@/components/charts/ComboChart.vue'
 import LineChart from '@/components/charts/LineChart.vue'
 import FunnelChart from '@/components/charts/FunnelChart.vue'
 import HeatmapChart from '@/components/charts/HeatmapChart.vue'
@@ -448,10 +449,21 @@ const skeletonBars = computed(() =>
         />
       </div>
 
-      <!-- Time series — line by default, or stacked bars (e.g. Call volume) -->
+      <!-- Time series — line by default, stacked bars (e.g. Call volume), or a combo: a
+           rate as a line over its volume as bars, on two axes. The combo is picked by the
+           SAMPLE carrying a `combo` payload rather than by `viz` alone, because its data
+           shape is genuinely different — two series with two units, which `lines` can't
+           express (its members are peers on one axis). -->
       <div v-else-if="resultType === 'time_series'" class="flex flex-1 flex-col">
+        <ComboChart
+          v-if="metric.viz === 'combo' && sample?.combo && sample?.labels"
+          :labels="sample.labels"
+          :score="sample.combo.score"
+          :volume="sample.combo.volume"
+          :height="CHART_HEIGHT"
+        />
         <BarChart
-          v-if="(metric.stacked || (dimension?.viz ?? metric.viz) === 'bar') && sample?.lines && sample?.labels"
+          v-else-if="(metric.stacked || (dimension?.viz ?? metric.viz) === 'bar') && sample?.lines && sample?.labels"
           :labels="sample.labels"
           :series="sample.lines"
           :legend="false"

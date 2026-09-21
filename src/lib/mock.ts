@@ -57,6 +57,10 @@ export interface MetricSample {
   heatmap?: number[][] // 7 rows (Mon–Sun) × 24 hour columns (voip_calls_by_day_hour)
   funnel?: { stage: string; count: number }[] // funnel stages (deal_stage_funnel)
   donut?: { label: string; value: number }[] // doughnut segments (new_vs_returning)
+  /** A rate-over-a-volume pair for ComboChart: the line (0–1 rate) and the bars (counts).
+   *  Kept OUT of `lines` on purpose — that array's members are peers drawn the same way on
+   *  one axis, and these two are a subject and its weight on two axes with two units. */
+  combo?: { score: { name: string; data: number[] }; volume: { name: string; data: number[] } }
   legendBelow?: boolean // render the line-chart legend below the chart (not header)
   /** Dashed reference line on a time chart (e.g. the period average). */
   referenceValue?: number
@@ -270,6 +274,27 @@ function voiceQueue(signature: string, days: number, chFactor: number, tmFactor:
 }
 
 /**
+ * Split a whole-period total across buckets so the parts sum to EXACTLY the whole.
+ *
+ * Rounding shares to integers always leaves the parts a little short of or over the total.
+ * The difference goes onto the biggest bucket, where it is proportionally smallest.
+ * Without this the bars sum to "about" the total, and "about" is what the shared draws
+ * exist to rule out — a reader adding the bars up has to land on the number the card
+ * beside it totals.
+ */
+function splitToBuckets(total: number, buckets: number, rng: () => number): number[] {
+  const weights = Array.from({ length: buckets }, () => jitter(rng, 0.5))
+  const sum = weights.reduce((a, b) => a + b, 0) || 1
+  const out = weights.map((w) => Math.max(0, Math.round((w / sum) * total)))
+  const drift = total - out.reduce((a, b) => a + b, 0)
+  if (drift !== 0) {
+    const biggest = out.indexOf(Math.max(...out))
+    out[biggest] = Math.max(0, out[biggest] + drift)
+  }
+  return out
+}
+
+/**
  * One set of survey responses, shared by both satisfaction widgets.
  *
  * A helper rather than two branches, for one reason: `metricValue` seeds itself per metric
@@ -407,6 +432,47 @@ export function metricValue(
     return { value: total, previous: total * jitter(rng, 0.2), heatmap: grid }
   }
 
+  // Satisfaction over time — the score as a line, the survey volume behind it as bars.
+  //
+  // Every number here is the shared draw split into buckets, so the card cannot contradict
+  // its neighbours: the bars sum to the response count the ratings chart is built from, and
+  // the line's VOLUME-WEIGHTED mean is exactly the rate the Overview KPI shows. That second
+  // one is why the satisfied responses are split rather than the rate itself — dividing
+  // per-day satisfied by per-day volume makes Σsatisfied/Σvolume identical to the period
+  // rate by construction, where scaling a jittered rate can only get close.
+  if (def.id === 'csat_score_over_time') {
+    const { total, satisfied } = csatResponses(signature, days, chFactor, tmFactor)
+    const bucketed = timeSeriesBuckets(dateRange?.start, dateRange?.end)
+    const labels = bucketed.labels.length ? bucketed.labels : ['—']
+    const tsRng = mulberry32(
+      hashString(`${def.id}|ts|${dateRange?.start?.toString() ?? ''}|${signature}`),
+    )
+    const volume = splitToBuckets(total, labels.length, tsRng)
+    // Satisfied responses per bucket, proportional to that bucket's volume and never more
+    // than it — a day cannot have more happy customers than customers.
+    const happy = splitToBuckets(satisfied, labels.length, tsRng).map((v, i) =>
+      Math.min(v, volume[i]),
+    )
+    // Clamping above can leave some satisfied responses unplaced; put them wherever there
+    // is still room, or the weighted mean drifts below the KPI.
+    let spare = satisfied - happy.reduce((a, b) => a + b, 0)
+    for (let i = 0; i < happy.length && spare > 0; i++) {
+      const room = volume[i] - happy[i]
+      const take = Math.min(room, spare)
+      happy[i] += take
+      spare -= take
+    }
+    return {
+      value: total, // drives the empty state; the delta is suppressed for a two-series chart
+      previous: total * jitter(rng, 0.2),
+      labels,
+      combo: {
+        score: { name: 'Score', data: volume.map((v, i) => (v > 0 ? happy[i] / v : 0)) },
+        volume: { name: 'Surveys', data: volume },
+      },
+    }
+  }
+
   // Surveys received, per day. The bars sum EXACTLY to the response count the ratings chart
   // beside it is built from — they are one measure at two grains, on one page, so a reader
   // who adds the bars up has to land on the number the distribution totals.
@@ -423,17 +489,7 @@ export function metricValue(
     const tsRng = mulberry32(
       hashString(`${def.id}|ts|${dateRange?.start?.toString() ?? ''}|${signature}`),
     )
-    const weights = labels.map(() => jitter(tsRng, 0.5))
-    const sum = weights.reduce((a, b) => a + b, 0) || 1
-    const data = weights.map((w) => Math.max(0, Math.round((w / sum) * total)))
-    // Rounding leaves the parts a few short of or over the whole. Put the difference on the
-    // biggest bucket, where it's proportionally smallest — without this the bars sum to
-    // "about" the total, and "about" is what the shared draw exists to rule out.
-    const drift = total - data.reduce((a, b) => a + b, 0)
-    if (drift !== 0) {
-      const biggest = data.indexOf(Math.max(...data))
-      data[biggest] = Math.max(0, data[biggest] + drift)
-    }
+    const data = splitToBuckets(total, labels.length, tsRng)
     return {
       value: total,
       previous: total * jitter(rng, 0.2),

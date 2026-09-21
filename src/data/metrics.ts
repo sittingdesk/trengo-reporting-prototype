@@ -83,7 +83,7 @@ export interface MetricDef {
   /** Picks the rendering when a result type supports more than one — a time series can be
    *  bars or a line. Same field as `MetricDimension.viz`, at the measure level for a
    *  metric that has no break-downs. */
-  viz?: 'bar' | 'line'
+  viz?: 'bar' | 'line' | 'combo'
   /** CSV header names for breakdown widgets (dimension + measure columns). */
   csvColumns?: { dimension: string; measure: string }
   /** Break-downs this measure supports. >1 renders a switcher in the card header;
@@ -256,6 +256,30 @@ export const METRICS: MetricDef[] = [
     // sample. So neither `lowerIsBetter` nor `neutral`.
     caveat:
       "Share of surveys that got an answer. What counts as a survey being sent isn't defined yet, so treat this figure as illustrative.",
+  },
+  {
+    // registry: csat_average_score is the nearest entry and it is NOT this — that one is
+    // AVG(csat_ticket_rating) on the 1–5 scale. This plots the SATISFIED RATE per day,
+    // which is the measure Jeff chose to keep as our score (see csat_satisfied_rate), and
+    // which matches the reference design's own "Score %" axis.
+    //
+    // ⚠️ TWO ASKS, and the second is the real one:
+    //   1. csat_satisfied_rate — already recorded on that metric.
+    //   2. A DAILY GRAIN. Every entry in the registry is `grain: per_period`; nothing is
+    //      declared per-day anywhere in the file. The group-by is the new part, not the
+    //      measure — same ask as Surveys received needs.
+    id: 'csat_score_over_time',
+    label: 'Satisfaction over time',
+    // The unit describes the LINE (a rate). The bars are counts on their own axis, which is
+    // exactly why this doesn't go through the normal single-unit chart path.
+    unit: 'percentage',
+    resultType: 'time_series',
+    viz: 'combo',
+    status: 'ready',
+    category: 'quality',
+    base: 0.83,
+    caveat:
+      'How satisfaction moved over the period, with the number of surveys behind each point. A score from three surveys is not the same fact as one from thirty.',
   },
   {
     // registry: NO ENTRY — but unlike the other CSAT asks this one is already computable.

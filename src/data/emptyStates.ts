@@ -28,6 +28,7 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   // would undo the split at exactly the moment there is nothing else to tell them apart.
   csat_satisfied_rate: { noun: 'answered surveys', icon: 'EmotionSmile' },
   csat_response_rate: { noun: 'surveys', icon: 'EmotionSmile' },
+  csat_score_over_time: { noun: 'answered surveys', icon: 'EmotionSmile' },
   csat_surveys_received: { noun: 'survey responses', icon: 'EmotionSmile' },
   csat_rating_distribution: { noun: 'ratings', icon: 'EmotionSmile' },
   win_rate: { noun: 'decided deals', icon: 'Target' },
