@@ -218,25 +218,32 @@ export const TEMPLATES: Template[] = [
     // `newRow` on the chart, or the grid pulls a 274px chart up beside a 160px KPI. The
     // trailing gap beside the KPI is the honest in-progress state — it fills as the rest of
     // the PM's list lands.
-    // Reads as one argument, four cards, each answering a different question: what share
-    // of customers answered, how that moved, how they felt, and which channel to go and
-    // look at. Volume before verdict, verdict before target — and no number printed twice.
+    // Reads as one argument, three cards, each answering a different question: what share
+    // of customers answered at all, how satisfaction moved over the period, and what the
+    // answers were made of. Volume before verdict — and no number printed twice.
     widgets: [
       { metricId: 'csat_response_rate' },
-      // Full width, and it changed from span 6 when Satisfaction by channel arrived. The
-      // rule this page follows is that a chart's span tracks whether it has a PEER: the two
-      // categorical breakdowns below are peers — same shape, ~5 bars each, both answering
-      // "where does it sit" — so they pair, and the trend is then the odd one out, which is
-      // what full width means. It also has the most to gain from the room: at a 30-day range
-      // this chart draws 30 buckets, which is cramped at half width. `newRow` is redundant
-      // at span 12 (grid's sparse flow breaks the row on its own) but the KPI above leaves
-      // a 9-column gap, so it is stated rather than inferred.
-      { metricId: 'csat_score_over_time', span: 12, newRow: true },
+      // The trend and the breakdown pair 50/50: how satisfaction moved, and what it is made
+      // of. The rule this page follows is that a chart's span tracks whether it has a PEER —
+      // this went to span 12 for one commit while Satisfaction by channel took the row
+      // below, and comes back to 6 now that the breakdown is its partner.
+      //
+      // `newRow` is load-bearing again at this span. At 12 the grid broke the row on its
+      // own; at 6 the KPI above leaves a 9-column gap that a 274px chart would drop into,
+      // beside a 160px card — the imbalance `needsNewRow` exists to prevent.
+      { metricId: 'csat_score_over_time', span: 6, newRow: true },
       { metricId: 'csat_sentiment_breakdown', span: 6 },
-      { metricId: 'csat_by_channel', span: 6 },
+      // Satisfaction by channel came off because nobody asked for it: "the CSAT breakdown"
+      // meant the three sentiment buckets, and a dimensional cut was my reading of the PM's
+      // unnamed row rather than the row itself. It is also the only CSAT widget here that
+      // needs data we haven't got — the sentiment split is a client-side bucketing of a
+      // query already requested, while this one needs a csat_tickets.ticket_id →
+      // tickets.channel_type join the registry has never declared. Still in the library if
+      // that join ever lands and the question is worth asking.
+      // { metricId: 'csat_by_channel', span: 6 },
       // Satisfaction ratings came off when the sentiment breakdown landed: they are the
       // same responses, five buckets against three, and the page was printing one set of
-      // surveys three ways. The three-bucket version is also the only one that survives a
+      // surveys twice. The three-bucket version is also the only one that survives a
       // thumbs up/down workspace, where 5★→1★ renders two bars and three empty columns.
       // Metric, mock, empty state and library row all stay, so restoring it here is one
       // line and adding it to a report is one click.
