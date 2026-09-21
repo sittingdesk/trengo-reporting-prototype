@@ -60,6 +60,7 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
       'first_response_compliance',
       'resolution_compliance',
       'csat_satisfied_rate',
+      'csat_response_rate',
       'csat_rating_distribution',
     ],
   },

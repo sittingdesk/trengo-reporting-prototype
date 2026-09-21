@@ -474,6 +474,24 @@ export function metricValue(
     return { value: total, previous: total * jitter(rng, 0.2), labels, lines }
   }
 
+  // How many people answered at all — the qualifier that used to sit in the ratings card's
+  // header as a note. Reads the shared draw, so promoting it to a card can't put two
+  // different response rates on one page.
+  //
+  // No `secondary`, and this is the one rate in the app where leaving the denominator off
+  // is the honest choice rather than a concession. Missed calls shows "5 of 29 inbound" and
+  // Win rate "82 of 240 decided deals" because a percentage without its denominator is
+  // unreadable — but here the denominator IS the undefined thing. Printing "120 of 316
+  // sent" would invent precision about a concept the registry has not defined. The caveat
+  // carries it instead.
+  if (def.id === 'csat_response_rate') {
+    const { total, offered } = csatResponses(signature, days, chFactor, tmFactor)
+    const rate = total / offered
+    // ±8%, not ±5%: FLAT_BAND_PCT is 5, so a prior drawn inside ±5% can only ever render
+    // grey. Same fix as the satisfied-rate branch below.
+    return { value: rate, previous: rate * jitter(rng, 0.08) }
+  }
+
   // The satisfaction rate — the verdict, on Overview. A number and its denominator; the
   // spread is the other widget's job. Only `previous` comes from this metric's own rng,
   // since only the CURRENT period has to agree across the two cards.
@@ -499,14 +517,19 @@ export function metricValue(
   // reprint the Overview card on another page. The bars are the content; the response rate
   // says how much they're worth.
   if (def.id === 'csat_rating_distribution') {
-    const { counts, total, offered } = csatResponses(signature, days, chFactor, tmFactor)
+    const { counts, total } = csatResponses(signature, days, chFactor, tmFactor)
     return {
       // `value` is the response count, which drives the empty state rather than any
       // rendered figure — a breakdown shows no headline and no delta. `previous` is
       // required by the type and goes nowhere; it stays on this metric's own rng.
       value: total,
       previous: total * jitter(rng, 0.15),
-      note: `Response rate ${fmtPercent(total / offered)}`,
+      // The `note: 'Response rate 38%'` that used to sit in this card's header is gone: it
+      // was a stand-in for a card that didn't exist, and now one does, two cards up on the
+      // same page. Printing the figure twice is the duplication the satisfaction split
+      // spent effort removing. Cost, stated: added to a report WITHOUT the rate card, this
+      // chart no longer says how representative it is — the bar counts still show n, and
+      // the rate is one row away in the library.
       labels: ['5 ★', '4 ★', '3 ★', '2 ★', '1 ★'],
       series: counts,
     }

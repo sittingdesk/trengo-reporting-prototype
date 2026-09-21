@@ -208,10 +208,20 @@ export const TEMPLATES: Template[] = [
     name: 'Improve',
     description: 'Where to prioritise change — knowledge, process, automation.',
     recommended: true,
-    // The ratings, not the rate: the rate is Overview's job (a number you glance at), and
-    // this page is where you'd act on the shape — a healthy headline sitting on a tail of
-    // 1s is the case this chart exists to expose.
-    widgets: [{ metricId: 'csat_rating_distribution', span: 6 }],
+    // Being built up metric by metric against the PM's list; this is step 1 of 5.
+    //
+    // The ratings, not the rate: the satisfaction rate is Overview's job (a number you
+    // glance at), and this page is where you'd act on the shape — a healthy headline
+    // sitting on a tail of 1s is the case that chart exists to expose. Above it, the one
+    // thing that says how much the shape is worth: how many people answered at all.
+    //
+    // `newRow` on the chart, or the grid pulls a 274px chart up beside a 160px KPI. The
+    // trailing gap beside the KPI is the honest in-progress state — it fills as the rest of
+    // the PM's list lands.
+    widgets: [
+      { metricId: 'csat_response_rate' },
+      { metricId: 'csat_rating_distribution', span: 6, newRow: true },
+    ],
   },
   {
     id: 'automate',

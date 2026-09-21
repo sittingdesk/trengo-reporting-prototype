@@ -231,6 +231,33 @@ export const METRICS: MetricDef[] = [
       "Share of answered surveys rated 4 or 5 out of 5. Only answered surveys count, so it says nothing about the customers who didn't reply.",
   },
   {
+    // registry: csat_response_rate — SAFE_DIVIDE(COUNTIF(csat_ticket_submitted_at IS NOT
+    // NULL), <OFFERED_COUNT_TBD>). The numerator is real; the DENOMINATOR IS LITERALLY A
+    // PLACEHOLDER in the registry's own calculation string.
+    //
+    // ⚠️ That entry carries no `filters:` and no `caveats:` key at all, so unlike every
+    // other half-defined metric there is nowhere in the registry the warning lives — it is
+    // only inferable from the angle brackets. Hence the length of this comment.
+    //
+    // ASK: what predicate identifies a survey as SENT? If the answer is "we don't record
+    // sends", this metric cannot exist and the card comes off — worth saying out loud,
+    // because it is a live possibility rather than a formality.
+    //
+    // Neither CSAT entry has a `pages:` tag, so putting this on Improve is our placement,
+    // not the data team's.
+    id: 'csat_response_rate',
+    label: 'Survey response rate',
+    unit: 'percentage',
+    resultType: 'value',
+    status: 'ready',
+    category: 'quality',
+    base: 0.34, // illustrative — csatResponses() owns the number this shares with the bars
+    // Up is good and that is not arguable: a higher response rate is a more representative
+    // sample. So neither `lowerIsBetter` nor `neutral`.
+    caveat:
+      "Share of surveys that got an answer. What counts as a survey being sent isn't defined yet, so treat this figure as illustrative.",
+  },
+  {
     id: 'csat_rating_distribution',
     label: 'Satisfaction ratings',
     // The unit describes the BARS (a count per rating), not a rate — the percentage lives

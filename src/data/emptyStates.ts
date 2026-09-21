@@ -27,6 +27,7 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   // Different nouns on purpose: two satisfaction cards reading the identical sentence
   // would undo the split at exactly the moment there is nothing else to tell them apart.
   csat_satisfied_rate: { noun: 'answered surveys', icon: 'EmotionSmile' },
+  csat_response_rate: { noun: 'surveys', icon: 'EmotionSmile' },
   csat_rating_distribution: { noun: 'ratings', icon: 'EmotionSmile' },
   win_rate: { noun: 'decided deals', icon: 'Target' },
   sales_by_board: { noun: 'deals', icon: 'Target' },
