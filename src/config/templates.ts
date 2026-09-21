@@ -3,6 +3,18 @@
 // A TEMPLATE is a named, ordered collection of widgets — the blueprint a user
 // picks when creating a new report.
 //
+// ⚠️ ONE METRIC PER PAGE. A metric may appear on SEVERAL templates — First response time
+// and Resolution time are on both Overview and Operate, and Customer satisfaction is on
+// Overview and Improve — but never twice on the same one.
+//
+// Across pages it is free: TECH_FOUNDATION §4 gives each page its own aggregate endpoint,
+// and `metricValue` seeds on `${def.id}|${signature}`, so two pages showing one metric
+// under the same filters return the same number by construction. Twice on ONE page is the
+// problem — that page's single aggregate call would either fetch the metric twice or make
+// two boxes share one response, a special case in the one place the architecture is
+// deliberately simple. `warnOnDuplicateMetrics()` at the foot of this file catches it in
+// dev; `addWidget` already refuses it on the runtime path.
+//
 // ⚠️ Mock: the widgets below are placeholder display names + a "kind", NOT real
 // metrics. They render as empty placeholder cards for now; the real "metric box"
 // (wired to the metrics registry) comes in a later step. `kind` drives the card's
@@ -208,20 +220,29 @@ export const TEMPLATES: Template[] = [
     name: 'Improve',
     description: 'Where to prioritise change — knowledge, process, automation.',
     recommended: true,
-    // Being built up metric by metric against the PM's list; this is step 5 of 5.
+    // The PM's five CSAT rows, all landed.
     //
-    // The ratings, not the rate: the satisfaction rate is Overview's job (a number you
-    // glance at), and this page is where you'd act on the shape — a healthy headline
-    // sitting on a tail of 1s is the case that chart exists to expose. Above it, the one
-    // thing that says how much the shape is worth: how many people answered at all.
+    // This page used to carry the ratings and NOT the rate, on the reasoning that "the
+    // satisfaction rate is Overview's job — a number you glance at — and this page is where
+    // you act on the shape". That split existed to keep two different CSAT widgets
+    // distinguishable. The one-metric-per-page rule at the top of this file removes its
+    // premise: a metric is allowed on both pages, and the score belongs at the head of the
+    // page that exists to improve it. Overview keeps its copy, unchanged.
     //
-    // `newRow` on the chart, or the grid pulls a 274px chart up beside a 160px KPI. The
-    // trailing gap beside the KPI is the honest in-progress state — it fills as the rest of
-    // the PM's list lands.
-    // Reads as one argument, three cards, each answering a different question: what share
-    // of customers answered at all, how satisfaction moved over the period, and what the
-    // answers were made of. Volume before verdict — and no number printed twice.
+    // Reads as one argument: how satisfied customers are, how much of the base that speaks
+    // for, how it moved, and what it is made of. The score leads and the response rate
+    // qualifies it — the same order Operate uses, where SLA compliance leads the row because
+    // it is the verdict on the timers that follow.
+    //
+    // ⚠️ 83% therefore appears three times on this page: as the KPI, as the trend line's
+    // level, and as the breakdown's Positive row. That is the ordinary headline + trend +
+    // composition pattern rather than a duplication bug — all three read one `csatResponses()`
+    // draw, so they cannot disagree — but it is the reason the old "no number printed twice"
+    // note is gone rather than merely moved.
+    //
+    // `newRow` on the first chart, or the grid pulls a 274px chart up beside a 160px KPI.
     widgets: [
+      { metricId: 'csat_satisfied_rate' },
       { metricId: 'csat_response_rate' },
       // The trend and the breakdown pair 50/50: how satisfaction moved, and what it is made
       // of. The rule this page follows is that a chart's span tracks whether it has a PEER —
@@ -263,6 +284,38 @@ export const TEMPLATES: Template[] = [
     widgets: [],
   },
 ]
+
+/**
+ * Dev-only: a metric may appear on SEVERAL templates, but only ONCE per template.
+ *
+ * `addWidget` already refuses a duplicate on the runtime path — but it is scoped to the
+ * report it is adding to, so it never sees this file. A metricId listed twice here renders
+ * two identical cards and says nothing, which is exactly the class of thing that ships
+ * unnoticed. Runs at module scope so it fires on first import rather than on a page visit,
+ * and `import.meta.env.DEV` strips the whole thing from the production bundle.
+ *
+ * Modelled on `Icon.vue`'s missing-glyph warning, the project's one other dev-time check.
+ * The `orphanedMetricIds()` check that `metricGroups.ts` has promised since September wants
+ * the same shape and belongs beside it.
+ */
+function warnOnDuplicateMetrics(): void {
+  if (!import.meta.env.DEV) return
+  for (const template of TEMPLATES) {
+    const seen = new Set<string>()
+    for (const widget of template.widgets) {
+      if (!isMetricWidget(widget)) continue
+      if (seen.has(widget.metricId)) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[templates] ${template.name} lists "${widget.metricId}" twice. ` +
+            'A metric may appear on several pages, but only once per page.',
+        )
+      }
+      seen.add(widget.metricId)
+    }
+  }
+}
+warnOnDuplicateMetrics()
 
 export function getTemplate(id: string): Template | undefined {
   return TEMPLATES.find((t) => t.id === id)
