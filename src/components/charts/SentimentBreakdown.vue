@@ -103,27 +103,32 @@ const rows = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col justify-center gap-6" :style="{ height: `${height}px` }">
-    <div v-for="row in rows" :key="row.label" class="flex flex-col gap-1.5">
+  <!-- 20px between rows and 8px inside one, both off design.md §3.2's gap scale
+       (3 / 4 / 8 / 10 / 12 / 20). They were 24 and 6, which are on no scale at all. -->
+  <div class="flex flex-col justify-center gap-5" :style="{ height: `${height}px` }">
+    <div v-for="row in rows" :key="row.label" class="flex flex-col gap-2">
       <!-- Everything textual on one line: name left, then the count and the share right.
            The count sits INSIDE this line rather than beside the bar, because a supporting
            figure next to the track makes each track a different width — "103 responses" is
            wider than "8 responses" — and three bars on three different baselines can't be
            compared, which is the only reason to draw them. -->
       <div class="flex items-baseline justify-between gap-2">
-        <!-- 24px, not the 16 this started at: at 16 the faces read as punctuation beside
-             the 24px share rather than as the thing that names the row. 24 is on the icon
-             scale design.md's summary table gives (16 / 20 / 24), and it costs no height —
-             the line is already 32px tall because of the share number beside it. -->
+        <!-- 20px: the middle stop, and the only one both of design.md's two icon-size
+             lists agree on (the summary table says 16/20/24, §8.1 says 16/20/32). At 16 the
+             faces read as punctuation; at 24 they outweighed the label. -->
         <span class="flex items-center gap-2 truncate text-xs font-medium leading-4 text-grey-700">
-          <Icon :name="row.icon" :size="24" class="shrink-0" :class="row.text" />
+          <Icon :name="row.icon" :size="20" class="shrink-0" :class="row.text" />
           {{ row.label }}
         </span>
         <span class="flex shrink-0 items-baseline gap-2">
           <span class="text-xs font-medium leading-4 tabular-nums text-grey-600">{{ row.support }}</span>
-          <!-- 24px: the share is the number you read, and the same step below the KPI
-               card's 36px that the donut's centre total already uses. -->
-          <span class="text-2xl font-bold leading-8 tabular-nums" :class="row.text">{{ row.share }}</span>
+          <!-- 18px/700/24 — `text-lg`, the top of design.md §2's scale before the H3
+               token. It was 24, which is the H3 heading size: a heading's worth of weight
+               for a number that sits three tiers below the card title, and at that size the
+               red row read heavier than its neighbours even though all three render
+               identically. One step down keeps the share clearly the number you read while
+               it stops shouting. -->
+          <span class="text-lg font-bold leading-6 tabular-nums" :class="row.text">{{ row.share }}</span>
         </span>
       </div>
       <!-- One full-width track per row, all identical, so the three fills are comparable
