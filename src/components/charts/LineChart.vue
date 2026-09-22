@@ -7,7 +7,7 @@ import { Chart, CHART_HEIGHT } from '@/lib/chart'
 const props = withDefaults(
   defineProps<{
     labels: (string | number)[]
-    series: { name: string; tint: 'leaf' | 'peach'; data: number[]; dashed?: boolean }[]
+    series: { name: string; tint: 'leaf' | 'purple'; data: number[]; dashed?: boolean }[]
     legend?: boolean
     legendPosition?: 'top' | 'bottom'
     height?: number
@@ -25,32 +25,30 @@ function token(name: string, fallback: string): string {
 }
 
 function datasets() {
-  // leaf + peach, not leaf + sky. Measured, because the old pair looked fine and wasn't:
-  // leaf-500 and sky-600 sit 13° apart in hue and read ΔE2000 21.9 in normal vision, but
-  // collapse to 10.7 under deuteranopia — two lines that become shades of one violet for
-  // roughly 8% of men. No stop of sky fixes it (leaf-500 + sky-700 is WORSE, ΔE 8.1).
+  // leaf-800 + purple-600. Three pairs have shipped here; this is why this one holds.
   //
-  // peach-600 measures 52.6 normal and never drops below 48.8 across deuteranopia,
-  // protanopia and tritanopia, and clears 3:1 on white — which a series colour needs,
-  // because colour plus the legend is the only thing naming a line.
+  // The original leaf-500 + sky-600 looked fine and wasn't: 13° apart in hue, ΔE2000 21.9
+  // in normal vision but 10.7 under deuteranopia — two lines that become shades of one
+  // violet for roughly 8% of men. Then sun-800 and peach-600, both of which measured ~50
+  // and both of which were rejected on sight for being warm.
   //
-  // sun-800 shipped here for a day and measured just as well (44.9 / 49.8). It came off on
-  // sight rather than on numbers: the amber read as burnt mustard wherever it covered real
-  // area, and Call volume is a stacked bar where the second series takes about two thirds
-  // of the plot. A pair can be correct and still be wrong at scale.
+  // The reason warm kept coming up is structural, not aesthetic: red-green colour blindness
+  // collapses hue onto a single blue-to-yellow axis, so a mid teal's only reliable partners
+  // lie in the yellow/orange/coral direction. Against leaf-500, purple-600 measures a poor
+  // ΔE 14.8 under protanopia for exactly that reason.
   //
-  // ⚠️ THE TRADE, taken deliberately: peach-600 is only ΔE 14.7 from error-600, so a coral
-  // series sitting near a red delta can read faintly evaluative — and this app otherwise
-  // keeps judgement out of charts entirely. Accepted because the alternatives are worse:
-  // every colour-blind-safe partner for a teal is warm (purple-600 collapses to ΔE 14.8
-  // under protanopia, sky-700 to 4.4, grey-600 to 10.5), which is not a style constraint
-  // but the shape of dichromatic vision — the only axis that survives red-green colour
-  // blindness runs blue to yellow. If the evaluative reading ever bites, the fix is to
-  // move BOTH series (sky-700 + peach-600 measures 50.5), not to find a cooler partner
-  // for leaf. There isn't one.
-  const colors: Record<'leaf' | 'peach', string> = {
-    leaf: token('--color-leaf-500', '#249888'),
-    peach: token('--color-peach-600', '#df694c'),
+  // What breaks the deadlock is LIGHTNESS. Dichromats lose hue, not luminance — so pairing
+  // purple-600 with a teal dark enough to be told apart on brightness alone works where the
+  // mid teal failed. leaf-800 (#054037, 11.70:1) against purple-600 (#a965d3, 3.83:1)
+  // measures ΔE 43.4 normal and never drops below 39.4 across deuteranopia, protanopia and
+  // tritanopia. Roughly four times the pair this started with, with no warm colour, and
+  // ΔE 33.1 clear of error-600 — so unlike coral it can never read as a judgement.
+  //
+  // ⚠️ Don't "restore" leaf-500 here. The dark stop is not a style choice; it is the entire
+  // mechanism. leaf-700 + purple-600 still works (32.7); leaf-600 and lighter do not.
+  const colors: Record<'leaf' | 'purple', string> = {
+    leaf: token('--color-leaf-800', '#054037'),
+    purple: token('--color-purple-600', '#a965d3'),
   }
   return props.series.map((s) => ({
     label: s.name,

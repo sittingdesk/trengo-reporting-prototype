@@ -12,7 +12,7 @@ const props = withDefaults(
     data?: number[]
     average?: number[]
     // Multi-series grouped bars (overrides data/average when provided).
-    series?: { name: string; tint: 'leaf' | 'peach'; data: number[] }[]
+    series?: { name: string; tint: 'leaf' | 'purple'; data: number[] }[]
     seriesLabel?: string
     averageLabel?: string
     legend?: boolean
@@ -106,13 +106,14 @@ function datasets() {
 
   // Multi-series grouped bars (e.g. Created vs Closed) — slimmer so the pair fits.
   if (props.series) {
-    // leaf + peach — see LineChart for the measurements and the trade. Short version: leaf
-    // and sky collapsed to ΔE 10.7 under deuteranopia; leaf and peach never drop below
-    // 48.8. This is the chart where it matters most — a stacked bar gives the second
-    // series two thirds of the plot area, so its colour is the card's colour.
-    const colors: Record<'leaf' | 'peach', string> = {
-      leaf: token('--color-leaf-500', '#249888'),
-      peach: token('--color-peach-600', '#df694c'),
+    // leaf-800 + purple-600 — see LineChart for the full reasoning. Short version: the old
+    // leaf/sky pair collapsed to ΔE 10.7 under deuteranopia, this one never drops below
+    // 39.4, and the DARK teal is the mechanism rather than a preference — dichromats lose
+    // hue but keep luminance. This is the chart where it shows most: a stacked bar gives
+    // the second series two thirds of the plot, so its colour is the card's colour.
+    const colors: Record<'leaf' | 'purple', string> = {
+      leaf: token('--color-leaf-800', '#054037'),
+      purple: token('--color-purple-600', '#a965d3'),
     }
     return props.series.map((s) => ({
       label: s.name,
