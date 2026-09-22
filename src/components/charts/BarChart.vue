@@ -163,7 +163,11 @@ function build() {
       g.save()
       g.setLineDash([4, 4])
       g.lineWidth = 1
-      g.strokeStyle = token('--color-grey-500', '#8a9096')
+      // grey-600, matching the label it sits under. It asked for grey-500 and, until that
+      // token existed, silently fell through to a hardcoded #8a9096 that is on no scale at
+      // all. Now that grey-500 resolves it would render at 1.89:1 — under the 3:1 a
+      // meaning-carrying graphic needs, and this line IS the meaning.
+      g.strokeStyle = token('--color-grey-600', '#70767b')
       g.beginPath()
       g.moveTo(left, y)
       g.lineTo(right, y)

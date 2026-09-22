@@ -312,7 +312,7 @@ const skeletonBars = computed(() =>
              card called". -->
         <h3 :title="metric.label" class="truncate text-base font-medium text-grey-700">
           {{ metric.label
-          }}<span v-if="activeConfigLabel" class="font-normal text-grey-500">
+          }}<span v-if="activeConfigLabel" class="font-normal text-grey-600">
             · {{ activeConfigLabel }}</span>
         </h3>
         <Tooltip v-if="!loading" :text="dimension?.caveat ?? metric.caveat">
@@ -406,7 +406,7 @@ const skeletonBars = computed(() =>
         <PopoverContent align="end" class="w-48 p-1">
           <!-- Break down by — same measure, different group-by -->
           <template v-if="showDimensionControl">
-            <div class="px-2 pb-1 pt-1.5 text-xs font-semibold text-grey-500">Break down by</div>
+            <div class="px-2 pb-1 pt-1.5 text-xs font-semibold text-grey-600">Break down by</div>
             <button
               v-for="d in dimensions"
               :key="d.id"
@@ -432,7 +432,7 @@ const skeletonBars = computed(() =>
             class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm text-grey-900 transition-colors hover:bg-grey-100 focus:outline-none focus-visible:bg-grey-100"
             @click="onExport"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-grey-500" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-grey-600" aria-hidden="true">
               <path d="M12 3v12" /><path d="M7 12l5 5 5-5" /><path d="M5 21h14" />
             </svg>
             Export as CSV
@@ -555,7 +555,7 @@ const skeletonBars = computed(() =>
              Same arrangement as the headline above. It has to stay ONE line for that to
              hold — at the narrowest span-6 card the interior is ~408px, which is about 70
              characters at 12px, so keep footnote copy well under that. -->
-        <p v-if="metric.footnote" class="mt-2 text-xs leading-4 text-grey-500">{{ metric.footnote }}</p>
+        <p v-if="metric.footnote" class="mt-2 text-xs leading-4 text-grey-600">{{ metric.footnote }}</p>
       </div>
 
       <!-- Donut (share of a total across segments) -->

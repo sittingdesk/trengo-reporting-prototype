@@ -132,9 +132,11 @@ function changeIteration(id: string) {
           <!-- Lock2 (the padlock) rather than Lock (the round one), and 16px: design.md
                §8 gives three render sizes — 16 / 20 / 32 — and the 12 this started at
                isn't one of them, which is part of why it read as undersized.
-               grey-600, not grey-500: that token is in neither design.md nor @theme, so
-               the class emitted nothing and the icon inherited grey-900 — full-strength
-               body text, which is the opposite of quiet. -->
+               grey-600, not grey-500. When this was written grey-500 was in neither
+               design.md nor @theme, so the class emitted nothing and the icon inherited
+               grey-900 — full-strength body text, the opposite of quiet. The token exists
+               now, and grey-600 is still right: at 1.89:1 grey-500 is a border and divider
+               colour, and anything carrying meaning wants the 4.60:1 stop. -->
           <Tooltip text="Can’t be changed. Make your own from New dashboard.">
             <span
               class="flex size-5 shrink-0 items-center justify-center text-grey-600"

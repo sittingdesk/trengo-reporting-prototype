@@ -29,6 +29,15 @@
   --color-grey-800: #292c2e;
   --color-grey-700: #4d5256;
   --color-grey-600: #70767b;
+  /* Grey-500 — from the DS Foundations grey scale, which design.md's table had skipped.
+     Added because six places in src/ already referenced `text-grey-500` and silently
+     rendered NOTHING (Tailwind emits no rule for a token that doesn't exist), so an
+     element written as muted grey was inheriting whatever its parent happened to be.
+     ⚠️ 1.89:1 on white — between grey-400 (1.66) and grey-600 (4.60). That is NOT a text
+     colour: it fails AA at every size, and it is under the 3:1 a meaning-carrying graphic
+     needs. It is for borders, dividers, tracks and disabled states. Muted TEXT is
+     grey-600, which passes at 4.60:1. */
+  --color-grey-500: #b8bdc1;
   --color-grey-400: #c6c9cd;
   --color-grey-300: #e1e3e5;
   --color-grey-200: #f4f5f6;

@@ -63,7 +63,7 @@ defineEmits<{ retry: [] }>()
         <Icon
           name="RefreshCw"
           :size="14"
-          class="text-grey-500"
+          class="text-grey-600"
           :class="retrying ? 'animate-spin' : ''"
           aria-hidden="true"
         />
