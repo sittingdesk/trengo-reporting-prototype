@@ -7,7 +7,7 @@ import { Chart, CHART_HEIGHT } from '@/lib/chart'
 const props = withDefaults(
   defineProps<{
     labels: (string | number)[]
-    series: { name: string; tint: 'leaf' | 'sun'; data: number[]; dashed?: boolean }[]
+    series: { name: string; tint: 'leaf' | 'peach'; data: number[]; dashed?: boolean }[]
     legend?: boolean
     legendPosition?: 'top' | 'bottom'
     height?: number
@@ -25,20 +25,32 @@ function token(name: string, fallback: string): string {
 }
 
 function datasets() {
-  // leaf + sun, not leaf + sky. Measured, because the old pair looked fine and wasn't:
+  // leaf + peach, not leaf + sky. Measured, because the old pair looked fine and wasn't:
   // leaf-500 and sky-600 sit 13° apart in hue and read ΔE2000 21.9 in normal vision, but
   // collapse to 10.7 under deuteranopia — two lines that become shades of one violet for
   // roughly 8% of men. No stop of sky fixes it (leaf-500 + sky-700 is WORSE, ΔE 8.1).
-  // sun-800 measures 44.9 normal and never drops below 49.8 across deuteranopia,
-  // protanopia and tritanopia, and clears 3:1 on white, which a series colour needs
+  //
+  // peach-600 measures 52.6 normal and never drops below 48.8 across deuteranopia,
+  // protanopia and tritanopia, and clears 3:1 on white — which a series colour needs,
   // because colour plus the legend is the only thing naming a line.
   //
-  // sun rather than peach, which scored a hair better: peach-600 is only ΔE 14.7 from
-  // error-600, and a coral series beside a red delta starts to read as a judgement. This
-  // app keeps evaluative colour out of charts on purpose — sun is ΔE 31.1 clear of it.
-  const colors: Record<'leaf' | 'sun', string> = {
+  // sun-800 shipped here for a day and measured just as well (44.9 / 49.8). It came off on
+  // sight rather than on numbers: the amber read as burnt mustard wherever it covered real
+  // area, and Call volume is a stacked bar where the second series takes about two thirds
+  // of the plot. A pair can be correct and still be wrong at scale.
+  //
+  // ⚠️ THE TRADE, taken deliberately: peach-600 is only ΔE 14.7 from error-600, so a coral
+  // series sitting near a red delta can read faintly evaluative — and this app otherwise
+  // keeps judgement out of charts entirely. Accepted because the alternatives are worse:
+  // every colour-blind-safe partner for a teal is warm (purple-600 collapses to ΔE 14.8
+  // under protanopia, sky-700 to 4.4, grey-600 to 10.5), which is not a style constraint
+  // but the shape of dichromatic vision — the only axis that survives red-green colour
+  // blindness runs blue to yellow. If the evaluative reading ever bites, the fix is to
+  // move BOTH series (sky-700 + peach-600 measures 50.5), not to find a cooler partner
+  // for leaf. There isn't one.
+  const colors: Record<'leaf' | 'peach', string> = {
     leaf: token('--color-leaf-500', '#249888'),
-    sun: token('--color-sun-800', '#d47b15'),
+    peach: token('--color-peach-600', '#df694c'),
   }
   return props.series.map((s) => ({
     label: s.name,

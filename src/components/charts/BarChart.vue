@@ -12,7 +12,7 @@ const props = withDefaults(
     data?: number[]
     average?: number[]
     // Multi-series grouped bars (overrides data/average when provided).
-    series?: { name: string; tint: 'leaf' | 'sun'; data: number[] }[]
+    series?: { name: string; tint: 'leaf' | 'peach'; data: number[] }[]
     seriesLabel?: string
     averageLabel?: string
     legend?: boolean
@@ -106,11 +106,13 @@ function datasets() {
 
   // Multi-series grouped bars (e.g. Created vs Closed) — slimmer so the pair fits.
   if (props.series) {
-    // leaf + sun — see LineChart for the measurements. Short version: leaf and sky
-    // collapse to ΔE 10.7 under deuteranopia; leaf and sun never drop below 49.8.
-    const colors: Record<'leaf' | 'sun', string> = {
+    // leaf + peach — see LineChart for the measurements and the trade. Short version: leaf
+    // and sky collapsed to ΔE 10.7 under deuteranopia; leaf and peach never drop below
+    // 48.8. This is the chart where it matters most — a stacked bar gives the second
+    // series two thirds of the plot area, so its colour is the card's colour.
+    const colors: Record<'leaf' | 'peach', string> = {
       leaf: token('--color-leaf-500', '#249888'),
-      sun: token('--color-sun-800', '#d47b15'),
+      peach: token('--color-peach-600', '#df694c'),
     }
     return props.series.map((s) => ({
       label: s.name,

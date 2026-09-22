@@ -29,8 +29,8 @@ function token(name: string, fallback: string): string {
 function build() {
   if (!canvas.value) return
   // The same two-peer pair every other chart uses, for the same measured reason — leaf
-  // and sky collapse to ΔE 10.7 under deuteranopia, leaf and sun never drop below 49.8.
-  const palette = [token('--color-leaf-400', '#49b2a1'), token('--color-sun-800', '#d47b15')]
+  // and sky collapse to ΔE 10.7 under deuteranopia, leaf and peach never drop below 48.8.
+  const palette = [token('--color-leaf-400', '#49b2a1'), token('--color-peach-600', '#df694c')]
   const legendText = token('--color-grey-700', '#4d5256')
 
   chart = new Chart(canvas.value, {
