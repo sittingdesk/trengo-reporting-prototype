@@ -563,7 +563,10 @@ export function metricValue(
       def.id === 'created_vs_closed'
         ? [
             { name: 'Created', tint: 'leaf' as const, data: created },
-            { name: 'Closed', tint: 'purple' as const, data: closed },
+            // Dashed, like New contacts above. Not decoration: the series colours are two
+            // light pastels that a dichromat cannot separate (ΔE 9.0 under protanopia), so
+            // the pattern is what actually tells these two lines apart. See LineChart.
+            { name: 'Closed', tint: 'purple' as const, data: closed, dashed: true },
           ]
         : [{ name: 'Tickets', tint: 'leaf' as const, data: created }]
     return { value: total, previous: total * jitter(rng, 0.2), labels, lines }

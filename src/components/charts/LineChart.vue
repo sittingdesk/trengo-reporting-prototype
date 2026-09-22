@@ -25,30 +25,34 @@ function token(name: string, fallback: string): string {
 }
 
 function datasets() {
-  // leaf-800 + purple-600. Three pairs have shipped here; this is why this one holds.
+  // leaf-300 + purple-500 — the same two swatches the categorical breakdowns use for
+  // WhatsApp and Voice, so the line charts and the bar charts finally read as one palette.
+  // Four pairs have shipped here; the history is worth keeping because it explains the
+  // dash below, which is not decoration.
   //
-  // The original leaf-500 + sky-600 looked fine and wasn't: 13° apart in hue, ΔE2000 21.9
-  // in normal vision but 10.7 under deuteranopia — two lines that become shades of one
-  // violet for roughly 8% of men. Then sun-800 and peach-600, both of which measured ~50
-  // and both of which were rejected on sight for being warm.
+  //   leaf-500 + sky-600   ΔE 21.9 normal / 10.7 deuteranopia — the original, too close
+  //   leaf-500 + sun-800   49.8 worst-case — correct, rejected as burnt mustard at scale
+  //   leaf-500 + peach-600 48.8 worst-case — correct, rejected as too warm
+  //   leaf-800 + purple-600 39.4 worst-case — correct, rejected as too dark
+  //   leaf-300 + purple-500 37.7 normal / 9.0 PROTANOPIA — this one
   //
-  // The reason warm kept coming up is structural, not aesthetic: red-green colour blindness
-  // collapses hue onto a single blue-to-yellow axis, so a mid teal's only reliable partners
-  // lie in the yellow/orange/coral direction. Against leaf-500, purple-600 measures a poor
-  // ΔE 14.8 under protanopia for exactly that reason.
+  // ⚠️ Read that last line honestly: two light pastels cannot separate for a dichromat.
+  // Hue is the only thing telling them apart, red-green colour blindness collapses hue onto
+  // one axis, and there is no lightness gap to fall back on — 1.88:1 and 2.11:1 on white.
+  // On protanopia this pair is WORSE than the leaf/sky we replaced.
   //
-  // What breaks the deadlock is LIGHTNESS. Dichromats lose hue, not luminance — so pairing
-  // purple-600 with a teal dark enough to be told apart on brightness alone works where the
-  // mid teal failed. leaf-800 (#054037, 11.70:1) against purple-600 (#a965d3, 3.83:1)
-  // measures ΔE 43.4 normal and never drops below 39.4 across deuteranopia, protanopia and
-  // tritanopia. Roughly four times the pair this started with, with no warm colour, and
-  // ΔE 33.1 clear of error-600 — so unlike coral it can never read as a judgement.
+  // Which is why colour is no longer the only identifier. Every multi-series line chart now
+  // dashes its second series (`dashed` in the mock), so the two are told apart by pattern
+  // first and colour second — the standard answer, and the one WCAG actually asks for:
+  // never rely on colour alone, pair it with a second visual cue. Tickets & new contacts
+  // has always done this; Created vs closed now does too.
   //
-  // ⚠️ Don't "restore" leaf-500 here. The dark stop is not a style choice; it is the entire
-  // mechanism. leaf-700 + purple-600 still works (32.7); leaf-600 and lighter do not.
+  // The stacked bar (Call volume) has no dash, and leans on stacking order plus the header
+  // legend's own ordering instead. That is the weakest case in the app — if it ever needs
+  // strengthening, the answer is a pattern fill, not a darker colour.
   const colors: Record<'leaf' | 'purple', string> = {
-    leaf: token('--color-leaf-800', '#054037'),
-    purple: token('--color-purple-600', '#a965d3'),
+    leaf: token('--color-leaf-300', '#76ccbe'),
+    purple: token('--color-purple-500', '#d999ff'),
   }
   return props.series.map((s) => ({
     label: s.name,

@@ -28,9 +28,9 @@ function token(name: string, fallback: string): string {
 
 function build() {
   if (!canvas.value) return
-  // The same two-peer pair every other chart uses, for the reason set out in LineChart —
-  // the dark teal is what makes purple separable, and it never drops below ΔE 39.4.
-  const palette = [token('--color-leaf-800', '#054037'), token('--color-purple-600', '#a965d3')]
+  // The same two-peer pair every other chart uses — see LineChart. A donut labels its
+  // segments directly, so unlike the line charts it needs no second cue.
+  const palette = [token('--color-leaf-300', '#76ccbe'), token('--color-purple-500', '#d999ff')]
   const legendText = token('--color-grey-700', '#4d5256')
 
   chart = new Chart(canvas.value, {

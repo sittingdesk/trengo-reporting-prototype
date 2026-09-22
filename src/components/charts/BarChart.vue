@@ -106,14 +106,14 @@ function datasets() {
 
   // Multi-series grouped bars (e.g. Created vs Closed) — slimmer so the pair fits.
   if (props.series) {
-    // leaf-800 + purple-600 — see LineChart for the full reasoning. Short version: the old
-    // leaf/sky pair collapsed to ΔE 10.7 under deuteranopia, this one never drops below
-    // 39.4, and the DARK teal is the mechanism rather than a preference — dichromats lose
-    // hue but keep luminance. This is the chart where it shows most: a stacked bar gives
-    // the second series two thirds of the plot, so its colour is the card's colour.
+    // leaf-300 + purple-500 — the categorical palette's WhatsApp and Voice swatches, so a
+    // stacked bar sits in the same world as the breakdown bars beside it. See LineChart for
+    // the full history and the ⚠️ about what two pastels cost a colour-blind reader: on a
+    // LINE chart the second series is dashed to compensate, and a stacked bar can't be, so
+    // this chart leans on stacking order and the header legend instead.
     const colors: Record<'leaf' | 'purple', string> = {
-      leaf: token('--color-leaf-800', '#054037'),
-      purple: token('--color-purple-600', '#a965d3'),
+      leaf: token('--color-leaf-300', '#76ccbe'),
+      purple: token('--color-purple-500', '#d999ff'),
     }
     return props.series.map((s) => ({
       label: s.name,
