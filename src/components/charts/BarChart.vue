@@ -12,7 +12,7 @@ const props = withDefaults(
     data?: number[]
     average?: number[]
     // Multi-series grouped bars (overrides data/average when provided).
-    series?: { name: string; tint: 'leaf' | 'sky'; data: number[] }[]
+    series?: { name: string; tint: 'leaf' | 'sun'; data: number[] }[]
     seriesLabel?: string
     averageLabel?: string
     legend?: boolean
@@ -25,6 +25,12 @@ const props = withDefaults(
     // Always render every x-axis label (no auto-skip) and truncate long ones —
     // for categorical bars (e.g. per-team) where every label must show.
     showAllLabels?: boolean
+    /** One colour per bar instead of one colour for the series.
+     *
+     *  ⚠️ Only for a BREAKDOWN, where each bar is a different thing and carries its own
+     *  axis label. A bar-rendered TIME SERIES must never set this: its bars are days, and
+     *  painting Tuesday purple says something untrue about Tuesday. */
+    categorical?: boolean
     // Stack multi-series bars (inbound + outbound = total height) instead of grouping
     // them side-by-side. Only meaningful with `series`.
     stacked?: boolean
@@ -41,9 +47,34 @@ const props = withDefaults(
     legend: true,
     unit: 'count',
     showAllLabels: false,
+    categorical: false,
     stacked: false,
   },
 )
+
+/**
+ * The categorical palette, in order, from the DS Foundations chart example.
+ *
+ * Safe here for one specific reason: in a breakdown every bar sits above its own axis
+ * label, so colour DECORATES rather than identifies. It could not carry identity — five
+ * hues exceed what dichromatic vision can separate, and sun-500 against peach-500 measures
+ * ΔE 5.2 under deuteranopia. The same palette behind a legend-only chart would be
+ * unreadable for those viewers; behind labelled bars it costs them nothing.
+ *
+ * The light stops also run 1.4–2.5:1 on white, under the 3:1 a graphical object needs when
+ * it is load-bearing. Same argument: the axis is load-bearing, these are large filled areas,
+ * and this project already accepts grey-400 bars at 1.9:1 for the same reason.
+ *
+ * Five entries covers every breakdown we have (4 channels, 5 teams, 5 ratings). Past five
+ * it cycles, which is a hint the widget wants a table rather than more hues.
+ */
+const CATEGORY_COLORS: [string, string][] = [
+  ['--color-leaf-300', '#76ccbe'],
+  ['--color-sky-500', '#81d7ff'],
+  ['--color-sun-500', '#ffd467'],
+  ['--color-purple-500', '#d999ff'],
+  ['--color-peach-500', '#fe8161'],
+]
 
 // Axis/tooltip value formatter — raw counts, seconds → "1m 20s", or a 0–1 ratio → "84%".
 const fmtVal = (v: number | string) =>
@@ -75,9 +106,11 @@ function datasets() {
 
   // Multi-series grouped bars (e.g. Created vs Closed) — slimmer so the pair fits.
   if (props.series) {
-    const colors: Record<'leaf' | 'sky', string> = {
+    // leaf + sun — see LineChart for the measurements. Short version: leaf and sky
+    // collapse to ΔE 10.7 under deuteranopia; leaf and sun never drop below 49.8.
+    const colors: Record<'leaf' | 'sun', string> = {
       leaf: token('--color-leaf-500', '#249888'),
-      sky: token('--color-sky-600', '#4fa1c8'),
+      sun: token('--color-sun-800', '#d47b15'),
     }
     return props.series.map((s) => ({
       label: s.name,
@@ -93,8 +126,16 @@ function datasets() {
   const grey = token('--color-grey-300', '#e1e3e5')
   // Single-series bars fill the column (high cap); grouped Today/Average stay slim.
   const grouped = !!props.average
+  // Chart.js takes an array here and applies it per bar — no plugin needed.
+  const fill =
+    props.categorical && !grouped
+      ? (props.data ?? []).map((_, i) => {
+          const [name, fallback] = CATEGORY_COLORS[i % CATEGORY_COLORS.length]
+          return token(name, fallback)
+        })
+      : leaf
   const sets: any[] = [
-    { label: props.seriesLabel, data: props.data, backgroundColor: leaf, maxBarThickness: grouped ? 18 : 72, ...bar },
+    { label: props.seriesLabel, data: props.data, backgroundColor: fill, maxBarThickness: grouped ? 18 : 72, ...bar },
   ]
   if (props.average) {
     sets.push({ label: props.averageLabel, data: props.average, backgroundColor: grey, maxBarThickness: 18, ...bar })

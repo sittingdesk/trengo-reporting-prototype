@@ -356,7 +356,7 @@ const skeletonBars = computed(() =>
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span v-for="item in seriesTotals.items" :key="item.name" class="flex items-center gap-1.5">
-          <span class="size-2 rounded-circle" :class="item.tint === 'leaf' ? 'bg-leaf-500' : 'bg-sky-600'" />
+          <span class="size-2 rounded-circle" :class="item.tint === 'leaf' ? 'bg-leaf-500' : 'bg-sun-800'" />
           {{ item.name }} <span class="font-semibold tabular-nums text-grey-900">{{ fmtCount(item.value) }}</span>
         </span>
         <span class="flex items-center gap-1.5">Total <span class="font-semibold tabular-nums text-grey-900">{{ fmtCount(seriesTotals.total) }}</span></span>
@@ -366,7 +366,7 @@ const skeletonBars = computed(() =>
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span v-for="l in sample.lines" :key="l.name" class="flex items-center gap-1.5">
-          <span class="size-2 rounded-circle" :class="l.tint === 'leaf' ? 'bg-leaf-500' : 'bg-sky-600'" /> {{ l.name }}
+          <span class="size-2 rounded-circle" :class="l.tint === 'leaf' ? 'bg-leaf-500' : 'bg-sun-800'" /> {{ l.name }}
         </span>
       </div>
 
@@ -546,6 +546,7 @@ const skeletonBars = computed(() =>
           :legend="false"
           :unit="breakdownUnit"
           :context="sample.context"
+          :categorical="true"
           :show-all-labels="true"
           :height="CHART_HEIGHT - (sample?.secondary ? 52 : 0) - (metric.footnote ? 24 : 0)"
         />

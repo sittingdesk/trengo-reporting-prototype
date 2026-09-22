@@ -7,7 +7,7 @@ import { Chart, CHART_HEIGHT } from '@/lib/chart'
 const props = withDefaults(
   defineProps<{
     labels: (string | number)[]
-    series: { name: string; tint: 'leaf' | 'sky'; data: number[]; dashed?: boolean }[]
+    series: { name: string; tint: 'leaf' | 'sun'; data: number[]; dashed?: boolean }[]
     legend?: boolean
     legendPosition?: 'top' | 'bottom'
     height?: number
@@ -25,9 +25,20 @@ function token(name: string, fallback: string): string {
 }
 
 function datasets() {
-  const colors: Record<'leaf' | 'sky', string> = {
+  // leaf + sun, not leaf + sky. Measured, because the old pair looked fine and wasn't:
+  // leaf-500 and sky-600 sit 13° apart in hue and read ΔE2000 21.9 in normal vision, but
+  // collapse to 10.7 under deuteranopia — two lines that become shades of one violet for
+  // roughly 8% of men. No stop of sky fixes it (leaf-500 + sky-700 is WORSE, ΔE 8.1).
+  // sun-800 measures 44.9 normal and never drops below 49.8 across deuteranopia,
+  // protanopia and tritanopia, and clears 3:1 on white, which a series colour needs
+  // because colour plus the legend is the only thing naming a line.
+  //
+  // sun rather than peach, which scored a hair better: peach-600 is only ΔE 14.7 from
+  // error-600, and a coral series beside a red delta starts to read as a judgement. This
+  // app keeps evaluative colour out of charts on purpose — sun is ΔE 31.1 clear of it.
+  const colors: Record<'leaf' | 'sun', string> = {
     leaf: token('--color-leaf-500', '#249888'),
-    sky: token('--color-sky-600', '#4fa1c8'),
+    sun: token('--color-sun-800', '#d47b15'),
   }
   return props.series.map((s) => ({
     label: s.name,

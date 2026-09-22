@@ -46,11 +46,15 @@ function token(name: string, fallback: string): string {
 /**
  * Colour by ROLE, not by `tint`.
  *
- * The chart `tint` union is `'leaf' | 'sky'` — two peers, for series that are equals
+ * The chart `tint` union is `'leaf' | 'sun'` — two peers, for series that are equals
  * (Created vs Closed, Inbound vs Outbound). These two aren't equals: one is the subject and
  * one is its context. So the line takes leaf-600, the darkest green already used for
  * meaning-carrying text, and the bars take a grey — the same role BarChart's own "Average"
  * comparison series plays, for the same reason: it recedes.
+ *
+ * Untouched by the palette change that repointed that union from sky to sun: this card
+ * encodes ROLE, not identity, and a second hue here would claim the bars are a second
+ * finding rather than the weight behind the first.
  *
  * The reference draws navy on lavender. There is no navy in the palette and purple isn't
  * reachable from a chart (the tint union would have to widen in four places), so this keeps

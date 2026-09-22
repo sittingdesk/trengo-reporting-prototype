@@ -52,7 +52,7 @@ export interface MetricSample {
   labels?: string[] // x-axis labels (hours for histogram, dates for time series)
   // time series / grouped bars. `dashed` renders the line dashed; `csvKey` overrides
   // the CSV column header for that series.
-  lines?: { name: string; tint: 'leaf' | 'sky'; data: number[]; dashed?: boolean; csvKey?: string }[]
+  lines?: { name: string; tint: 'leaf' | 'sun'; data: number[]; dashed?: boolean; csvKey?: string }[]
   /** One extra tooltip line per breakdown bar, by index — the denominator a rate was
    *  computed from. A bar reading 62% is a finding at n=80 and noise at n=8, and nothing
    *  else on a bar chart can tell those apart. */
@@ -535,7 +535,7 @@ export function metricValue(
         legendBelow: true,
         lines: [
           { name: 'Tickets', tint: 'leaf', data: created, csvKey: 'tickets_created' },
-          { name: 'New contacts', tint: 'sky', data: newc, dashed: true, csvKey: 'new_contacts' },
+          { name: 'New contacts', tint: 'sun', data: newc, dashed: true, csvKey: 'new_contacts' },
         ],
       }
     }
@@ -552,7 +552,7 @@ export function metricValue(
         labels,
         lines: [
           { name: 'Inbound', tint: 'leaf', data: inbound },
-          { name: 'Outbound', tint: 'sky', data: outbound },
+          { name: 'Outbound', tint: 'sun', data: outbound },
         ],
       }
     }
@@ -563,7 +563,7 @@ export function metricValue(
       def.id === 'created_vs_closed'
         ? [
             { name: 'Created', tint: 'leaf' as const, data: created },
-            { name: 'Closed', tint: 'sky' as const, data: closed },
+            { name: 'Closed', tint: 'sun' as const, data: closed },
           ]
         : [{ name: 'Tickets', tint: 'leaf' as const, data: created }]
     return { value: total, previous: total * jitter(rng, 0.2), labels, lines }
