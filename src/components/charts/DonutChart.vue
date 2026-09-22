@@ -30,7 +30,7 @@ function build() {
   if (!canvas.value) return
   // The same two-peer pair every other chart uses — see LineChart. A donut labels its
   // segments directly, so unlike the line charts it needs no second cue.
-  const palette = [token('--color-leaf-300', '#76ccbe'), token('--color-purple-500', '#d999ff')]
+  const palette = [token('--color-sky-500', '#81d7ff'), token('--color-peach-500', '#fe8161')]
   const legendText = token('--color-grey-700', '#4d5256')
 
   chart = new Chart(canvas.value, {

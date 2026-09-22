@@ -7,7 +7,7 @@ import { Chart, CHART_HEIGHT } from '@/lib/chart'
 const props = withDefaults(
   defineProps<{
     labels: (string | number)[]
-    series: { name: string; tint: 'leaf' | 'purple'; data: number[]; dashed?: boolean }[]
+    series: { name: string; tint: 'sky' | 'peach'; data: number[]; dashed?: boolean }[]
     legend?: boolean
     legendPosition?: 'top' | 'bottom'
     height?: number
@@ -25,34 +25,34 @@ function token(name: string, fallback: string): string {
 }
 
 function datasets() {
-  // leaf-300 + purple-500 — the same two swatches the categorical breakdowns use for
-  // WhatsApp and Voice, so the line charts and the bar charts finally read as one palette.
-  // Four pairs have shipped here; the history is worth keeping because it explains the
-  // dash below, which is not decoration.
+  // sky-500 + peach-500 — Live chat blue and SMS coral, two swatches straight off the
+  // categorical breakdown bars, so every chart in the app now draws from one palette.
   //
-  //   leaf-500 + sky-600   ΔE 21.9 normal / 10.7 deuteranopia — the original, too close
-  //   leaf-500 + sun-800   49.8 worst-case — correct, rejected as burnt mustard at scale
-  //   leaf-500 + peach-600 48.8 worst-case — correct, rejected as too warm
-  //   leaf-800 + purple-600 39.4 worst-case — correct, rejected as too dark
-  //   leaf-300 + purple-500 37.7 normal / 9.0 PROTANOPIA — this one
+  // Five pairs have shipped here. The log is kept because the pattern in it is the useful
+  // part: every rejection was aesthetic, every failure was measured, and they are not the
+  // same axis.
   //
-  // ⚠️ Read that last line honestly: two light pastels cannot separate for a dichromat.
-  // Hue is the only thing telling them apart, red-green colour blindness collapses hue onto
-  // one axis, and there is no lightness gap to fall back on — 1.88:1 and 2.11:1 on white.
-  // On protanopia this pair is WORSE than the leaf/sky we replaced.
+  //   leaf-500 + sky-600    ΔE 21.9 normal / 10.7 CVD — the original, too close
+  //   leaf-500 + sun-800    44.9 / 49.8 — correct, rejected as burnt mustard at scale
+  //   leaf-500 + peach-600  52.6 / 48.8 — correct, rejected as too warm
+  //   leaf-800 + purple-600 43.4 / 39.4 — correct, rejected as too dark
+  //   leaf-300 + purple-500 37.7 /  9.0 — pastel, and a real regression for dichromats
+  //   sky-500  + peach-500  52.0 / 55.1 — this one
   //
-  // Which is why colour is no longer the only identifier. Every multi-series line chart now
-  // dashes its second series (`dashed` in the mock), so the two are told apart by pattern
-  // first and colour second — the standard answer, and the one WCAG actually asks for:
-  // never rely on colour alone, pair it with a second visual cue. Tickets & new contacts
-  // has always done this; Created vs closed now does too.
+  // 55.1 is the best worst-case of the lot, and it comes from a pastel pair, which looked
+  // impossible two commits ago. The trick was giving up on leaf as one half: a teal's only
+  // separable partners are warm, but a light BLUE separates from a coral on the blue-yellow
+  // axis that survives red-green colour blindness, so both halves can stay light.
   //
-  // The stacked bar (Call volume) has no dash, and leans on stacking order plus the header
-  // legend's own ordering instead. That is the weakest case in the app — if it ever needs
-  // strengthening, the answer is a pattern fill, not a darker colour.
-  const colors: Record<'leaf' | 'purple', string> = {
-    leaf: token('--color-leaf-300', '#76ccbe'),
-    purple: token('--color-purple-500', '#d999ff'),
+  // ⚠️ Worth knowing before someone "puts the green back": leaf-300 + sky-500 measures
+  // ΔE 19.5 in normal vision — closer than the original pair this whole thread set out to
+  // fix. Mint and light blue is the one combination to keep away from.
+  //
+  // Both halves are light (1.60:1 and 2.46:1), so colour is still not the sole identifier:
+  // multi-series line charts dash their second series. See the mock.
+  const colors: Record<'sky' | 'peach', string> = {
+    sky: token('--color-sky-500', '#81d7ff'),
+    peach: token('--color-peach-500', '#fe8161'),
   }
   return props.series.map((s) => ({
     label: s.name,

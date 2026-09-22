@@ -52,7 +52,7 @@ export interface MetricSample {
   labels?: string[] // x-axis labels (hours for histogram, dates for time series)
   // time series / grouped bars. `dashed` renders the line dashed; `csvKey` overrides
   // the CSV column header for that series.
-  lines?: { name: string; tint: 'leaf' | 'purple'; data: number[]; dashed?: boolean; csvKey?: string }[]
+  lines?: { name: string; tint: 'sky' | 'peach'; data: number[]; dashed?: boolean; csvKey?: string }[]
   /** One extra tooltip line per breakdown bar, by index — the denominator a rate was
    *  computed from. A bar reading 62% is a finding at n=80 and noise at n=8, and nothing
    *  else on a bar chart can tell those apart. */
@@ -389,7 +389,7 @@ export function metricValue(
       value: avg,
       previous: avg * jitter(rng, 0.2),
       labels,
-      lines: [{ name: 'Avg wait', tint: 'leaf', data, csvKey: 'avg_wait_seconds' }],
+      lines: [{ name: 'Avg wait', tint: 'sky', data, csvKey: 'avg_wait_seconds' }],
       referenceValue: avg,
     }
   }
@@ -498,7 +498,7 @@ export function metricValue(
       value: total,
       previous: total * jitter(rng, 0.2),
       labels,
-      lines: [{ name: 'Surveys received', tint: 'leaf', data, csvKey: 'surveys_received' }],
+      lines: [{ name: 'Surveys received', tint: 'sky', data, csvKey: 'surveys_received' }],
     }
   }
 
@@ -534,8 +534,8 @@ export function metricValue(
         labels,
         legendBelow: true,
         lines: [
-          { name: 'Tickets', tint: 'leaf', data: created, csvKey: 'tickets_created' },
-          { name: 'New contacts', tint: 'purple', data: newc, dashed: true, csvKey: 'new_contacts' },
+          { name: 'Tickets', tint: 'sky', data: created, csvKey: 'tickets_created' },
+          { name: 'New contacts', tint: 'peach', data: newc, dashed: true, csvKey: 'new_contacts' },
         ],
       }
     }
@@ -551,8 +551,8 @@ export function metricValue(
         previous: (inTotal + outTotal) * jitter(rng, 0.2),
         labels,
         lines: [
-          { name: 'Inbound', tint: 'leaf', data: inbound },
-          { name: 'Outbound', tint: 'purple', data: outbound },
+          { name: 'Inbound', tint: 'sky', data: inbound },
+          { name: 'Outbound', tint: 'peach', data: outbound },
         ],
       }
     }
@@ -562,13 +562,13 @@ export function metricValue(
     const lines =
       def.id === 'created_vs_closed'
         ? [
-            { name: 'Created', tint: 'leaf' as const, data: created },
+            { name: 'Created', tint: 'sky' as const, data: created },
             // Dashed, like New contacts above. Not decoration: the series colours are two
             // light pastels that a dichromat cannot separate (ΔE 9.0 under protanopia), so
             // the pattern is what actually tells these two lines apart. See LineChart.
-            { name: 'Closed', tint: 'purple' as const, data: closed, dashed: true },
+            { name: 'Closed', tint: 'peach' as const, data: closed, dashed: true },
           ]
-        : [{ name: 'Tickets', tint: 'leaf' as const, data: created }]
+        : [{ name: 'Tickets', tint: 'sky' as const, data: created }]
     return { value: total, previous: total * jitter(rng, 0.2), labels, lines }
   }
 

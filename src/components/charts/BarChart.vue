@@ -12,7 +12,7 @@ const props = withDefaults(
     data?: number[]
     average?: number[]
     // Multi-series grouped bars (overrides data/average when provided).
-    series?: { name: string; tint: 'leaf' | 'purple'; data: number[] }[]
+    series?: { name: string; tint: 'sky' | 'peach'; data: number[] }[]
     seriesLabel?: string
     averageLabel?: string
     legend?: boolean
@@ -106,14 +106,15 @@ function datasets() {
 
   // Multi-series grouped bars (e.g. Created vs Closed) — slimmer so the pair fits.
   if (props.series) {
-    // leaf-300 + purple-500 — the categorical palette's WhatsApp and Voice swatches, so a
-    // stacked bar sits in the same world as the breakdown bars beside it. See LineChart for
-    // the full history and the ⚠️ about what two pastels cost a colour-blind reader: on a
-    // LINE chart the second series is dashed to compensate, and a stacked bar can't be, so
-    // this chart leans on stacking order and the header legend instead.
-    const colors: Record<'leaf' | 'purple', string> = {
-      leaf: token('--color-leaf-300', '#76ccbe'),
-      purple: token('--color-purple-500', '#d999ff'),
+    // sky-500 + peach-500 — Live chat blue and SMS coral, off the breakdown bars, so a
+    // stacked bar sits in the same world as the categorical bars beside it. See LineChart
+    // for the full history. This is the chart that drove the choice: Call volume is a
+    // stacked bar, it cannot use a dash the way the line charts do, so it is the one place
+    // where the colours have to carry the distinction on their own. At ΔE 55.1 worst-case
+    // they do — which the pastel pair before this (9.0) did not.
+    const colors: Record<'sky' | 'peach', string> = {
+      sky: token('--color-sky-500', '#81d7ff'),
+      peach: token('--color-peach-500', '#fe8161'),
     }
     return props.series.map((s) => ({
       label: s.name,
