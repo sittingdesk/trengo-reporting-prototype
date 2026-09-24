@@ -310,9 +310,16 @@ const skeletonBars = computed(() =>
              edit mode the two controls beside it take 56px more. The info icon's tooltip
              carries the definition, which is a different question from "what is this
              card called". -->
+        <!-- The config suffix is for cards with room for it. A span-3 KPI title already
+             truncates to "First respon…" at 194px, so a suffix there would never be seen —
+             on a value card the active view sits on the supporting line beside the number
+             instead. Same rule either way: a tile states its own configuration. -->
         <h3 :title="metric.label" class="truncate text-base font-medium text-grey-700">
           {{ metric.label
-          }}<span v-if="activeConfigLabel" class="font-normal text-grey-600">
+          }}<span
+            v-if="activeConfigLabel && resultType !== 'value'"
+            class="font-normal text-grey-600"
+          >
             · {{ activeConfigLabel }}</span>
         </h3>
         <Tooltip v-if="!loading" :text="dimension?.caveat ?? metric.caveat">
@@ -406,7 +413,12 @@ const skeletonBars = computed(() =>
         <PopoverContent align="end" class="w-48 p-1">
           <!-- Break down by — same measure, different group-by -->
           <template v-if="showDimensionControl">
-            <div class="px-2 pb-1 pt-1.5 text-xs font-semibold text-grey-600">Break down by</div>
+            <!-- "View", not "Break down by". The machinery is the same, but the two things it
+                 carries are not: a BREAK-DOWN splits one measure by a dimension (by team, over
+                 time), a BASIS changes which population is measured (All, Human only). "Break
+                 down by All" is nonsense, and basis is the only live user right now. "View"
+                 reads correctly for both. -->
+            <div class="px-2 pb-1 pt-1.5 text-xs font-semibold text-grey-600">View</div>
             <button
               v-for="d in dimensions"
               :key="d.id"
@@ -602,6 +614,15 @@ const skeletonBars = computed(() =>
             v-if="sample?.secondary && !emptyValueCard"
             class="text-xs font-medium leading-4 text-grey-600 tabular-nums"
           >{{ sample.secondary }}</span>
+          <!-- The active break-down, where the title can't carry it. Only when the metric
+               has no supporting figure of its own: a denominator and a basis competing on
+               one line read as one phrase ("5 of 29 inbound Human only"), and no metric
+               declares both today. If one ever does, the figure wins and the ⓘ carries the
+               basis — it is the qualifier, not the measurement. -->
+          <span
+            v-else-if="activeConfigLabel && !emptyValueCard"
+            class="text-xs font-medium leading-4 text-grey-600"
+          >{{ activeConfigLabel }}</span>
           <span v-if="emptyValueCard" class="text-xs font-medium leading-4 text-grey-600">{{
             emptyLabel
           }}</span>

@@ -333,14 +333,40 @@ function csatResponses(signature: string, days: number, chFactor: number, tmFact
   return { counts, total, satisfied, offered, rate: satisfied / total }
 }
 
+/**
+ * How much a break-down moves the measure, as a multiplier on `base`.
+ *
+ * Deliberately a FACTOR rather than a second draw. Two reasons:
+ *
+ *  1. 'all' returns exactly 1, so every card that never touches the toggle renders the
+ *     number it rendered before this existed — a new setting shouldn't silently move data.
+ *  2. The two views are then locked in a fixed relationship. Drawing them separately would
+ *     let Human only land BELOW All on some filter combination, which says AI-resolved
+ *     tickets are the slow ones — the opposite of what the registry records. Same
+ *     arrangement as `voiceQueue`, where the blended wait can never dip under the answered
+ *     one.
+ *
+ * Both factors are > 1 because removing the fast population raises the average. The
+ * registry says so for resolution time: the old source "likely pulled the average down,
+ * since AI-resolved tickets close faster". First response is the same mechanism, harder —
+ * an automated first reply lands in seconds, so taking it out moves the number more.
+ */
+const BASIS_FACTOR: Record<string, Record<string, number>> = {
+  resolution_time_all: { human: 1.35 },
+  first_response_time: { human: 1.55 },
+}
+function basisFactor(metricId: string, dimensionId?: string): number {
+  if (!dimensionId) return 1
+  return BASIS_FACTOR[metricId]?.[dimensionId] ?? 1
+}
+
 export function metricValue(
   def: MetricDef,
   signature: string,
   dateRange?: { start?: DateValue; end?: DateValue },
-  // Unused while no metric declares break-downs (the by-team wait-time view was the last
-  // one). Kept because the measure/break-down model is intact — any multi-view metric
-  // starts passing this again.
-  _dimensionId?: string,
+  /** The active break-down, from the card's ⋯ menu. Live again: First response time and
+   *  Resolution time each declare an All / Human only pair. */
+  dimensionId?: string,
 ): MetricSample {
   const seed = hashString(`${def.id}|${signature}`)
   const rng = mulberry32(seed)
@@ -349,7 +375,7 @@ export function metricValue(
 
   const chFactor = subsetFactor(ch === 'all' ? 0 : ch.split(',').length, CHANNEL_INSTANCE_IDS.length)
   const tmFactor = subsetFactor(tm === 'all' ? 0 : tm.split(',').length, TEAMS.length)
-  const base = def.base ?? 0
+  const base = (def.base ?? 0) * basisFactor(def.id, dimensionId)
 
   // Extremes over a window behave differently from averages: a MAX creeps up and a MIN
   // creeps down as the window widens (more calls = more chances for an outlier). Averages

@@ -135,7 +135,38 @@ export const METRICS: MetricDef[] = [
     base: 95, // ~1m 35s
     lowerIsBetter: true,
     caveat:
-      "Median time to the first reply from a human agent — automated replies don't count. Excludes tickets that start with an outbound message.",
+      'Time from a ticket arriving to the first outbound reply. Excludes tickets that start with an outbound message.',
+    // ⚠️ THE HUMAN-ONLY VIEW HERE IS ILLUSTRATIVE — unlike Resolution time below, which is
+    // registry-backed. The registry has exactly ONE first_response_time entry, measuring
+    // `first_user_outbound_message_created_at` on trengodb__tickets. There is no
+    // first_response_time_ai, no _human, and no resolution_channel-style classifier on that
+    // table — so nothing can currently produce the split this toggle offers.
+    //
+    // It also corrects a claim that was already wrong: this caveat used to read "the first
+    // reply from a human agent — automated replies don't count", which the registry entry
+    // does not support. "User (agent) message" may well exclude Helpmate, but the registry
+    // never says so, and our tooltip was asserting it.
+    //
+    // ASK, one question: does `first_user_outbound_message_created_at` already exclude AI
+    // replies? If yes, today's number IS the human-only view and what's missing is the
+    // incl.-AI one. If no, we need the same resolution_channel treatment the resolution
+    // family got. Either way the answer changes which of these two views is the default.
+    dimensions: [
+      {
+        id: 'all',
+        label: 'All',
+        resultType: 'value',
+        caveat:
+          'Time from a ticket arriving to the first outbound reply, whoever or whatever sent it. Excludes tickets that start with an outbound message.',
+      },
+      {
+        id: 'human',
+        label: 'Human only',
+        resultType: 'value',
+        caveat:
+          "Time to the first reply from a person, with AI and automated replies excluded. ⚠️ Illustrative — nothing in the registry can split first response by AI or human yet, so treat this number as a shape, not a figure.",
+      },
+    ],
   },
   {
     // registry: resolution_time_all [Overview] — AI *and* human. Used on both pages so
@@ -151,6 +182,39 @@ export const METRICS: MetricDef[] = [
     lowerIsBetter: true,
     caveat:
       'Median time from creation to close, covering both AI-resolved and human-handled tickets. Long times can signal process or knowledge gaps.',
+    // registry: THREE parallel views of one definition, which is what makes this a toggle
+    // rather than three widgets. All three read trengodb__ticket_resolutions and differ
+    // only by `resolution_channel`, and the registry says so explicitly — "parallel views
+    // of one definition (no channel filter, 'ai', 'human') rather than independently
+    // derived":
+    //   resolution_time_all  → no channel filter          ← our 'All'
+    //   resolution_time      → resolution_channel='human' ← our 'Human only'
+    //   resolution_time_ai   → resolution_channel='ai'    ← not surfaced; ask before adding
+    //
+    // ⚠️ Worth knowing what 'human' actually means: the registry states it "includes tickets
+    // with no Helpmate conversation at all, not just ones where a human explicitly took over
+    // from AI". So it is "not AI-resolved" rather than "a human rescued this", which is the
+    // reading the label has to support — hence "Human only", not "Human hand-off".
+    //
+    // Expect the human view to run SLOWER. The registry notes the old source "likely pulled
+    // the average down, since AI-resolved tickets close faster", so removing them pulls it
+    // back up. The mock models that; see BASIS_FACTOR.
+    dimensions: [
+      {
+        id: 'all',
+        label: 'All',
+        resultType: 'value',
+        caveat:
+          'Median time from creation to close across every closed ticket, AI-resolved and human-handled alike.',
+      },
+      {
+        id: 'human',
+        label: 'Human only',
+        resultType: 'value',
+        caveat:
+          'Median time from creation to close for tickets AI did not resolve. Runs slower than All, because the AI-resolved tickets it removes are the fast ones.',
+      },
+    ],
   },
   {
     // registry: sla_compliance — ⚠️ marked Phase 2, EXCLUDED FROM MVP (confirmed by
