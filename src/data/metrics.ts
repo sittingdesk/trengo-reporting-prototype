@@ -292,7 +292,7 @@ export const METRICS: MetricDef[] = [
     // Higher is better and that is knowable, so this is neither `lowerIsBetter` nor
     // `neutral` — a satisfaction rate is the clearest case in the registry for a direction.
     caveat:
-      "Share of answered surveys rated 4 or 5 out of 5. Only answered surveys count, so it says nothing about the customers who didn't reply.",
+      'Share of answered surveys rated 4 or 5 out of 5.',
   },
   {
     // registry: csat_response_rate — SAFE_DIVIDE(COUNTIF(csat_ticket_submitted_at IS NOT
