@@ -134,8 +134,10 @@ export const METRICS: MetricDef[] = [
     category: 'efficiency',
     base: 95, // ~1m 35s
     lowerIsBetter: true,
+    // Read in "Show both" (sidebar → Prototype), so it describes the PAIR; Menu toggle reads
+    // the per-view caveats below instead.
     caveat:
-      'Time from a ticket arriving to the first outbound reply. Excludes tickets that start with an outbound message.',
+      "Time from a ticket arriving to the first outbound reply. Human only leaves out AI and automated replies — illustrative, as nothing can split first response by AI or human yet.",
     // ⚠️ THE HUMAN-ONLY VIEW HERE IS ILLUSTRATIVE — unlike Resolution time below, which is
     // registry-backed. The registry has exactly ONE first_response_time entry, measuring
     // `first_user_outbound_message_created_at` on trengodb__tickets. There is no
@@ -180,8 +182,9 @@ export const METRICS: MetricDef[] = [
     category: 'efficiency',
     base: 18000, // seconds (~5h)
     lowerIsBetter: true,
+    // Read in "Show both", so it describes the pair; Menu toggle reads the per-view caveats.
     caveat:
-      'Median time from creation to close, covering both AI-resolved and human-handled tickets. Long times can signal process or knowledge gaps.',
+      'Median time from creation to close across every closed ticket. Human only leaves out tickets AI resolved, so it runs slower.',
     // registry: THREE parallel views of one definition, which is what makes this a toggle
     // rather than three widgets. All three read trengodb__ticket_resolutions and differ
     // only by `resolution_channel`, and the registry says so explicitly — "parallel views

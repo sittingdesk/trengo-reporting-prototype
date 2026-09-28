@@ -41,7 +41,7 @@ const props = withDefaults(
 const emit = defineEmits<{ remove: [] }>()
 
 const { dateRange, channelIds, teamIds, comparisonLabel, dateRangeLabel } = useFilters()
-const { showEmptyData, forceLoading, forceError, slaEnabled } = useSettings()
+const { showEmptyData, forceLoading, forceError, slaEnabled, humanOnlyView } = useSettings()
 
 const metric = computed(() => getMetric(props.metricId))
 
@@ -50,8 +50,19 @@ const metric = computed(() => getMetric(props.metricId))
 // and would be persisted alongside `span` once dashboards are editable.
 const activeDim = ref<string | undefined>(metric.value?.dimensions?.[0]?.id)
 watch(metric, (m) => (activeDim.value = m?.dimensions?.[0]?.id))
+const dimensions = computed(() => metric.value?.dimensions ?? [])
+
+/** Prototype switch (sidebar → Prototype → Human-only view). In "Show both" a metric with
+ *  a view pair shows no control at all: the headline is its FIRST view and the second sits
+ *  beside it as a figure. Only for metrics that declare a pair, so every other card is
+ *  identical in both modes. */
+const showBoth = computed(() => humanOnlyView.value === 'both' && dimensions.value.length > 1)
+/** The view the headline is computed with. Pinned to the first in "Show both" so a view
+ *  picked in "Menu toggle" can't leak across the switch and leave the headline on
+ *  Human only with nothing on the card saying so. */
+const effectiveDim = computed(() => (showBoth.value ? dimensions.value[0]?.id : activeDim.value))
 const dimension = computed(
-  () => metric.value?.dimensions?.find((d) => d.id === activeDim.value) ?? null,
+  () => dimensions.value.find((d) => d.id === effectiveDim.value) ?? null,
 )
 /** The active break-down decides how this widget renders. */
 const resultType = computed(() => dimension.value?.resultType ?? metric.value?.resultType)
@@ -67,14 +78,12 @@ const breakdownUnit = computed<'count' | 'duration' | 'percentage'>(() =>
       : 'count',
 )
 
-// Break-downs live in the ⋯ menu, so the card header stays clean regardless of how
-// many a measure declares — no width juggling, and room for more settings later.
-const dimensions = computed(() => metric.value?.dimensions ?? [])
 /** Active configuration, appended to the title so a tile is self-describing — a
  *  screenshot carries its own definition, and it's the only hint that other views
- *  exist now the control lives in the ⋯ menu. Hidden when there's nothing to choose. */
+ *  exist while the control lives in the ⋯ menu. Hidden when there's nothing to choose,
+ *  and in "Show both", where the second view's own figure says it instead. */
 const activeConfigLabel = computed(() =>
-  dimensions.value.length > 1 ? dimension.value?.label : undefined,
+  dimensions.value.length > 1 && !showBoth.value ? dimension.value?.label : undefined,
 )
 
 /** Same capability rule as the widget gate in WidgetGrid, one level down: a column
@@ -83,14 +92,31 @@ const tableColumns = computed(
   () => sample.value?.table?.columns.filter((c) => c.requires !== 'sla' || slaEnabled.value) ?? [],
 )
 const showDimensionControl = computed(
-  () => dimensions.value.length > 1 && !loading.value && !errored.value,
+  () => dimensions.value.length > 1 && !showBoth.value && !loading.value && !errored.value,
 )
 
 const signature = computed(() => filterSignature(dateRange.value, channelIds.value, teamIds.value))
 const sample = computed(() => {
   const m = metric.value
-  return m ? metricValue(m, signature.value, dateRange.value, activeDim.value) : null
+  return m ? metricValue(m, signature.value, dateRange.value, effectiveDim.value) : null
 })
+
+/** "Show both": the second view as a labelled figure, e.g. "Human only 6h 25m". It is the
+ *  SAME `metricValue` call the Menu toggle makes when you pick that view, so the two
+ *  patterns can never show different numbers for the same filters. */
+const secondViewFigure = computed(() => {
+  const m = metric.value
+  const second = dimensions.value[1]
+  if (!m || !showBoth.value || !second) return undefined
+  const v = metricValue(m, signature.value, dateRange.value, second.id).value
+  return `${second.label} ${formatValue(v, m.unit)}`
+})
+
+/** "Show both" reads the metric's own caveat, which describes the pair; Menu toggle reads
+ *  the active view's, which describes that view alone. */
+const tooltipText = computed(() =>
+  showBoth.value ? metric.value?.caveat : (dimension.value?.caveat ?? metric.value?.caveat),
+)
 
 // Brief simulated load on mount + whenever the filter signature changes — shows
 // the loading skeleton (prototype only; real widgets fetch on filter change, §4).
@@ -176,6 +202,12 @@ const menuOpen = ref(false)
 
 // Per-widget CSV export (chart/table widgets only).
 const exportable = computed(() => (metric.value ? canExportWidget(metric.value) && !errored.value : false))
+/** Whether the ⋯ menu would have anything in it. Without this every KPI card's ⋯ opened a
+ *  192×10px empty panel — CSV export excludes value cards and Remove moved to edit mode —
+ *  so the menu now only renders when there's an item to put in it. */
+const hasMenuContent = computed(
+  () => showDimensionControl.value || (exportable.value && !!sample.value && resolvedState.value === 'value'),
+)
 function onExport() {
   menuOpen.value = false
   if (!metric.value || !sample.value) return
@@ -322,7 +354,7 @@ const skeletonBars = computed(() =>
           >
             · {{ activeConfigLabel }}</span>
         </h3>
-        <Tooltip v-if="!loading" :text="dimension?.caveat ?? metric.caveat">
+        <Tooltip v-if="!loading" :text="tooltipText">
           <span class="flex shrink-0 cursor-default items-center text-grey-400 transition-colors hover:text-grey-600">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <circle cx="8" cy="8" r="8" fill="currentColor" />
@@ -400,7 +432,7 @@ const skeletonBars = computed(() =>
            that slot — and two same-sized icon buttons on every one of eleven cards is
            noise. The cost, stated: Export as CSV and Break down by are unreachable while
            editing, and leaving the mode brings them straight back. -->
-      <Popover v-if="!loading && !editing" v-model:open="menuOpen">
+      <Popover v-if="!loading && !editing && hasMenuContent" v-model:open="menuOpen">
         <PopoverTrigger as-child>
           <button
             type="button"
@@ -619,6 +651,14 @@ const skeletonBars = computed(() =>
                one line read as one phrase ("5 of 29 inbound Human only"), and no metric
                declares both today. If one ever does, the figure wins and the ⓘ carries the
                basis — it is the qualifier, not the measurement. -->
+          <!-- nowrap, like the number: at the 1024px floor "Human only 2m 34s" is 118px in a
+               114px interior, and letting it break onto two lines grew the card to 170px
+               beside 160px neighbours. On one line it runs 4px into the card's 16px padding
+               — still visible — and the row stays level. -->
+          <span
+            v-else-if="secondViewFigure && !emptyValueCard"
+            class="whitespace-nowrap text-xs font-medium leading-4 text-grey-600 tabular-nums"
+          >{{ secondViewFigure }}</span>
           <span
             v-else-if="activeConfigLabel && !emptyValueCard"
             class="text-xs font-medium leading-4 text-grey-600"

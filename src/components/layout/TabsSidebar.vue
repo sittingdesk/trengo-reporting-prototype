@@ -15,7 +15,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/Icon.vue'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useWorkspace, type Scenario } from '@/composables/useWorkspace'
-import { useSettings, type DataState } from '@/composables/useSettings'
+import { useSettings, type DataState, DEFAULT_HUMAN_ONLY_VIEW, type HumanOnlyView } from '@/composables/useSettings'
 import { useFilters } from '@/composables/useFilters'
 import { SELECTABLE_ITERATIONS } from '@/config/iterations'
 import { scopeLabel } from '@/data/dashboards'
@@ -43,7 +43,8 @@ const activeId = computed(() => String(route.params.dashboardId ?? ''))
 const defaultDashboards = computed(() => dashboards.value.filter((d) => d.readonly))
 const userDashboards = computed(() => dashboards.value.filter((d) => !d.readonly))
 
-const { slaEnabled, toggleSla, setSla, dataState, setDataState } = useSettings()
+const { slaEnabled, toggleSla, setSla, dataState, setDataState, humanOnlyView, setHumanOnlyView } =
+  useSettings()
 const { applyScope } = useFilters()
 
 /**
@@ -56,6 +57,7 @@ function resetPrototype() {
   const d = resetWorkspace()
   setSla(false)
   setDataState('normal')
+  setHumanOnlyView(DEFAULT_HUMAN_ONLY_VIEW)
   // The reseeded dashboard keeps its slug id, so DashboardView's scope watcher — keyed on
   // that id — won't refire. Apply the fresh scope here or the old filters would survive a
   // reset, which is the one thing it must not do.
@@ -66,6 +68,12 @@ function resetPrototype() {
 const scenarios: { id: Scenario; label: string }[] = [
   { id: 'existing', label: 'Existing customer' },
   { id: 'new', label: 'New customer' },
+]
+
+// The two patterns under consideration for the All / Human only pair — see useSettings.
+const humanOnlyViews: { id: HumanOnlyView; label: string }[] = [
+  { id: 'toggle', label: 'Menu toggle' },
+  { id: 'both', label: 'Show both' },
 ]
 
 const dataStates: { id: DataState; label: string }[] = [
@@ -258,6 +266,29 @@ function changeIteration(id: string) {
             @click="setDataState(d.id)"
           >
             {{ d.label }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Human-only view: a DESIGN comparison, not a data state. Flips First response time
+           and Resolution time between the ⋯-menu toggle and showing both figures, so the two
+           patterns can be judged on the real page. Same segmented control as Data state. -->
+      <div>
+        <div class="mb-1.5 text-xs font-medium text-grey-600">Human-only view</div>
+        <div class="grid grid-cols-2 gap-1 rounded-base bg-grey-200 p-0.5">
+          <button
+            v-for="v in humanOnlyViews"
+            :key="v.id"
+            class="rounded-sm px-2 py-1 text-xs font-semibold transition-colors"
+            :class="
+              humanOnlyView === v.id
+                ? 'bg-white text-grey-900 shadow-100'
+                : 'text-grey-600 hover:text-grey-900'
+            "
+            :aria-pressed="humanOnlyView === v.id"
+            @click="setHumanOnlyView(v.id)"
+          >
+            {{ v.label }}
           </button>
         </div>
       </div>
