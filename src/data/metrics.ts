@@ -343,7 +343,8 @@ export const METRICS: MetricDef[] = [
     //      declared per-day anywhere in the file. The group-by is the new part, not the
     //      measure — same ask as Surveys received needs.
     id: 'csat_score_over_time',
-    label: 'Satisfaction over time',
+    // CSAT, like the headline KPI — one name per subject on the page. See csat_satisfied_rate.
+    label: 'CSAT over time',
     // The unit describes the LINE (a rate). The bars are counts on their own axis, which is
     // exactly why this doesn't go through the normal single-unit chart path.
     unit: 'percentage',
@@ -425,17 +426,17 @@ export const METRICS: MetricDef[] = [
     // treating as a substitution the PM needed warning about. It is the industry
     // definition; tell them that instead.
     id: 'csat_sentiment_breakdown',
-    // "Satisfaction breakdown" — the PM's row name ("CSAT breakdown") minus the acronym, and
-    // it sits in the page's family beside Satisfaction over time. ⚠️ The headline KPI has
-    // since been renamed back to "CSAT score", so this page now mixes the two names; see
-    // that metric's comment before deciding whether the family should follow.
+    // "CSAT breakdown" — the PM's row name exactly, and one family with CSAT score and CSAT
+    // over time. It was "Satisfaction breakdown" while the headline was "Customer
+    // satisfaction"; when that became "CSAT score" the page carried two names for one
+    // subject, so the family followed.
     //
     // Deliberately NOT "by sentiment", even though the definition uses the word: Zendesk
     // uses "sentiment" for AI analysis of what the customer WROTE (Very positive → Very
     // negative, out of intelligent triage), and Trengo is heading the same way — the
     // registry already carries an `intent_trends` placeholder. The caveat rules that
     // reading out in one clause rather than leaving the title to be misread.
-    label: 'Satisfaction breakdown',
+    label: 'CSAT breakdown',
     // The bars are shares of the responses; the counts ride along as the supporting figure.
     unit: 'percentage',
     resultType: 'breakdown',
