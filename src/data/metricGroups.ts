@@ -17,8 +17,11 @@
 // note promised an `orphanedMetricIds()` dev check would catch that; no such function was
 // ever written, so nothing warns you today. Worth building if this list grows.
 //
-// It cuts the other way too, which is the useful part: commenting an id out below is how a
-// metric is taken out of circulation without deleting it.
+// ⚠️ Being listed here is necessary but no longer sufficient. The library also requires a
+// metric to be PLACED on one of the five pages (`PLACED_METRIC_IDS` in templates.ts) — the
+// rule is that it shows only what the product actually uses. So this file decides grouping
+// and order; the pages decide what's offered. Ids below that sit on no page are simply not
+// shown, which keeps their subject slot ready for the day they're placed again.
 
 export interface MetricSubject {
   id: string

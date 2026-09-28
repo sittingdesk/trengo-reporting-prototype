@@ -148,8 +148,9 @@ export const TEMPLATES: Template[] = [
       // Sales — one table, boards as rows. It was these four as separate KPI cards, which
       // could only show one workspace-wide number each: fine until you notice a board
       // declares its own currency, at which point a single "pipeline value" is summing
-      // euros and dollars. The four metrics still exist and stay addable from the widget
-      // library; what changed is that this page says which board it's talking about.
+      // euros and dollars. The four metrics still exist in the registry, but sit on no page,
+      // so the widget library no longer offers them (PLACED_METRIC_IDS below). This page now
+      // says which board it's talking about.
       { metricId: 'sales_by_board' },
     ],
   },
@@ -208,8 +209,8 @@ export const TEMPLATES: Template[] = [
       { metricId: 'calls_by_team', span: 6 },
       // Temporarily hidden — bring back later. Average queue wait per day, which is the
       // Time to answer KPI two cards above at a finer grain; the page carried both a number
-      // and a chart of one measure. Metric, mock branch and empty state all stay, so it is
-      // still addable from the widget library and restoring it here is one line.
+      // and a chart of one measure. Metric, mock branch and empty state all stay, so restoring
+      // it here is one line — and restoring it is also what puts it back in the library.
       // { metricId: 'time_to_answer_over_time', span: 6 },
       { metricId: 'workload_by_agent' },
       { metricId: 'performance_by_channel' },
@@ -259,20 +260,20 @@ export const TEMPLATES: Template[] = [
       // unnamed row rather than the row itself. It is also the only CSAT widget here that
       // needs data we haven't got — the sentiment split is a client-side bucketing of a
       // query already requested, while this one needs a csat_tickets.ticket_id →
-      // tickets.channel_type join the registry has never declared. Still in the library if
-      // that join ever lands and the question is worth asking.
+      // tickets.channel_type join the registry has never declared. Parked, so out of the
+      // library too; restore this line if that join ever lands and the question is worth it.
       // { metricId: 'csat_by_channel', span: 6 },
       // Satisfaction ratings came off when the sentiment breakdown landed: they are the
       // same responses, five buckets against three, and the page was printing one set of
       // surveys twice. The three-bucket version is also the only one that survives a
       // thumbs up/down workspace, where 5★→1★ renders two bars and three empty columns.
-      // Metric, mock, empty state and library row all stay, so restoring it here is one
-      // line and adding it to a report is one click.
+      // Metric, mock and empty state all stay, so restoring it here is one line, which also
+      // returns it to the widget library.
       // { metricId: 'csat_rating_distribution', span: 6 },
       // Surveys received came off when Satisfaction over time landed: its bars ARE the
       // survey volume, so keeping both printed the same seven bars twice on one page. The
-      // metric, mock and empty state all stay, so it is still addable from the library for
-      // anyone who wants volume on its own.
+      // metric, mock and empty state all stay; restoring this line brings it back to the page
+      // and the library together.
       // { metricId: 'csat_surveys_received', span: 6 },
     ],
   },
@@ -329,6 +330,22 @@ export const QUESTION_LED_TEMPLATE_IDS = [
   'improve',
   'automate',
 ]
+
+/**
+ * Every metric placed on at least one of the five question-led pages — and therefore the
+ * only metrics the widget library offers.
+ *
+ * Jeff's rule: the library shows what we actually use. So a metric that is commented out of
+ * every page (parked) leaves the library with it, and placing it on a page brings it back.
+ * One place decides both, so the two can't drift. Only live `metricId` lines count;
+ * commented-out widgets are, by construction, not in `TEMPLATES`.
+ */
+export const PLACED_METRIC_IDS: ReadonlySet<string> = new Set(
+  TEMPLATES.filter((t) => QUESTION_LED_TEMPLATE_IDS.includes(t.id))
+    .flatMap((t) => t.widgets)
+    .filter(isMetricWidget)
+    .map((w) => w.metricId),
+)
 
 /** The legacy reports, rebuilt — the "keep my current reports" migration path. */
 export const LEGACY_REPORT_TEMPLATE_IDS = [

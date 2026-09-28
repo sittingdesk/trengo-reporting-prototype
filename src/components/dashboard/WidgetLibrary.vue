@@ -29,7 +29,7 @@ import FilterChip from '@/components/layout/filters/FilterChip.vue'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useWorkspace } from '@/composables/useWorkspace'
 import { useSettings } from '@/composables/useSettings'
-import { isMetricWidget } from '@/config/templates'
+import { isMetricWidget, PLACED_METRIC_IDS } from '@/config/templates'
 import { getMetric } from '@/data/metrics'
 import {
   METRIC_SUBJECTS,
@@ -89,6 +89,10 @@ const present = computed(
  * SLA-gated metrics are omitted while the workspace has no SLA policy — the same rule the
  * grid applies (WidgetGrid's capability gate). Showing them would let you add a widget
  * that then doesn't render: click, nothing appears, click again, two invisible widgets.
+ *
+ * And only metrics placed on one of the five pages are offered (`PLACED_METRIC_IDS`): the
+ * library shows what the product actually uses. Parking a widget on its last page takes it
+ * out of here too. A subject left with no rows drops out below, heading and all.
  */
 const sections = computed(() =>
   METRIC_SUBJECTS.map((subject) => ({
@@ -97,6 +101,7 @@ const sections = computed(() =>
     rows: subject.metricIds
       .map((id) => getMetric(id))
       .filter((m) => !!m)
+      .filter((m) => PLACED_METRIC_IDS.has(m!.id))
       .filter((m) => m!.requires !== 'sla' || slaEnabled.value)
       .map((m) => {
         const metric = m!
