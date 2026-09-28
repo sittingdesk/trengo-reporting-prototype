@@ -4,7 +4,7 @@
 // picks when creating a new report.
 //
 // ⚠️ ONE METRIC PER PAGE. A metric may appear on SEVERAL templates — First response time
-// and Resolution time are on both Overview and Operate, and Customer satisfaction is on
+// and Resolution time are on both Overview and Operate, and CSAT score is on
 // Overview and Improve — but never twice on the same one.
 //
 // Across pages it is free: TECH_FOUNDATION §4 gives each page its own aggregate endpoint,

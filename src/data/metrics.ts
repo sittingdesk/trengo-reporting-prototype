@@ -283,7 +283,15 @@ export const METRICS: MetricDef[] = [
   // thumbs, the 4–5 bucketing and the bar count both change.
   {
     id: 'csat_satisfied_rate',
-    label: 'Customer satisfaction',
+    // "CSAT score", reversing the earlier "Average CSAT" → "Customer satisfaction" rename.
+    // That rename stripped the acronym for readers who might not know it; but this app's
+    // readers are support teams, CSAT is the term every tool they've used puts on this
+    // exact number (Zendesk, Freshdesk, Gorgias, Intercom), and it's the PM's own label.
+    // It also fits: "Customer satisfaction" truncated on span-3 cards at common widths,
+    // "CSAT score" is whole from 1280px up and loses 4px at the 1024px floor — where the
+    // 36px number already overflows the card anyway. Sentence case, like every other title:
+    // the acronym keeps its capitals, "score" doesn't.
+    label: 'CSAT score',
     unit: 'percentage',
     resultType: 'value',
     status: 'ready',
@@ -291,8 +299,10 @@ export const METRICS: MetricDef[] = [
     base: 0.83, // share rated 4–5
     // Higher is better and that is knowable, so this is neither `lowerIsBetter` nor
     // `neutral` — a satisfaction rate is the clearest case in the registry for a direction.
-    caveat:
-      'Share of answered surveys rated 4 or 5 out of 5.',
+    // Names the whole before the part. "Share of answered surveys rated 4 or 5" read as if
+    // only 4s and 5s were looked at; "all" says every rating is in the total and 4–5 is the
+    // share being measured.
+    caveat: 'Share of all survey responses rated 4 or 5 out of 5.',
   },
   {
     // registry: csat_response_rate — SAFE_DIVIDE(COUNTIF(csat_ticket_submitted_at IS NOT
@@ -415,9 +425,10 @@ export const METRICS: MetricDef[] = [
     // treating as a substitution the PM needed warning about. It is the industry
     // definition; tell them that instead.
     id: 'csat_sentiment_breakdown',
-    // "Satisfaction breakdown" — the PM's row name minus the acronym this project already
-    // strips from labels ("Average CSAT" → "Customer satisfaction"), and it sits in the
-    // page's family beside Satisfaction over time and Satisfaction by channel.
+    // "Satisfaction breakdown" — the PM's row name ("CSAT breakdown") minus the acronym, and
+    // it sits in the page's family beside Satisfaction over time. ⚠️ The headline KPI has
+    // since been renamed back to "CSAT score", so this page now mixes the two names; see
+    // that metric's comment before deciding whether the family should follow.
     //
     // Deliberately NOT "by sentiment", even though the definition uses the word: Zendesk
     // uses "sentiment" for AI analysis of what the customer WROTE (Very positive → Very
