@@ -13,16 +13,19 @@
 // policy are hidden until it is — see `requires` in src/data/metrics.ts.
 // `humanOnlyView` is a DESIGN switch, not a data one: it flips between the two patterns
 // under consideration for the All / Human only pair on First response time and Resolution
-// time, so they can be compared on the real page at real widths.
-//   toggle — the view is chosen from the card's ⋯ menu, active view beside the number
-//   both   — no control; the Human only figure sits beside the All headline
+// time, so they can be compared on the real page at real widths. Both show ONE number at
+// a time — a third pattern that printed both figures ("Show both") was rejected as
+// confusing (Jeff, 2026-10-05).
+//   toggle — the view is chosen from the card's ⋯ menu, active view named beside the number
+//   inline — the name beside the number IS the control: "All tickets ⌄" opens the choice
 import { ref, computed } from 'vue'
 
 export type DataState = 'normal' | 'loading' | 'empty' | 'error'
-export type HumanOnlyView = 'toggle' | 'both'
+export type HumanOnlyView = 'toggle' | 'inline'
 
-// 'both' by default: it's the pattern Jeff preferred once both were on the table.
-export const DEFAULT_HUMAN_ONLY_VIEW: HumanOnlyView = 'both'
+// 'inline' by default: it keeps Menu toggle's model (one number, switchable) and fixes
+// where the switch lives. Menu toggle stays one click away for comparison.
+export const DEFAULT_HUMAN_ONLY_VIEW: HumanOnlyView = 'inline'
 
 const state = ref({
   dataState: 'normal' as DataState,
@@ -32,7 +35,9 @@ const state = ref({
 
 export function useSettings() {
   // SLA — a FEATURE flag, not a display flag: it changes which widgets a page has,
-  // where comparison/data-state only change how existing ones look.
+  // where comparison/data-state only change how existing ones look. Its sidebar switch was
+  // removed (2026-10-05), so it stays off: the SLA cards and the channel table's SLA column
+  // are parked, not deleted — flip the default above to bring them back.
   const slaEnabled = computed(() => state.value.slaEnabled)
   const toggleSla = () => (state.value.slaEnabled = !state.value.slaEnabled)
   const setSla = (on: boolean) => (state.value.slaEnabled = on)

@@ -44,6 +44,9 @@ export interface MetricDimension {
   /** Overrides the measure's caveat for this break-down. Views can cover different
    *  populations, so one tooltip often can't describe them all honestly. */
   caveat?: string
+  /** A few words under the option in the inline picker — what this view includes or
+   *  leaves out, at the moment of choosing. Shorter than `caveat`, which is the ⓘ. */
+  hint?: string
 }
 
 /**
@@ -57,7 +60,7 @@ export type FeatureFlag = 'sla'
 /** ready = show a value; restricted = gated by permissions. */
 export type MetricStatus = 'ready' | 'restricted'
 
-export type Category = 'volume' | 'efficiency' | 'quality' | 'sales' | 'voice'
+export type Category = 'volume' | 'efficiency' | 'quality' | 'sales' | 'voice' | 'ai_adoption'
 
 export interface MetricDef {
   id: string
@@ -134,8 +137,9 @@ export const METRICS: MetricDef[] = [
     category: 'efficiency',
     base: 95, // ~1m 35s
     lowerIsBetter: true,
-    // Read in "Show both" (sidebar → Prototype), so it describes the PAIR; Menu toggle reads
-    // the per-view caveats below instead.
+    // Describes the PAIR, for where the metric appears without a view chosen — the widget
+    // library uses it as the row description. On the card, both prototype patterns read
+    // the active view's caveat below instead.
     caveat:
       "Time from a ticket arriving to the first outbound reply. Human only leaves out AI and automated replies — illustrative, as nothing can split first response by AI or human yet.",
     // ⚠️ THE HUMAN-ONLY VIEW HERE IS ILLUSTRATIVE — unlike Resolution time below, which is
@@ -156,7 +160,8 @@ export const METRICS: MetricDef[] = [
     dimensions: [
       {
         id: 'all',
-        label: 'All',
+        label: 'All tickets',
+        hint: 'AI, automations and people',
         resultType: 'value',
         caveat:
           'Time from a ticket arriving to the first outbound reply, whoever or whatever sent it. Excludes tickets that start with an outbound message.',
@@ -164,6 +169,7 @@ export const METRICS: MetricDef[] = [
       {
         id: 'human',
         label: 'Human only',
+        hint: 'Leaves out AI and automated replies',
         resultType: 'value',
         caveat:
           "Time to the first reply from a person, with AI and automated replies excluded. ⚠️ Illustrative — nothing in the registry can split first response by AI or human yet, so treat this number as a shape, not a figure.",
@@ -182,7 +188,7 @@ export const METRICS: MetricDef[] = [
     category: 'efficiency',
     base: 18000, // seconds (~5h)
     lowerIsBetter: true,
-    // Read in "Show both", so it describes the pair; Menu toggle reads the per-view caveats.
+    // Describes the pair, for the widget library; on the card the active view's caveat wins.
     caveat:
       'Median time from creation to close across every closed ticket. Human only leaves out tickets AI resolved, so it runs slower.',
     // registry: THREE parallel views of one definition, which is what makes this a toggle
@@ -205,7 +211,8 @@ export const METRICS: MetricDef[] = [
     dimensions: [
       {
         id: 'all',
-        label: 'All',
+        label: 'All tickets',
+        hint: 'AI-resolved and human-handled',
         resultType: 'value',
         caveat:
           'Median time from creation to close across every closed ticket, AI-resolved and human-handled alike.',
@@ -213,6 +220,7 @@ export const METRICS: MetricDef[] = [
       {
         id: 'human',
         label: 'Human only',
+        hint: 'Leaves out tickets AI resolved',
         resultType: 'value',
         caveat:
           'Median time from creation to close for tickets AI did not resolve. Runs slower than All, because the AI-resolved tickets it removes are the fast ones.',
@@ -810,6 +818,70 @@ export const METRICS: MetricDef[] = [
     base: 12, // calls per day, split inbound/outbound
     stacked: true,
     caveat: 'Calls per day, split into inbound and outbound.',
+  },
+  // --- Automate page ---
+  {
+    // registry: NONE — no entry counts AI tickets. The nearest are the `ai_adoption`
+    // placeholders (ai_agent_resolution_rate / _assistance_rate / _open_ticket_rate), all
+    // of which need THIS number as their denominator, so it is the first ask for the page.
+    //
+    // Definition chosen with Jeff (2026-10-05): TOUCHED, not handled — every ticket an AI
+    // agent replied to at least once, including ones it handed to a person. "Handled alone"
+    // would be the resolved share under another name, and would leave hand-offs with no
+    // base to be a share of. With "touched", resolved + handed off + open are parts of this
+    // one whole, which is what the page's outcome cards need.
+    //
+    // ASKS, for the data team:
+    //  1. Which events count as AI — AI agents (Helpmate) only, or journeys and automations
+    //     too? We assume AI agents only; journeys get their own cards.
+    //  2. Count DISTINCT ticket_id. `trengoai__tickets` is conversation-grained, so a ticket
+    //     reopened and handled by AI again appears twice (the registry's own note on
+    //     resolution_time_ai). Source likely trengoai__tickets with is_playground IS NOT
+    //     TRUE, dated on ticket_created_at like every ticket metric.
+    //  3. Team filter: a ticket AI handled alone often has no team, so filtering by team
+    //     would show only handed-off tickets. Needs a decision, not just a query.
+    id: 'ai_tickets',
+    label: 'Tickets with AI',
+    unit: 'count',
+    resultType: 'value',
+    status: 'ready',
+    category: 'ai_adoption',
+    // A count: more AI tickets can just mean more tickets. The share of all tickets beside
+    // it is the adoption signal, so the change is reported, never coloured.
+    neutral: true,
+    base: 0.34, // share of all tickets an AI agent took part in
+    caveat: 'Tickets an AI agent replied to at least once, including ones it handed over to your team.',
+  },
+  {
+    // registry: journey_success_ratio — PLACEHOLDER (calculation "TBD", no source tables).
+    // Definition from Jeff (2026-10-05): "the ratio of successful journeys out of all
+    // journeys". Labelled a RATE, not a ratio: it renders as a percentage, and every other
+    // percentage in the app is a rate (Win rate, Missed rate, Survey response rate) — a
+    // "ratio" reads as 3:1.
+    //
+    // Shown as a percentage with its denominator ("1,402 of 1,948"), like every
+    // other rate here — not with the reference's progress bar, which coloured a 72% orange
+    // without any target to judge it against.
+    //
+    // ASKS, for the data team — the definition hangs on all three:
+    //  1. What makes a journey SUCCESSFUL — reached an end node, reached a goal node, or
+    //     finished without escalating? Each gives a different number.
+    //  2. Is the unit a journey RUN (one contact going through a journey once) or a
+    //     journey? We assume runs — "out of all journeys" only makes sense as a count of
+    //     things that happened in the period.
+    //  3. Are runs still in progress counted? We assume not: a run that hasn't finished
+    //     can't have succeeded or failed yet, and counting it would drag the rate down
+    //     whenever traffic rises.
+    // Scope note from the kickoff: node-level detail stays in the Journey dashboard; this
+    // is the aggregate outcome only.
+    id: 'journey_success_ratio',
+    label: 'Journey success rate',
+    unit: 'percentage',
+    resultType: 'value',
+    status: 'ready',
+    category: 'ai_adoption',
+    base: 0.72,
+    caveat: 'Share of journeys that finished successfully, out of all journeys that ran.',
   },
   {
     // registry: voip_calls_by_day_hour [Overview] — added 2026-09-04, closing the

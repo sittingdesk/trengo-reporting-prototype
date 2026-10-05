@@ -14,6 +14,15 @@ export interface ChannelCategory {
   instances: ChannelInstance[]
 }
 
+// Names are written the way workspaces actually name channels — after the team or the
+// purpose ("Support", "Billing", "Main website"), rather than after the channel type. So
+// the title often doesn't say what kind of channel it is, which is why Performance by
+// channel prints each row's type mark beside it. Two titles are deliberately shared
+// across types ("Support" on WhatsApp and Email, "Sales" on WhatsApp and Voice): titles
+// are only unique per account in practice, never guaranteed, and the type mark is what
+// tells those rows apart. "WhatsApp untitled" stays as Trengo's own default for a channel
+// nobody named.
+//
 // Categories are a FIXED taxonomy — WhatsApp/Telegram live under "Messaging",
 // never under a "Chat" category. Live chat is its own category.
 export const CATALOG: ChannelCategory[] = [
@@ -21,34 +30,34 @@ export const CATALOG: ChannelCategory[] = [
     id: 'whatsapp',
     label: 'WhatsApp',
     instances: [
-      { id: 'wa_support', name: 'WhatsApp support' },
-      { id: 'wa_sales', name: 'WhatsApp sales' },
+      { id: 'wa_support', name: 'Support' },
+      { id: 'wa_sales', name: 'Sales' },
       { id: 'wa_2', name: 'WhatsApp untitled' },
     ],
   },
   {
     id: 'livechat',
     label: 'Live chat',
-    instances: [{ id: 'lc_web', name: 'Website chat' }],
+    instances: [{ id: 'lc_web', name: 'Main website' }],
   },
   {
     id: 'email',
     label: 'Email',
     instances: [
-      { id: 'em_support', name: 'Support email' },
-      { id: 'em_sales', name: 'Sales email' },
-      { id: 'em_info', name: 'Info email' },
+      { id: 'em_support', name: 'Support' },
+      { id: 'em_sales', name: 'Billing' },
+      { id: 'em_info', name: 'Info' },
     ],
   },
   {
     id: 'voice',
     label: 'Voice',
     instances: [
-      { id: 'v_main', name: 'Voice main' },
-      { id: 'v_nl', name: 'Voice NL' },
-      { id: 'v_be', name: 'Voice BE' },
-      { id: 'v_sales', name: 'Voice sales' },
-      { id: 'v_vip', name: 'Voice VIP' },
+      { id: 'v_main', name: 'Main line' },
+      { id: 'v_nl', name: 'Netherlands' },
+      { id: 'v_be', name: 'Belgium' },
+      { id: 'v_sales', name: 'Sales' },
+      { id: 'v_vip', name: 'VIP customers' },
     ],
   },
 ]

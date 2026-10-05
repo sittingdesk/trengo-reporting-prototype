@@ -26,7 +26,7 @@ const total = CHANNEL_INSTANCE_IDS.length
 const selected = computed(() => new Set(channelIds.value))
 const allSelected = computed(() => selected.value.size === total)
 const triggerLabel = computed(() =>
-  allSelected.value ? 'All channels' : `${selected.value.size} channels`,
+  allSelected.value ? 'All channels' : `${selected.value.size} ${selected.value.size === 1 ? 'channel' : 'channels'}`,
 )
 
 /** Tri-state for a checkbox given how many of `n` are selected. */
@@ -140,7 +140,7 @@ function focusLeft() {
 
         <!-- Footer -->
         <div class="flex items-center justify-between gap-2 border-t border-grey-200 bg-grey-100 px-3 py-2">
-          <span class="text-xs text-grey-600">{{ selected.size }} channels selected</span>
+          <span class="text-xs text-grey-600">{{ selected.size }} {{ selected.size === 1 ? 'channel' : 'channels' }} selected</span>
           <button
             type="button"
             class="text-xs font-semibold text-grey-700 transition-colors hover:text-grey-900 focus:outline-none focus-visible:underline"

@@ -45,6 +45,8 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   shortest_call_duration: { noun: 'calls', icon: 'Phone' },
   longest_call_duration: { noun: 'calls', icon: 'Phone' },
   missed_calls: { noun: 'missed calls', icon: 'Phone' },
+  ai_tickets: { noun: 'tickets with AI', icon: 'Chatbot' },
+  journey_success_ratio: { noun: 'finished journeys', icon: 'Journeys' },
   created_vs_closed: { noun: 'tickets', icon: 'Inbox' },
   workload_by_agent: { noun: 'tickets', icon: 'Users' },
   performance_by_channel: { noun: 'tickets', icon: 'Inbox' },

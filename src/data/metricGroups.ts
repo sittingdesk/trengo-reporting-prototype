@@ -109,6 +109,14 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
     ],
   },
   {
+    // AI agents' share of the work. Its own subject rather than filed under Tickets: on
+    // the Automate page it is the base every AI rate is a share of, and the rest of the
+    // page's metrics land here as they're defined.
+    id: 'automation',
+    label: 'AI & automation',
+    metricIds: ['ai_tickets', 'journey_success_ratio'],
+  },
+  {
     id: 'deals',
     label: 'Deals',
     metricIds: [

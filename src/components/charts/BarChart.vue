@@ -12,7 +12,10 @@ const props = withDefaults(
     data?: number[]
     average?: number[]
     // Multi-series grouped bars (overrides data/average when provided).
-    series?: { name: string; tint: 'sky' | 'peach'; data: number[] }[]
+    series?: { name: string; tint: 'sky' | 'peach'; data: number[]; prev?: number[] }[]
+    /** Previous-period value per bar, for a single-series chart (`data`). With `series`,
+     *  each series carries its own `prev` instead. Either way it only adds a tooltip line. */
+    previous?: number[]
     seriesLabel?: string
     averageLabel?: string
     legend?: boolean
@@ -213,7 +216,16 @@ function build() {
             // for the selected range, and the category is already the tooltip's title.
             label: (ctx: any) => {
               const named = ctx.chart.data.datasets.length > 1 && ctx.dataset.label
-              return `${named ? ctx.dataset.label + ': ' : ''}${fmtVal(ctx.parsed.y)}`
+              // The previous period's value for the same bar — "Inbound: 18 · prev. 15".
+              // The exact comparison is here, on demand, so the plot itself never has to
+              // carry a second set of bars.
+              const prev = props.series
+                ? props.series[ctx.datasetIndex]?.prev?.[ctx.dataIndex]
+                : ctx.datasetIndex === 0
+                  ? props.previous?.[ctx.dataIndex]
+                  : undefined
+              const prevText = prev == null ? '' : ` · prev. ${fmtVal(prev)}`
+              return `${named ? ctx.dataset.label + ': ' : ''}${fmtVal(ctx.parsed.y)}${prevText}`
             },
             // The denominator, when the caller has one. On a rate chart this is the
             // difference between "62%" and "62% — 5 of 8 responses", i.e. between a

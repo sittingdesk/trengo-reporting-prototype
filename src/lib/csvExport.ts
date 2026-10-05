@@ -127,6 +127,9 @@ function widgetRows(metric: MetricDef, sample: MetricSample): Row[] {
         // Badge columns hold a status label, not a measurement — export blank rather
         // than a word that would read as data.
         out[col.label] = col.badge ? '' : r[col.key]
+        // On screen the type is a mark; in a spreadsheet it has to be a column of its
+        // own, or the file loses the one thing that lets you pivot by channel type.
+        if (col.channel) out['Type'] = r[`${col.key}TypeLabel`] ?? ''
       }
       return out
     })

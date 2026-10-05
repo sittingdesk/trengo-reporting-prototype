@@ -1,3 +1,10 @@
+<script lang="ts">
+// Module scope — shared by every MetricBox instance, for state that must outlive one.
+/** The view each widget was last set to (All / Human only), keyed by widget `uid`. Session
+ *  only, like every prototype setting; a real build would persist it beside `span`. */
+const chosenView = new Map<string, string>()
+</script>
+
 <script setup lang="ts">
 // MetricBox — the one reusable dashboard unit (TECH_FOUNDATION §3).
 // Data states: value · histogram · time_series · table · loading · restricted,
@@ -34,6 +41,8 @@ const props = withDefaults(
     metricId: string
     /** Edit mode: the kebab slot becomes a remove control. */
     editing?: boolean
+    /** The widget's stable id — keys per-widget state that should outlive this instance. */
+    uid?: string
   }>(),
   { editing: false },
 )
@@ -48,21 +57,36 @@ const metric = computed(() => getMetric(props.metricId))
 // Active break-down. One measure can be grouped several ways (e.g. wait time by team
 // vs over time) — that's a per-widget SETTING, not a separate metric, so it lives here
 // and would be persisted alongside `span` once dashboards are editable.
-const activeDim = ref<string | undefined>(metric.value?.dimensions?.[0]?.id)
+//
+// Remembered per widget `uid` for the session, so picking Human only on Operate's
+// Resolution time survives a trip to Overview and back. Without it the choice lived in
+// this instance's ref, and `uid`-keyed widgets get a fresh instance on every report
+// switch — so the card quietly reset to All, the opposite of what you'd just asked for.
+// Keyed on the widget, not the metric: Resolution time on Overview and on Operate are two
+// widgets, and choosing on one shouldn't silently change the other.
+const activeDim = ref<string | undefined>(
+  (props.uid && chosenView.get(props.uid)) || metric.value?.dimensions?.[0]?.id,
+)
 watch(metric, (m) => (activeDim.value = m?.dimensions?.[0]?.id))
+watch(activeDim, (d) => {
+  if (props.uid && d) chosenView.set(props.uid, d)
+})
 const dimensions = computed(() => metric.value?.dimensions ?? [])
+const chooseView = (id: string) => {
+  activeDim.value = id
+  menuOpen.value = false
+  viewPickerOpen.value = false
+}
 
-/** Prototype switch (sidebar → Prototype → Human-only view). In "Show both" a metric with
- *  a view pair shows no control at all: the headline is its FIRST view and the second sits
- *  beside it as a figure. Only for metrics that declare a pair, so every other card is
- *  identical in both modes. */
-const showBoth = computed(() => humanOnlyView.value === 'both' && dimensions.value.length > 1)
-/** The view the headline is computed with. Pinned to the first in "Show both" so a view
- *  picked in "Menu toggle" can't leak across the switch and leave the headline on
- *  Human only with nothing on the card saying so. */
-const effectiveDim = computed(() => (showBoth.value ? dimensions.value[0]?.id : activeDim.value))
+/** Prototype switch (sidebar → Prototype → Human-only view). In "Inline picker" the name
+ *  of the active view, beside the number, is itself the control; in "Menu toggle" it is a
+ *  plain label and the choice lives in the ⋯ menu. Same `activeDim` either way, so
+ *  flipping the switch never changes the number on screen. Only for metrics that declare
+ *  a pair, so every other card is identical in both modes. */
+const inlinePicker = computed(() => humanOnlyView.value === 'inline' && dimensions.value.length > 1)
+const viewPickerOpen = ref(false)
 const dimension = computed(
-  () => dimensions.value.find((d) => d.id === effectiveDim.value) ?? null,
+  () => dimensions.value.find((d) => d.id === activeDim.value) ?? null,
 )
 /** The active break-down decides how this widget renders. */
 const resultType = computed(() => dimension.value?.resultType ?? metric.value?.resultType)
@@ -78,12 +102,10 @@ const breakdownUnit = computed<'count' | 'duration' | 'percentage'>(() =>
       : 'count',
 )
 
-/** Active configuration, appended to the title so a tile is self-describing — a
- *  screenshot carries its own definition, and it's the only hint that other views
- *  exist while the control lives in the ⋯ menu. Hidden when there's nothing to choose,
- *  and in "Show both", where the second view's own figure says it instead. */
+/** Active configuration, shown so a tile is self-describing — a screenshot carries its
+ *  own definition. Hidden when there's nothing to choose. */
 const activeConfigLabel = computed(() =>
-  dimensions.value.length > 1 && !showBoth.value ? dimension.value?.label : undefined,
+  dimensions.value.length > 1 ? dimension.value?.label : undefined,
 )
 
 /** Same capability rule as the widget gate in WidgetGrid, one level down: a column
@@ -92,31 +114,17 @@ const tableColumns = computed(
   () => sample.value?.table?.columns.filter((c) => c.requires !== 'sla' || slaEnabled.value) ?? [],
 )
 const showDimensionControl = computed(
-  () => dimensions.value.length > 1 && !showBoth.value && !loading.value && !errored.value,
+  () => dimensions.value.length > 1 && !inlinePicker.value && !loading.value && !errored.value,
 )
 
 const signature = computed(() => filterSignature(dateRange.value, channelIds.value, teamIds.value))
 const sample = computed(() => {
   const m = metric.value
-  return m ? metricValue(m, signature.value, dateRange.value, effectiveDim.value) : null
+  return m ? metricValue(m, signature.value, dateRange.value, activeDim.value) : null
 })
 
-/** "Show both": the second view as a labelled figure, e.g. "Human only 6h 25m". It is the
- *  SAME `metricValue` call the Menu toggle makes when you pick that view, so the two
- *  patterns can never show different numbers for the same filters. */
-const secondViewFigure = computed(() => {
-  const m = metric.value
-  const second = dimensions.value[1]
-  if (!m || !showBoth.value || !second) return undefined
-  const v = metricValue(m, signature.value, dateRange.value, second.id).value
-  return `${second.label} ${formatValue(v, m.unit)}`
-})
-
-/** "Show both" reads the metric's own caveat, which describes the pair; Menu toggle reads
- *  the active view's, which describes that view alone. */
-const tooltipText = computed(() =>
-  showBoth.value ? metric.value?.caveat : (dimension.value?.caveat ?? metric.value?.caveat),
-)
+/** The ⓘ describes the view on screen: its own caveat, falling back to the metric's. */
+const tooltipText = computed(() => dimension.value?.caveat ?? metric.value?.caveat)
 
 // Brief simulated load on mount + whenever the filter signature changes — shows
 // the loading skeleton (prototype only; real widgets fetch on filter change, §4).
@@ -178,6 +186,11 @@ const bodyMinHeight = computed(
   () => metric.value?.bodyHeight ?? (resultType.value ? BODY_HEIGHT[resultType.value] : undefined),
 )
 
+/** The "no events" demo on a count card: a true 0 instead of the sample's number. Its
+ *  supporting figure goes with it — "34% of all tickets" beside a 0 is a share of nothing. */
+const forcedZero = computed(
+  () => showEmptyData.value && resultType.value === 'value' && metric.value?.unit === 'count',
+)
 const formatted = computed(() => {
   const m = metric.value
   if (!m || !sample.value) return '—'
@@ -187,9 +200,7 @@ const formatted = computed(() => {
   // visual languages sitting next to each other.
   if (emptyValueCard.value) return '—'
   // "No events" demo: counts render a true 0 (zero is a value, not an empty state).
-  if (showEmptyData.value && resultType.value === 'value' && m.unit === 'count') {
-    return formatValue(0, m.unit)
-  }
+  if (forcedZero.value) return formatValue(0, m.unit)
   return formatValue(sample.value.value, m.unit)
 })
 
@@ -457,7 +468,7 @@ const skeletonBars = computed(() =>
               type="button"
               class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm transition-colors hover:bg-grey-100 focus:outline-none focus-visible:bg-grey-100"
               :class="activeDim === d.id ? 'font-semibold text-grey-900' : 'text-grey-700'"
-              @click="activeDim = d.id; menuOpen = false"
+              @click="chooseView(d.id)"
             >
               <Icon
                 name="Check"
@@ -590,6 +601,7 @@ const skeletonBars = computed(() =>
           :legend="false"
           :unit="breakdownUnit"
           :context="sample.context"
+          :previous="sample.previousSeries"
           :categorical="true"
           :show-all-labels="true"
           :height="CHART_HEIGHT - (sample?.secondary ? 52 : 0) - (metric.footnote ? 24 : 0)"
@@ -643,7 +655,7 @@ const skeletonBars = computed(() =>
                for the number, so they read as one tier rather than two near-identical
                sizes. It's also the type token design.md defines (text-Xs 12/500/16). -->
           <span
-            v-if="sample?.secondary && !emptyValueCard"
+            v-if="sample?.secondary && !emptyValueCard && !forcedZero"
             class="text-xs font-medium leading-4 text-grey-600 tabular-nums"
           >{{ sample.secondary }}</span>
           <!-- The active break-down, where the title can't carry it. Only when the metric
@@ -651,14 +663,55 @@ const skeletonBars = computed(() =>
                one line read as one phrase ("5 of 29 inbound Human only"), and no metric
                declares both today. If one ever does, the figure wins and the ⓘ carries the
                basis — it is the qualifier, not the measurement. -->
-          <!-- nowrap, like the number: at the 1024px floor "Human only 2m 34s" is 118px in a
-               114px interior, and letting it break onto two lines grew the card to 170px
-               beside 160px neighbours. On one line it runs 4px into the card's 16px padding
-               — still visible — and the row stays level. -->
-          <span
-            v-else-if="secondViewFigure && !emptyValueCard"
-            class="whitespace-nowrap text-xs font-medium leading-4 text-grey-600 tabular-nums"
-          >{{ secondViewFigure }}</span>
+          <!-- Inline picker: the view's name IS the control. At rest it reads like every
+               other supporting figure — same 12/500 grey-600 — and the chevron is the only
+               thing added, which is enough to say "this is a choice" at rest, on touch and
+               in a screenshot, where the ⋯ menu said nothing until hovered.
+               Layout is exactly the plain label's 16px line: the hover ground (20px) and the
+               hit area (24px, the WCAG 2.5.8 floor) come from a negative margin and an
+               `after:` overlay, so neither can push the card past 160.
+               The menu never shows a figure — one number at a time, on the card and in the
+               menu (Jeff, 2026-10-05). It names each view and says what it leaves out. -->
+          <Popover v-else-if="inlinePicker && activeConfigLabel && !emptyValueCard" v-model:open="viewPickerOpen">
+            <PopoverTrigger as-child>
+              <button
+                type="button"
+                class="relative -mx-1 -my-0.5 flex items-center whitespace-nowrap rounded-sm px-1 py-0.5 text-xs font-medium leading-4 text-grey-600 transition-colors after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-[''] hover:bg-grey-100 hover:text-grey-900 focus:outline-none focus-visible:shadow-focus-sm"
+                :class="viewPickerOpen ? 'bg-grey-100 text-grey-900' : ''"
+                aria-haspopup="menu"
+              >
+                <span class="sr-only">View: </span>{{ activeConfigLabel }}
+                <Icon name="ChevronDown" :size="16" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" class="w-60 p-1">
+              <div role="menu" :aria-label="`${metric.label} view`">
+                <button
+                  v-for="d in dimensions"
+                  :key="d.id"
+                  type="button"
+                  role="menuitemradio"
+                  :aria-checked="activeDim === d.id"
+                  class="flex w-full items-start gap-2 rounded-base px-2 py-1.5 text-left transition-colors hover:bg-grey-100 focus:outline-none focus-visible:shadow-focus-sm"
+                  @click="chooseView(d.id)"
+                >
+                  <Icon
+                    name="Check"
+                    :size="16"
+                    class="mt-0.5 shrink-0"
+                    :class="activeDim === d.id ? 'text-leaf-500' : 'text-transparent'"
+                  />
+                  <span class="flex min-w-0 flex-col">
+                    <span
+                      class="text-sm"
+                      :class="activeDim === d.id ? 'font-semibold text-grey-900' : 'text-grey-700'"
+                    >{{ d.label }}</span>
+                    <span v-if="d.hint" class="text-xs font-medium leading-4 text-grey-600">{{ d.hint }}</span>
+                  </span>
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
           <span
             v-else-if="activeConfigLabel && !emptyValueCard"
             class="text-xs font-medium leading-4 text-grey-600"

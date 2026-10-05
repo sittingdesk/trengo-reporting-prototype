@@ -282,7 +282,9 @@ export const TEMPLATES: Template[] = [
     name: 'Automate',
     description: 'Health, coverage and reliability of automation.',
     recommended: true,
-    widgets: [],
+    // Built one metric at a time, like Improve. Tickets with AI comes first because every
+    // other card on this page is a share of it — resolved, handed off, still open.
+    widgets: [{ metricId: 'ai_tickets' }, { metricId: 'journey_success_ratio' }],
   },
 ]
 

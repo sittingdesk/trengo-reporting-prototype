@@ -120,6 +120,7 @@ const gridClass = 'grid grid-cols-1 items-start gap-4 sm:grid-cols-6 lg:grid-col
           <MetricBox
             v-if="isMetricWidget(widget)"
             :metric-id="widget.metricId"
+            :uid="widget.uid"
             :editing="editing"
             :class="spanClass(widget)"
             :data-widget-uid="widget.uid"

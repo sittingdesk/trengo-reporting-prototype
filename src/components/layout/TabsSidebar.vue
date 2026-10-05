@@ -43,8 +43,7 @@ const activeId = computed(() => String(route.params.dashboardId ?? ''))
 const defaultDashboards = computed(() => dashboards.value.filter((d) => d.readonly))
 const userDashboards = computed(() => dashboards.value.filter((d) => !d.readonly))
 
-const { slaEnabled, toggleSla, setSla, dataState, setDataState, humanOnlyView, setHumanOnlyView } =
-  useSettings()
+const { setSla, dataState, setDataState, humanOnlyView, setHumanOnlyView } = useSettings()
 const { applyScope } = useFilters()
 
 /**
@@ -73,14 +72,15 @@ const scenarios: { id: Scenario; label: string }[] = [
 // The two patterns under consideration for the All / Human only pair — see useSettings.
 const humanOnlyViews: { id: HumanOnlyView; label: string }[] = [
   { id: 'toggle', label: 'Menu toggle' },
-  { id: 'both', label: 'Show both' },
+  { id: 'inline', label: 'Inline picker' },
 ]
 
-const dataStates: { id: DataState; label: string }[] = [
-  { id: 'normal', label: 'Normal' },
-  { id: 'loading', label: 'Loading' },
-  { id: 'empty', label: 'Empty' },
-  { id: 'error', label: 'Error' },
+// One icon per state, each named by its tooltip and its accessible name.
+const dataStates: { id: DataState; label: string; icon: string }[] = [
+  { id: 'normal', label: 'Normal', icon: 'ChartBar' },
+  { id: 'loading', label: 'Loading', icon: 'Loader' },
+  { id: 'empty', label: 'Empty', icon: 'Inbox' },
+  { id: 'error', label: 'Error', icon: 'AlertTriangle' },
 ]
 
 // After changing scenario/iteration, land on the first visible report (or welcome).
@@ -227,52 +227,38 @@ function changeIteration(id: string) {
         </div>
       </div>
 
-      <!-- Feature availability. Unlike the switches below it, this one changes WHICH
-           widgets a page has, not how they look: metrics that need an SLA policy
-           don't exist without one, so they're absent rather than empty. -->
-      <div>
-        <div class="mb-1.5 text-xs font-medium text-grey-600">Features</div>
-        <button
-          class="flex w-full items-center justify-between rounded-base px-1 text-xs font-medium text-grey-600"
-          @click="toggleSla()"
-        >
-          <span>SLA</span>
-          <span
-            class="relative h-4 w-7 rounded-pill transition-colors"
-            :class="slaEnabled ? 'bg-leaf-500' : 'bg-grey-300'"
-          >
-            <span
-              class="absolute top-0.5 size-3 rounded-circle bg-white transition-all"
-              :class="slaEnabled ? 'left-3.5' : 'left-0.5'"
-            />
-          </span>
-        </button>
-      </div>
-
       <!-- Data state (viewing mode): force every card into normal / loading / empty /
-           error. 2×2 grid — four labels don't fit on one row in a 240px sidebar. -->
-      <div>
-        <div class="mb-1.5 text-xs font-medium text-grey-600">Data state</div>
-        <div class="grid grid-cols-2 gap-1 rounded-base bg-grey-200 p-0.5">
-          <button
-            v-for="d in dataStates"
-            :key="d.id"
-            class="rounded-sm px-2 py-1 text-xs font-semibold transition-colors"
-            :class="
-              dataState === d.id
-                ? 'bg-white text-grey-900 shadow-100'
-                : 'text-grey-600 hover:text-grey-900'
-            "
-            @click="setDataState(d.id)"
-          >
-            {{ d.label }}
-          </button>
+           error. One row — label left, four 24px icon buttons right — where it used to be
+           a label over a 2×2 grid of words: three rows of a 240px sidebar for a switch you
+           flip a few times per demo. The words moved into each button's tooltip and
+           accessible name, so nothing is icon-only for a screen reader or on hover.
+           (The SLA feature switch that sat above this was removed, 2026-10-05: SLA stays
+           off, as it always was by default — `slaEnabled` in useSettings.) -->
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-xs font-medium text-grey-600">Data state</span>
+        <div class="flex gap-0.5 rounded-base bg-grey-200 p-0.5" role="group" aria-label="Data state">
+          <Tooltip v-for="d in dataStates" :key="d.id" :text="d.label">
+            <button
+              type="button"
+              class="flex size-6 items-center justify-center rounded-sm transition-colors focus:outline-none focus-visible:shadow-focus-sm"
+              :class="
+                dataState === d.id
+                  ? 'bg-white text-grey-900 shadow-100'
+                  : 'text-grey-600 hover:text-grey-900'
+              "
+              :aria-label="d.label"
+              :aria-pressed="dataState === d.id"
+              @click="setDataState(d.id)"
+            >
+              <Icon :name="d.icon" :size="16" />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
       <!-- Human-only view: a DESIGN comparison, not a data state. Flips First response time
-           and Resolution time between the ⋯-menu toggle and showing both figures, so the two
-           patterns can be judged on the real page. Same segmented control as Data state. -->
+           and Resolution time between choosing the view from the ⋯ menu and choosing it from
+           the label beside the number, so the two patterns can be judged on the real page. -->
       <div>
         <div class="mb-1.5 text-xs font-medium text-grey-600">Human-only view</div>
         <div class="grid grid-cols-2 gap-1 rounded-base bg-grey-200 p-0.5">

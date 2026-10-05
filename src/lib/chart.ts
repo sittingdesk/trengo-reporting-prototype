@@ -35,6 +35,18 @@ Chart.register(
   Filler,
 )
 
+/**
+ * Tooltip key dots: 8px, set once here so every chart (bar, line, combo, donut) agrees.
+ * Chart.js sizes the swatch from the body font by default, which made a 12px circle — as
+ * tall as the text beside it, so it read as a second element rather than a key. 8px is
+ * the legend dots' size elsewhere in the app (`size-2` in MetricBox's header legends), so
+ * the tooltip and the legend now draw the same mark. 4px between dot and label, off
+ * design.md's gap scale.
+ */
+Chart.defaults.plugins.tooltip.boxWidth = 8
+Chart.defaults.plugins.tooltip.boxHeight = 8
+Chart.defaults.plugins.tooltip.boxPadding = 4
+
 export { Chart }
 
 /**

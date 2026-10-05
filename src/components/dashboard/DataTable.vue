@@ -5,6 +5,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import type { TableColumn } from '@/lib/mock'
 import Icon from '@/components/Icon.vue'
+import ChannelIcon from '@/components/ChannelIcon.vue'
 import { deltaOf, toneClassFor } from '@/lib/delta'
 import { Tooltip } from '@/components/ui/tooltip'
 
@@ -196,6 +197,28 @@ watch(sortedRows, () => nextTick(updateFade))
                 aria-hidden="true"
               >{{ initials(String(row[col.key])) }}</span>
               {{ row[col.key] }}
+            </span>
+            <!-- Channel: the type's mark in a thumbnail, then the title. The mark answers
+                 "which kind of channel" for titles that don't say it ("Support",
+                 "Billing", "Main website"), tells apart two channels that share a title,
+                 and a column of marks scans in one pass — all the slow rows are email.
+                 The thumbnail is the avatar's twin: same 24px, same 8px gap, so the two
+                 tables read as one system. White with a grey-300 hairline — the card's own
+                 border — rather than a tinted fill: the marks are full-colour brand logos,
+                 and a tint behind them muddies the colours and reads heavier than the mark — both rows measure 45px (a
+                 text-only row is 41; the 24px thumbnail sets the height, as the avatar does,
+                 and the card stays 362 because the table body's height is fixed). It is
+                 a rounded SQUARE where the avatar is a circle — circles are people, and a
+                 channel isn't one. The mark sits inside at the 16px it was drawn at, so it
+                 renders pixel-true. Never the only signal: hover names the type, and a
+                 screen reader hears it after the title ("Support, Email"). -->
+            <span v-else-if="col.channel" class="flex items-center gap-2">
+              <Tooltip :text="String(row[`${col.key}TypeLabel`] ?? '')">
+                <span class="flex size-6 shrink-0 items-center justify-center rounded-sm border border-grey-300 bg-white">
+                  <ChannelIcon :type="String(row[`${col.key}Type`] ?? '')" />
+                </span>
+              </Tooltip>
+              <span>{{ row[col.key] }}<span class="sr-only">, {{ row[`${col.key}TypeLabel`] }}</span></span>
             </span>
             <!-- Value, then its change — inline, so a delta costs the row no height and
                  `tableBodyHeight`'s 41px per row stays true. The arrow carries the sign

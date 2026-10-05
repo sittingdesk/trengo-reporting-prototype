@@ -4,7 +4,7 @@
 // (date range + channel + team) but are DETERMINISTIC for a given filter combo —
 // so values don't flicker on re-render. Nothing here touches real data.
 import { getLocalTimeZone, startOfMonth, type DateValue } from '@internationalized/date'
-import type { MetricDef, FeatureFlag } from '@/data/metrics'
+import { getMetric, type MetricDef, type FeatureFlag } from '@/data/metrics'
 import { TEAMS } from '@/data/filters'
 import { CHANNEL_INSTANCE_IDS, CATALOG } from '@/data/channelData'
 import { fmtCount, fmtCurrency, fmtDays, fmtDuration, fmtPercent } from '@/lib/format'
@@ -17,6 +17,9 @@ export interface TableColumn {
   align?: 'left' | 'right'
   badge?: boolean // render cells as a muted pill (e.g. "In development")
   avatar?: boolean // prefix the cell with an initials avatar (e.g. agent names)
+  /** Prefix the cell with its channel-type mark. Reads the row's `<key>Type` (the
+   *  category id, which names the file in `svg icons/channels/`) and `<key>TypeLabel`. */
+  channel?: boolean
   sortable?: boolean // clickable header; sorts by `sortKey` (raw value)
   sortKey?: string // row key holding the raw sortable value (defaults to `key`)
   /** Definition shown behind an ⓘ on the header — a column needs to explain itself
@@ -52,7 +55,19 @@ export interface MetricSample {
   labels?: string[] // x-axis labels (hours for histogram, dates for time series)
   // time series / grouped bars. `dashed` renders the line dashed; `csvKey` overrides
   // the CSV column header for that series.
-  lines?: { name: string; tint: 'sky' | 'peach'; data: number[]; dashed?: boolean; csvKey?: string }[]
+  lines?: {
+    name: string
+    tint: 'sky' | 'peach'
+    data: number[]
+    dashed?: boolean
+    csvKey?: string
+    /** The same series over the previous period of equal length, bucket by bucket — day 1
+     *  against the day one period earlier. Feeds the "prev." line in the chart's tooltip
+     *  only: a per-series change above the chart was tried and removed as clutter. */
+    prev?: number[]
+  }[]
+  /** Per-bar previous-period values for a single-series breakdown, by index. */
+  previousSeries?: number[]
   /** One extra tooltip line per breakdown bar, by index — the denominator a rate was
    *  computed from. A bar reading 62% is a finding at n=80 and noise at n=8, and nothing
    *  else on a bar chart can tell those apart. */
@@ -82,17 +97,6 @@ const AGENTS = [
   'Fleur Bos', 'Jesse van Leeuwen', 'Sara Peeters', 'Tim Dekker', 'Eva Scholten', 'Gijs Post',
 ]
 
-/** Mock channels/inboxes for the "Performance by channel" table (Load more reveals all). */
-const PERF_CHANNELS = [
-  'Support Email',
-  'Sales Email',
-  'Main website',
-  'Help center',
-  'WhatsApp',
-  'Instagram',
-  'Facebook',
-  'SMS',
-]
 
 // --- tiny seeded RNG (mulberry32) + string hash ---
 function hashString(s: string): number {
@@ -178,6 +182,19 @@ function subsetFactor(selected: number, total: number): number {
 
 function jitter(rng: () => number, spread = 0.15): number {
   return 1 + (rng() * 2 - 1) * spread
+}
+
+/**
+ * A plausible previous period for a series: one overall drift (so the period as a whole
+ * moves up or down by up to ~15%, sometimes inside the 5% band, sometimes not) plus a
+ * little per-bucket noise (so day 3 doesn't move in lockstep with day 4).
+ *
+ * Takes its OWN rng, seeded apart from the current period's, so adding a comparison to a
+ * chart can't move a single figure it already showed.
+ */
+function previousOf(data: number[], rng: () => number): number[] {
+  const drift = jitter(rng, 0.15)
+  return data.map((v) => Math.max(0, Math.round(v * drift * jitter(rng, 0.2))))
 }
 
 /** A bell-ish weight across the 24h day (busy midday, quiet at night). */
@@ -550,18 +567,23 @@ export function metricValue(
       closed.push(Math.max(0, Math.round(c * 0.9 * jitter(tsRng, 0.15))))
     }
     // Conversations (solid) + New contacts (dashed) — legend below, totals subtitle.
+    // A separate stream for the previous period — see `previousOf`.
+    const prevRng = mulberry32(hashString(`${def.id}|prev|${dateRange?.start?.toString() ?? ''}|${signature}`))
+    const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
     if (def.id === 'conversations_and_new_contacts') {
       const newc = created.map((c) => Math.max(0, Math.round(c * 0.3 * jitter(tsRng, 0.25))))
       const convTotal = created.reduce((a, b) => a + b, 0)
       const newTotal = newc.reduce((a, b) => a + b, 0)
+      const createdPrev = previousOf(created, prevRng)
+      const newcPrev = previousOf(newc, prevRng)
       return {
         value: convTotal + newTotal, // empty only when BOTH series are zero
-        previous: (convTotal + newTotal) * jitter(rng, 0.2),
+        previous: sum(createdPrev) + sum(newcPrev),
         labels,
         legendBelow: true,
         lines: [
-          { name: 'Tickets', tint: 'sky', data: created, csvKey: 'tickets_created' },
-          { name: 'New contacts', tint: 'peach', data: newc, dashed: true, csvKey: 'new_contacts' },
+          { name: 'Tickets', tint: 'sky', data: created, csvKey: 'tickets_created', prev: createdPrev },
+          { name: 'New contacts', tint: 'peach', data: newc, dashed: true, csvKey: 'new_contacts', prev: newcPrev },
         ],
       }
     }
@@ -572,13 +594,15 @@ export function metricValue(
       const outbound = created.map((c) => Math.max(0, Math.round(c * 0.75 * jitter(tsRng, 0.35))))
       const inTotal = inbound.reduce((a, b) => a + b, 0)
       const outTotal = outbound.reduce((a, b) => a + b, 0)
+      const inPrev = previousOf(inbound, prevRng)
+      const outPrev = previousOf(outbound, prevRng)
       return {
         value: inTotal + outTotal, // empty only when both directions are zero
-        previous: (inTotal + outTotal) * jitter(rng, 0.2),
+        previous: sum(inPrev) + sum(outPrev),
         labels,
         lines: [
-          { name: 'Inbound', tint: 'sky', data: inbound },
-          { name: 'Outbound', tint: 'peach', data: outbound },
+          { name: 'Inbound', tint: 'sky', data: inbound, prev: inPrev },
+          { name: 'Outbound', tint: 'peach', data: outbound, prev: outPrev },
         ],
       }
     }
@@ -796,7 +820,14 @@ export function metricValue(
     const perChannel = (base * chFactor * tmFactor * Math.sqrt(days / 7)) / labels.length
     const series = labels.map(() => Math.max(0, Math.round(perChannel * jitter(rng, 0.5))))
     const total = series.reduce((a, b) => a + b, 0)
-    return { value: total, previous: total * jitter(rng, 0.2), labels, series }
+    const previousSeries = previousOf(series, mulberry32(hashString(`${def.id}|prev|${signature}`)))
+    return {
+      value: total,
+      previous: previousSeries.reduce((a, b) => a + b, 0),
+      labels,
+      series,
+      previousSeries,
+    }
   }
 
   // Donut: share of a total across a few segments (New vs Returning).
@@ -832,7 +863,7 @@ export function metricValue(
     return {
       value: 0,
       previous: 0,
-      table: tableData(def.id, rng, chFactor, tmFactor, days),
+      table: tableData(def.id, rng, chFactor, tmFactor, days, ch, tm),
       // No header note. It used to say "Amounts in each board's currency" — the fact now
       // lives in the two money columns' own ⓘ hints, which is where a column-specific
       // caveat belongs and where the rest of the app already puts definitions.
@@ -858,6 +889,45 @@ export function metricValue(
       // makes this the only card in its row that isn't 160px tall. The title and the
       // tooltip already say these are tickets.
       secondary: `${fmtCount(pick.met)} of ${fmtCount(pick.pop)}`,
+    }
+  }
+
+  // Tickets with AI — a share of the SAME ticket total the Understand page draws as its
+  // "Tickets" line, read straight from that chart's own sample. Two independent draws
+  // would let Automate claim more AI tickets than Understand has tickets at all; this way
+  // "34% of all tickets" is a share of a number printed elsewhere, at every filter.
+  if (def.id === 'ai_tickets') {
+    const ticketsDef = getMetric('conversations_and_new_contacts')
+    const tickets = ticketsDef ? metricValue(ticketsDef, signature, dateRange).lines?.[0] : undefined
+    const sum = (xs: number[] = []) => xs.reduce((a, b) => a + b, 0)
+    const total = sum(tickets?.data)
+    const prevTotal = sum(tickets?.prev) || total
+    const share = Math.min(0.9, base * jitter(rng, 0.12))
+    // Adoption grows over time, so the previous period sits a little lower on average.
+    const prevShare = Math.min(0.9, share * (0.93 * jitter(rng, 0.08)))
+    const value = Math.round(total * share)
+    return {
+      value,
+      previous: Math.round(prevTotal * prevShare),
+      secondary: total > 0 ? `${fmtPercent(value / total)} of all tickets` : undefined,
+    }
+  }
+
+  // Journey success rate: successful runs ÷ finished runs, with the denominator as the
+  // supporting figure. Runs scale with the window and the filters like any volume; the
+  // rate doesn't. Its own branch because the generic percentage branch has no denominator
+  // to show.
+  if (def.id === 'journey_success_ratio') {
+    const runs = Math.max(1, Math.round(1950 * Math.sqrt(days / 7) * chFactor * tmFactor * jitter(rng, 0.2)))
+    const rate = Math.min(0.98, base * jitter(rng, 0.08))
+    const succeeded = Math.round(runs * rate)
+    return {
+      value: succeeded / runs,
+      previous: Math.min(0.98, rate * jitter(rng, 0.06)),
+      // No trailing noun, same call as SLA compliance: at the 1024px floor "of 1,952
+      // journeys" wraps to a second line and makes this the one 170px card in a 160px row.
+      // The title already says these are journeys.
+      secondary: `${fmtCount(succeeded)} of ${fmtCount(runs)}`,
     }
   }
 
@@ -938,6 +1008,9 @@ function tableData(
   chFactor: number,
   tmFactor: number,
   days: number,
+  /** The channel and team parts of the filter signature ('all' or sorted ids). */
+  ch: string,
+  tm: string,
 ): TableData {
   const rangeFactor = Math.sqrt(days / 7)
   const scale = rangeFactor * chFactor * tmFactor
@@ -1070,7 +1143,7 @@ function tableData(
   // performance_by_channel
   return {
     columns: [
-      { key: 'channel', label: 'Channel', align: 'left', sortable: true },
+      { key: 'channel', label: 'Channel', align: 'left', sortable: true, channel: true },
       { key: 'resolution', label: 'Resolution time', align: 'left', sortable: true, sortKey: 'resolutionRaw' },
       { key: 'firstResponse', label: 'First response time', align: 'left', sortable: true, sortKey: 'firstResponseRaw' },
       {
@@ -1088,14 +1161,27 @@ function tableData(
       { key: 'closed', label: 'Closed tickets', align: 'left', sortable: true, sortKey: 'closedRaw' },
       { key: 'open', label: 'Open tickets', align: 'left', sortable: true, sortKey: 'openRaw' },
     ],
-    rows: PERF_CHANNELS.map((channel) => ({
-      channel,
-      ...num('resolution', Math.max(600, 18000 * jitter(rng, 0.6)), fmtDuration),
-      ...num('firstResponse', Math.max(15, 95 * jitter(rng, 0.5)), fmtDuration),
-      ...channelCompliance(channel, rng),
-      ...num('closed', Math.max(0, 300 * scale * jitter(rng, 0.5)), fmtCount),
-      ...num('open', Math.max(0, 120 * scale * jitter(rng, 0.5)), fmtCount),
-    })),
+    rows: perfChannelRows(ch).map(({ id: instanceId, name: channel, type, typeLabel }) => {
+      // Each row draws from its OWN stream, seeded on the inbox and the parts of the
+      // filter that aren't the channel selection. So a row's figures are identical
+      // whether it's shown alone or among all twelve, and removing one row can't shift
+      // the numbers of the rows after it — which a single shared stream would do.
+      // Date range and team still move the numbers, as they do on every other card.
+      const r = mulberry32(hashString(`perf|${instanceId}|${days}|${tm}`))
+      const rowScale = rangeFactor * tmFactor // deliberately no chFactor — see above
+      return {
+        channel,
+        // The type travels with the title because the title alone can't be trusted to
+        // say it — "Support", "Billing" and "Main website" are how inboxes get named.
+        channelType: type,
+        channelTypeLabel: typeLabel,
+        ...num('resolution', Math.max(600, 18000 * jitter(r, 0.6)), fmtDuration),
+        ...num('firstResponse', Math.max(15, 95 * jitter(r, 0.5)), fmtDuration),
+        ...channelCompliance(instanceId, r),
+        ...num('closed', Math.max(0, 300 * rowScale * jitter(r, 0.5)), fmtCount),
+        ...num('open', Math.max(0, 120 * rowScale * jitter(r, 0.5)), fmtCount),
+      }
+    }),
   }
 }
 
@@ -1111,10 +1197,31 @@ function tableData(
  * real data they must actually reconcile (the headline is met ÷ measured across all
  * channels, not the average of these) — a weighting the mock doesn't attempt.
  */
-const CHANNELS_WITHOUT_POLICY = ['Instagram']
+// By id, not title: titles get renamed and can repeat across channels.
+const CHANNELS_WITHOUT_POLICY = ['wa_2'] // "WhatsApp untitled"
 
-function channelCompliance(channel: string, rng: () => number) {
-  if (CHANNELS_WITHOUT_POLICY.includes(channel)) {
+/**
+ * The rows of Performance by channel: the channel filter's own inboxes, narrowed to the
+ * ones it has selected.
+ *
+ * A filter restricts the population, so a breakdown by that same dimension shows only
+ * the selected members — filter to the three WhatsApp inboxes and the table is those
+ * three rows. The rows used to be a separate hand-made list (Instagram, Facebook, SMS,
+ * Help center…) that the filter couldn't select from at all, so the table listed every
+ * channel whatever the chip said. Inbox rather than channel type, because the filter
+ * works at inbox level and the registry groups by `channel_title` as well as type.
+ */
+function perfChannelRows(ch: string) {
+  const all = CATALOG.flatMap((c) =>
+    c.instances.map((i) => ({ ...i, type: c.id, typeLabel: c.label })),
+  )
+  if (ch === 'all') return all
+  const selected = new Set(ch.split(','))
+  return all.filter((i) => selected.has(i.id))
+}
+
+function channelCompliance(instanceId: string, rng: () => number) {
+  if (CHANNELS_WITHOUT_POLICY.includes(instanceId)) {
     // 101 keeps it out of the way when ranking worst-first — it isn't a bad score,
     // it's the absence of one, so it must never lead the queue.
     return { sla: 'No policy', slaRaw: 101 }

@@ -3,11 +3,14 @@
 // src/lib/chart.ts). Reads colours from the CSS design tokens so it stays on-brand.
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Chart, CHART_HEIGHT } from '@/lib/chart'
+import { fmtCount } from '@/lib/format'
 
 const props = withDefaults(
   defineProps<{
     labels: (string | number)[]
-    series: { name: string; tint: 'sky' | 'peach'; data: number[]; dashed?: boolean }[]
+    /** `prev` — the same series over the previous period, bucket by bucket. Adds a
+     *  "· prev. N" to that series' tooltip line and nothing to the plot. */
+    series: { name: string; tint: 'sky' | 'peach'; data: number[]; dashed?: boolean; prev?: number[] }[]
     legend?: boolean
     legendPosition?: 'top' | 'bottom'
     height?: number
@@ -92,7 +95,17 @@ function build() {
               ? { usePointStyle: false, boxWidth: 24, boxHeight: 0, color: legendText, font: { size: 11 } }
               : { usePointStyle: true, pointStyle: 'circle', boxWidth: 6, boxHeight: 6, color: legendText, font: { size: 11 } },
         },
-        tooltip: { usePointStyle: true, padding: 10 },
+        tooltip: {
+          usePointStyle: true,
+          padding: 10,
+          callbacks: {
+            label: (ctx: any) => {
+              const prev = props.series[ctx.datasetIndex]?.prev?.[ctx.dataIndex]
+              const prevText = prev == null ? '' : ` · prev. ${fmtCount(prev)}`
+              return `${ctx.dataset.label}: ${fmtCount(ctx.parsed.y)}${prevText}`
+            },
+          },
+        },
       },
       scales: {
         x: { grid: { display: false }, ticks: { color: axis, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
