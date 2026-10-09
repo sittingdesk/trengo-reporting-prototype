@@ -43,7 +43,7 @@ const activeId = computed(() => String(route.params.dashboardId ?? ''))
 const defaultDashboards = computed(() => dashboards.value.filter((d) => d.readonly))
 const userDashboards = computed(() => dashboards.value.filter((d) => !d.readonly))
 
-const { setSla, dataState, setDataState, humanOnlyView, setHumanOnlyView } = useSettings()
+const { setSla, dataState, setDataState, humanOnlyView, setHumanOnlyView, openReleaseIntro } = useSettings()
 const { applyScope } = useFilters()
 
 /**
@@ -254,6 +254,19 @@ function changeIteration(id: string) {
             </button>
           </Tooltip>
         </div>
+      </div>
+
+      <!-- The beta heads-up modal, on demand. Same row shape as Data state: label left,
+           control right, one 28px line. -->
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-xs font-medium text-grey-600">Release modal</span>
+        <button
+          type="button"
+          class="rounded-base bg-grey-200 px-2.5 py-1 text-xs font-semibold text-grey-700 transition-colors hover:text-grey-900 focus:outline-none focus-visible:shadow-focus-sm"
+          @click="openReleaseIntro"
+        >
+          Show
+        </button>
       </div>
 
       <!-- Human-only view: a DESIGN comparison, not a data state. Flips First response time

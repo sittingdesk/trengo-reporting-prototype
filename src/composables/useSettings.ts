@@ -31,6 +31,9 @@ const state = ref({
   dataState: 'normal' as DataState,
   slaEnabled: false,
   humanOnlyView: DEFAULT_HUMAN_ONLY_VIEW as HumanOnlyView,
+  // The beta heads-up modal (ReleaseIntroDialog). Prototype-only trigger: in production it
+  // opens once per user on their first visit after joining the beta.
+  releaseIntroOpen: false,
 })
 
 export function useSettings() {
@@ -52,7 +55,14 @@ export function useSettings() {
   const humanOnlyView = computed(() => state.value.humanOnlyView)
   const setHumanOnlyView = (v: HumanOnlyView) => (state.value.humanOnlyView = v)
 
+  const releaseIntroOpen = computed(() => state.value.releaseIntroOpen)
+  const openReleaseIntro = () => (state.value.releaseIntroOpen = true)
+  const closeReleaseIntro = () => (state.value.releaseIntroOpen = false)
+
   return {
+    releaseIntroOpen,
+    openReleaseIntro,
+    closeReleaseIntro,
     humanOnlyView,
     setHumanOnlyView,
     slaEnabled,

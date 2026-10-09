@@ -13,13 +13,19 @@ import {
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/lib/utils'
 
-const props = defineProps<DialogContentProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<
+  DialogContentProps & {
+    class?: HTMLAttributes['class']
+    /** Override the close button's placement, e.g. to sit inside an inset header image. */
+    closeClass?: HTMLAttributes['class']
+  }
+>()
 const emits = defineEmits<DialogContentEmits>()
 
 // Pass reka-ui props through, but keep our own `class` out of the forwarded set.
 const forwarded = useForwardPropsEmits(
   () => {
-    const { class: _ignored, ...rest } = props
+    const { class: _ignored, closeClass: _close, ...rest } = props
     return rest
   },
   emits,
@@ -42,7 +48,12 @@ const forwarded = useForwardPropsEmits(
     >
       <slot />
       <DialogClose
-        class="absolute right-4 top-4 flex size-8 items-center justify-center rounded-base text-grey-600 transition-colors hover:bg-grey-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        :class="
+          cn(
+            'absolute right-4 top-4 flex size-8 items-center justify-center rounded-base text-grey-600 transition-colors hover:bg-grey-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            props.closeClass,
+          )
+        "
         aria-label="Close"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

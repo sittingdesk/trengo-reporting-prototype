@@ -10,6 +10,7 @@
 import { RailSidebar } from '@/components/rail'
 import TabsSidebar from '@/components/layout/TabsSidebar.vue'
 import NewDashboardDialog from '@/components/dashboard/NewDashboardDialog.vue'
+import ReleaseIntroDialog from '@/components/onboarding/ReleaseIntroDialog.vue'
 import WidgetLibrary from '@/components/dashboard/WidgetLibrary.vue'
 </script>
 
@@ -42,6 +43,7 @@ import WidgetLibrary from '@/components/dashboard/WidgetLibrary.vue'
 
     <!-- App-level template picker (opened from the sidebar / empty state) -->
     <NewDashboardDialog />
+    <ReleaseIntroDialog />
     <WidgetLibrary />
   </div>
 </template>
