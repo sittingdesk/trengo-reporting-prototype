@@ -78,6 +78,19 @@ function widgetRows(metric: MetricDef, sample: MetricSample): Row[] {
     }))
   }
 
+  // Score over a volume (CSAT over time). Its sample carries `combo`, not `lines`, so the
+  // branch below never saw it and the export came out EMPTY. Score as a 0–1 rate like every
+  // other rate export, and BLANK on a day with no responses — a 0 there would pull any
+  // average a spreadsheet takes down toward "everyone unhappy".
+  if (metric.resultType === 'time_series' && sample.combo && sample.labels) {
+    const { score, volume } = sample.combo
+    return sample.labels.map((date, i) => ({
+      date,
+      score: score.data[i] === null || score.data[i] === undefined ? '' : Number(score.data[i]!.toFixed(4)),
+      surveys: volume.data[i] ?? '',
+    }))
+  }
+
   if (metric.resultType === 'time_series' && sample.lines && sample.labels) {
     return sample.labels.map((date, i) => {
       const row: Row = { date }

@@ -79,7 +79,9 @@ export interface MetricSample {
   /** A rate-over-a-volume pair for ComboChart: the line (0–1 rate) and the bars (counts).
    *  Kept OUT of `lines` on purpose — that array's members are peers drawn the same way on
    *  one axis, and these two are a subject and its weight on two axes with two units. */
-  combo?: { score: { name: string; data: number[] }; volume: { name: string; data: number[] } }
+  /** `score.data` is null on a bucket with no responses: there is no score to draw, and a
+   *  0 there would plot as "everyone was unhappy". */
+  combo?: { score: { name: string; data: (number | null)[] }; volume: { name: string; data: number[] } }
   legendBelow?: boolean // render the line-chart legend below the chart (not header)
   /** Dashed reference line on a time chart (e.g. the period average). */
   referenceValue?: number
@@ -304,7 +306,11 @@ function voiceQueue(signature: string, days: number, chFactor: number, tmFactor:
  * beside it totals.
  */
 function splitToBuckets(total: number, buckets: number, rng: () => number): number[] {
-  const weights = Array.from({ length: buckets }, () => jitter(rng, 0.5))
+  return splitByWeights(total, Array.from({ length: buckets }, () => jitter(rng, 0.5)))
+}
+
+/** Split `total` across buckets in proportion to `weights`, summing EXACTLY to `total`. */
+function splitByWeights(total: number, weights: number[]): number[] {
   const sum = weights.reduce((a, b) => a + b, 0) || 1
   const out = weights.map((w) => Math.max(0, Math.round((w / sum) * total)))
   const drift = total - out.reduce((a, b) => a + b, 0)
@@ -494,27 +500,54 @@ export function metricValue(
     const tsRng = mulberry32(
       hashString(`${def.id}|ts|${dateRange?.start?.toString() ?? ''}|${signature}`),
     )
-    const volume = splitToBuckets(total, labels.length, tsRng)
-    // Satisfied responses per bucket, proportional to that bucket's volume and never more
-    // than it — a day cannot have more happy customers than customers.
-    const happy = splitToBuckets(satisfied, labels.length, tsRng).map((v, i) =>
-      Math.min(v, volume[i]),
+    // Survey answers follow the support week: weekends carry ~8% of a weekday's volume.
+    // That's what makes a thin period show EMPTY days, and puts them where real ones fall —
+    // with one team over 30 days most weekend days get no answers at all, which this chart
+    // has to show honestly (no bar, a dashed bridge, "No surveys"). At the default 7 days a
+    // weekend day still gets a few, so it shows as a thin (hollow-point) day instead.
+    // Weekly and monthly buckets each contain whole weeks, so they keep the flat split.
+    // Bars still sum exactly to `total`, so they reconcile with the CSAT score and breakdown.
+    const weights = labels.map((_, i) => {
+      const day = bucketed.grain === 'day' && dateRange?.start ? dateRange.start.add({ days: i }).toDate(tz).getDay() : 1
+      const weekend = day === 0 || day === 6
+      return (weekend ? 0.08 : 1) * jitter(tsRng, 0.5)
+    })
+    const volume = splitByWeights(total, weights)
+    // Satisfied responses per bucket, drawn FROM that bucket's own volume: the period rate,
+    // nudged ±6% per day. It used to be a second, independent split of the satisfied total,
+    // which knew nothing about each day's volume — so a 22-survey day could land on 50% next
+    // to 100% days, swings real CSAT doesn't make at that sample size. Now a day moves only
+    // as much as its own responses allow: big days sit near the period rate, a 2-survey day
+    // still jumps (correctly — and the hollow point marks it).
+    const rate = total > 0 ? satisfied / total : 0
+    const happy = volume.map((v) =>
+      Math.min(v, Math.max(0, Math.round(v * Math.min(1, rate * jitter(tsRng, 0.06))))),
     )
-    // Clamping above can leave some satisfied responses unplaced; put them wherever there
-    // is still room, or the weighted mean drifts below the KPI.
-    let spare = satisfied - happy.reduce((a, b) => a + b, 0)
-    for (let i = 0; i < happy.length && spare > 0; i++) {
-      const room = volume[i] - happy[i]
-      const take = Math.min(room, spare)
-      happy[i] += take
-      spare -= take
+    // Rounding leaves the sum a few responses off `satisfied`; settle the difference one at a
+    // time on the busiest days (where one response moves the score least), so the line's
+    // volume-weighted mean stays EXACTLY the KPI's rate.
+    let drift = satisfied - happy.reduce((a, b) => a + b, 0)
+    const byVolume = volume.map((_, i) => i).sort((a, b) => volume[b] - volume[a])
+    // Runs until settled; the guard only stops a loop that has no room left to move (it
+    // can't happen — satisfied ≤ total by construction — but a mock must never hang).
+    for (let k = 0; drift !== 0 && k < 100_000; k++) {
+      const i = byVolume[k % byVolume.length]
+      if (drift > 0 && happy[i] < volume[i]) {
+        happy[i]++
+        drift--
+      } else if (drift < 0 && happy[i] > 0) {
+        happy[i]--
+        drift++
+      }
     }
     return {
       value: total, // drives the empty state; the delta is suppressed for a two-series chart
       previous: total * jitter(rng, 0.2),
       labels,
       combo: {
-        score: { name: 'Score', data: volume.map((v, i) => (v > 0 ? happy[i] / v : 0)) },
+        // null, not 0, on a day nobody answered: no responses means no score, and a 0 would
+        // draw the line down to 0% — "every customer was unhappy" on a day nobody said so.
+        score: { name: 'Score', data: volume.map((v, i) => (v > 0 ? happy[i] / v : null)) },
         volume: { name: 'Surveys', data: volume },
       },
     }

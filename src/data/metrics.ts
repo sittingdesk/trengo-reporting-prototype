@@ -365,7 +365,7 @@ export const METRICS: MetricDef[] = [
     category: 'quality',
     base: 0.83,
     caveat:
-      'How satisfaction moved over the period, with the number of surveys behind each point. A score from three surveys is not the same fact as one from thirty.',
+      'How satisfaction moved over the period, with the number of surveys behind each point. A score from three surveys is not the same fact as one from thirty. Dashed where no surveys came in.',
   },
   {
     // registry: NO ENTRY — but unlike the other CSAT asks this one is already computable.
