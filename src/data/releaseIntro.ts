@@ -20,7 +20,8 @@ export interface ReleaseIntroRow {
 export const RELEASE_INTRO = {
   badge: 'Beta',
   title: 'Meet the new Analytics',
-  lead: 'A clearer view of how your team, channels and AI agents are doing.',
+  // No AI agents yet: Analytics has no AI-agent metrics in this release (Jeff, 2026-10-12).
+  lead: 'A clearer view of how your team and channels are doing.',
   rows: [
     {
       icon: 'Apperture',
@@ -35,31 +36,22 @@ export const RELEASE_INTRO = {
       body: 'Hover the info icon on a metric to see exactly what it counts.',
     },
     {
-      icon: 'Chatbot',
+      // Was "AI in the picture" — there are no AI-agent metrics in Analytics yet. Voice is
+      // the honest third reason: the current reporting has no call reporting at all.
+      icon: 'Phone',
       tint: 'purple',
-      title: 'AI in the picture',
-      body: 'See how much work AI agents take on, and where they hand over.',
+      title: 'Calls next to your tickets',
+      body: 'Call volume, wait times and missed calls, alongside chat and email.',
     },
   ] satisfies ReleaseIntroRow[],
-  note: {
-    // The line a beta user needs most, so it leads the note in bold.
-    title: 'Your current reports stay where they are.',
-    body: 'Use both side by side while we keep improving Analytics. Some numbers may differ: a few metrics are now calculated more precisely.',
-    // Says WHERE feedback goes without asking for it: they haven't used it yet.
-    feedback: 'Spotted something off? Use Share feedback at the top of any page.',
-  },
+  // One sentence, no title (Jeff, 2026-10-12: the banner took too much of the modal). It
+  // keeps the two jobs that matter — nothing is taken away, and a number that differs from
+  // the old report is expected, not a bug. No feedback pointer: where feedback goes is
+  // still undecided (the header's tag is now just "Beta").
+  note: 'Your current reports stay available. Some numbers may differ, as a few metrics are now calculated more precisely.',
   secondary: 'Not now',
   primary: 'Try the new Analytics',
 } as const
 
-/** The "Beta · Share feedback" pill beside the dashboard title — Analytics' standing
- *  feedback route for as long as the beta runs. */
-export const BETA_FEEDBACK = {
-  badge: 'Beta',
-  label: 'Share feedback',
-  // The prototype has nowhere to send feedback, so the pill says so rather than pretend.
-  // ⚠️ Decide the destination (Intercom? a form? a feedback board?) before release — the
-  // modal, this pill and any later prompts should all lead to the same place.
-  prototypeNote:
-    'In the product this opens the feedback form. Where feedback goes is still to be decided.',
-} as const
+/** The grey "Beta" tag beside the dashboard title (BetaBadge). */
+export const BETA_BADGE = 'Beta'

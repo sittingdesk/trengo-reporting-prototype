@@ -45,6 +45,37 @@ const TINT_CLASS = {
   purple: 'bg-purple-200 text-purple-800',
 } as const
 
+/**
+ * Confetti — a single burst from the bottom centre of the modal, behind all content. Each
+ * piece flies straight to its own landing point, decelerates and comes to rest anywhere from
+ * the footer to just under the top edge — and sideways PAST the modal's edges, so the burst
+ * reads as bigger than the box it's in — then settles a few px and fades. Fixed, not random, so every opening looks the same and
+ * the prototype is reviewable.
+ *
+ * Travel is a share of the MODAL, not pixels (container units — the layer is a size
+ * container, see the style block), so the burst scales with any modal width: up to 68% of
+ * its width to either side (the edge is at 50%, so about a quarter of the pieces fly out of
+ * it) and 12–90% of its height up. A piece past the edge is MASKED, not drawn on the
+ * overlay: the layer and DialogContent both clip (overflow-hidden), so it disappears at the
+ * modal's border — inside the rounded corners too.
+ */
+const CONFETTI_COLORS = ['leaf-300', 'sky-500', 'sun-500', 'purple-500', 'peach-500'] as const
+const CONFETTI = Array.from({ length: 48 }, (_, i) => {
+  // Landing points spread evenly over the whole modal (an R2 low-discrepancy sequence), not
+  // fanned from the origin: a fan bunches up the middle and never reaches the corners.
+  const u = (0.5 + i * 0.7548777) % 1 // 0–1 across
+  const v = (0.5 + i * 0.5698403) % 1 // 0–1 up
+  return {
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    round: i % 3 === 0,
+    delay: (i * 23) % 140, // all within ~0.15s: one burst, not a trickle
+    duration: 1500 + ((i * 131) % 600),
+    dx: +((u * 2 - 1) * 68).toFixed(1), // % of modal width (cqw); beyond ±50 = clipped at the edge
+    dy: +(-(12 + v * 78)).toFixed(1), // % of modal height (cqh); negative = up
+    rot: 120 + ((i * 97) % 300),
+  }
+})
+
 const primaryBtn = ref<InstanceType<typeof Button> | null>(null)
 // Land on the primary action rather than the close button — the default would put a
 // keyboard user's first Enter on "dismiss".
@@ -67,64 +98,38 @@ function onOpenChange(open: boolean) {
       close-class="top-3"
       @open-auto-focus="focusPrimary"
     >
+      <!-- Confetti: the illustration was removed (Jeff, 2026-10-13), the burst stays and now
+           spans the whole modal. Its own layer at inset-0, `-z-10` inside DialogContent's
+           stacking context (fixed + z-50): it paints above the dialog's white ground but
+           BEHIND every piece of content, so it never covers a word or a button. One-off,
+           chart-palette colours, pieces fly past the side edges and are clipped there
+           (overflow-hidden here and on DialogContent), so nothing ever lands on the overlay.
+           Decorative, and skipped under prefers-reduced-motion. -->
+      <div class="release-confetti-layer pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        <span
+          v-for="(c, i) in CONFETTI"
+          :key="i"
+          class="release-confetti absolute bottom-0 left-1/2"
+          :class="c.round ? 'size-2 rounded-circle' : 'h-1.5 w-3 rounded-xs'"
+          :style="{
+            backgroundColor: `var(--color-${c.color})`,
+            animationDelay: `${c.delay}ms`,
+            animationDuration: `${c.duration}ms`,
+            '--dx': `${c.dx}cqw`,
+            '--dy': `${c.dy}cqh`,
+            '--rot': `${c.rot}deg`,
+          }"
+        />
+      </div>
+
       <!-- Header: title and Beta badge on one line, the close button level with them, and a
            hairline edge to edge beneath — the same grey-200 rule the footer sits on. -->
       <div class="flex items-center gap-2 border-b border-grey-200 py-4 pl-6 pr-14">
         <DialogTitle class="text-lg font-bold">{{ COPY.title }}</DialogTitle>
-        <Badge variant="recommended">{{ COPY.badge }}</Badge>
+        <Badge variant="muted" class="text-grey-700">{{ COPY.badge }}</Badge>
       </div>
 
-      <!-- Preview band: a spotkit spot illustration (layout L7, "Fanned") — a raised chart
-           card over two metric cards. Abstract on purpose: it should read as "analytics"
-           without ever being mistaken for a screenshot, so it never goes stale as the
-           product changes. Inlined rather than an <img> so the --il-* tokens below can
-           theme it; ids carry the "-analytics" suffix so they can't collide. Decorative. -->
-      <!-- Inset, not edge to edge: the same 24px as the text below, so the picture sits
-           inside the modal's frame as an object rather than bleeding off as a banner. -->
-      <div class="release-il mx-6 mt-6 flex h-48 justify-center rounded-lg bg-grey-100">
-        <svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" class="size-48" aria-hidden="true" focusable="false">
-          <defs>
-            <linearGradient id="fadeG-analytics" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0.7" stop-color="#fff"/><stop offset="0.82" stop-color="#000"/>
-            </linearGradient>
-            <mask id="fade-analytics"><rect width="160" height="160" fill="url(#fadeG-analytics)"/></mask>
-            <linearGradient id="panelG-analytics" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="var(--il-panel-top, #FCFBF9)"/>
-              <stop offset="1" stop-color="var(--il-panel, #F7F5F2)"/>
-            </linearGradient>
-            <filter id="lift-analytics" x="-60%" y="-60%" width="220%" height="220%">
-              <feDropShadow dx="0" dy="2" stdDeviation="2.6"
-                flood-color="var(--il-shadow-c, #4A3F33)" flood-opacity="var(--il-shadow-o, 0.16)"/>
-            </filter>
-            <filter id="liftL-analytics" x="-60%" y="-60%" width="220%" height="220%">
-              <feDropShadow dx="0" dy="4" stdDeviation="5"
-                flood-color="var(--il-shadow-c, #4A3F33)" flood-opacity="var(--il-shadow-o, 0.16)"/>
-            </filter>
-          </defs>
-          <g mask="url(#fade-analytics)">
-            <rect x="16" y="44" width="128" height="92" rx="10" fill="url(#panelG-analytics)" stroke="var(--il-line, #B9B1A4)" stroke-width="0.5"/>
-            <rect x="22" y="54" width="46" height="50" rx="9" fill="var(--il-surface, #FFFFFF)" stroke="var(--il-line, #B9B1A4)" stroke-width="0.5"/>
-            <rect x="29" y="65.8" width="16" height="4.2" rx="2.1" fill="var(--il-fill, #DCD6CE)"/>
-            <rect x="29" y="75" width="22" height="8" rx="4" fill="var(--il-fill, #DCD6CE)"/>
-            <rect x="29" y="88" width="12" height="4.2" rx="2.1" fill="var(--il-fill, #DCD6CE)"/>
-            <rect x="92" y="54" width="46" height="50" rx="9" fill="var(--il-surface, #FFFFFF)" stroke="var(--il-line, #B9B1A4)" stroke-width="0.5"/>
-            <rect x="113" y="65.8" width="16" height="4.2" rx="2.1" fill="var(--il-fill, #DCD6CE)"/>
-            <rect x="109" y="75" width="22" height="8" rx="4" fill="var(--il-fill, #DCD6CE)"/>
-            <rect x="117" y="88" width="12" height="4.2" rx="2.1" fill="var(--il-fill, #DCD6CE)"/>
-            <rect x="48" y="112" width="64" height="5" rx="2.5" fill="var(--il-fill, #DCD6CE)"/>
-            <rect x="58" y="121" width="44" height="4.4" rx="2.2" fill="var(--il-fill, #DCD6CE)"/>
-          </g>
-          <g filter="url(#liftL-analytics)"><rect x="55" y="32" width="50" height="60" rx="11" fill="var(--il-surface, #FFFFFF)" stroke="var(--il-line, #B9B1A4)" stroke-width="0.5"/></g>
-          <rect x="62" y="40" width="20" height="4.2" rx="2.1" fill="var(--il-fill, #DCD6CE)"/>
-          <rect x="62" y="67.5" width="6" height="16" rx="3" fill="var(--il-fill, #DCD6CE)"/>
-          <rect x="72" y="57.5" width="6" height="26" rx="3" fill="var(--il-fill, #DCD6CE)"/>
-          <rect x="82" y="63.5" width="6" height="20" rx="3" fill="var(--il-fill, #DCD6CE)"/>
-          <rect x="92" y="49.5" width="6" height="34" rx="3" fill="var(--il-accent, #3E9077)"/>
-          <rect x="61" y="83.5" width="38" height="0.5" fill="var(--il-line, #B9B1A4)" opacity="0.8"/>
-        </svg>
-      </div>
-
-      <div class="flex flex-col gap-5 px-6 pb-6 pt-5">
+      <div class="flex flex-col gap-5 px-6 pb-6 pt-6">
         <DialogDescription class="text-sm text-grey-600">{{ COPY.lead }}</DialogDescription>
 
         <ul class="flex flex-col gap-5">
@@ -145,13 +150,13 @@ function onOpenChange(open: boolean) {
 
         <!-- The reassurance, set apart on its own surface so it can't be skimmed past as a
              fourth feature. It carries two jobs: nothing is being taken away, and a number
-             that differs from the old report is expected, not a bug. -->
-        <div class="flex gap-3 rounded-lg bg-grey-100 p-3">
+             that differs from the old report is expected, not a bug.
+             Inline-banner styling: grey-100 fill with a 1px grey-300 hairline all round —
+             the border cards and this modal use. design.md has no banner spec; its nearest
+             (expanded Used resources) is the same grey fill + 1px border + 12px padding. -->
+        <div class="flex gap-3 rounded-lg border border-grey-300 bg-grey-100 p-3">
           <Icon name="Info" :size="16" class="mt-0.5 shrink-0 text-grey-600" />
-          <p class="text-xs font-medium text-grey-700">
-            <span class="font-semibold text-grey-900">{{ COPY.note.title }}</span>
-            {{ ' ' }}{{ COPY.note.body }}{{ ' ' }}{{ COPY.note.feedback }}
-          </p>
+          <p class="text-sm font-medium text-grey-700">{{ COPY.note }}</p>
         </div>
       </div>
 
@@ -166,22 +171,42 @@ function onOpenChange(open: boolean) {
 </template>
 
 <style scoped>
-/* Spotkit's illustration tokens, mapped onto design.md's — the warm greys it ships with
-   would clash with the app's cool ones. The band's grey-100 is the canvas the panel fades
-   into; leaf is the one accent (the tallest bar). */
-.release-il {
-  --il-canvas: var(--color-grey-100);
-  --il-ghost: var(--color-grey-200);
-  --il-panel-top: var(--color-white, #fff);
-  --il-panel: var(--color-grey-100);
-  --il-line: var(--color-grey-400);
-  --il-surface: var(--color-white, #fff);
-  --il-stroke: var(--color-grey-900);
-  --il-stroke-soft: var(--color-grey-600);
-  --il-fill: var(--color-grey-300);
-  --il-fill-soft: var(--color-grey-200);
-  --il-accent: var(--color-leaf-500);
-  --il-shadow-c: var(--color-grey-900);
-  --il-shadow-o: 0.12;
+/* The confetti layer is a size container, so each piece's travel (cqw / cqh) is measured
+   against the layer itself and always lands inside it. */
+.release-confetti-layer {
+  container-type: size;
+}
+
+/* Confetti burst: out from the bottom centre along each piece's own vector (--dx, --dy),
+   fast at first and easing to a stop — the deceleration is what reads as an explosion
+   rather than rain — then a small settle under "gravity" and a fade, so nothing is left on
+   screen. `both` keeps each piece hidden until its delay is up. */
+.release-confetti {
+  opacity: 0;
+  animation-name: release-confetti-burst;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-iteration-count: 1;
+}
+@keyframes release-confetti-burst {
+  0% {
+    transform: translate3d(-50%, 0, 0) rotate(0deg) scale(0.4);
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.1, 0.8, 0.25, 1);
+  }
+  8% { opacity: 1; }
+  55% {
+    transform: translate3d(calc(-50% + var(--dx)), var(--dy), 0) rotate(var(--rot)) scale(1);
+    opacity: 1;
+    animation-timing-function: ease-in;
+  }
+  100% {
+    transform: translate3d(calc(-50% + var(--dx)), calc(var(--dy) + 6cqh), 0)
+      rotate(calc(var(--rot) + 60deg)) scale(1);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .release-confetti { display: none; }
 }
 </style>

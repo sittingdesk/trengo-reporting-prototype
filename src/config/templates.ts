@@ -160,9 +160,19 @@ export const TEMPLATES: Template[] = [
     description: 'Diagnostic insight into customer behaviour and needs.',
     recommended: true,
     widgets: [
-      { metricId: 'conversations_and_new_contacts', span: 6 }, // 50/50 with call volume
-      { metricId: 'call_volume', span: 6 }, // stacked bars (inbound/outbound), 50/50
-      { metricId: 'conversations_by_channel', span: 12 }, // full-width while the donut is hidden
+      // The numbers that used to sit in Call volume's header, as cards (Jeff, 2026-10-09).
+      // Total calls also sits on Overview — once per page, several pages, per the rule.
+      // Inbound + Outbound = Total, all from one draw. Three KPIs leave a one-card gap.
+      { metricId: 'calls_volume' },
+      { metricId: 'inbound_calls' },
+      { metricId: 'outbound_calls' },
+      // Side by side FOR COMPARISON (Jeff, 2026-10-09): the current chart and its proposed
+      // replacement, same daily ticket counts. Once one is chosen the other goes, and the
+      // row below can return to Call volume 50/50 and Entry channel full width.
+      { metricId: 'conversations_and_new_contacts', span: 6, newRow: true },
+      { metricId: 'tickets_new_vs_returning', span: 6 },
+      { metricId: 'call_volume', span: 6 }, // stacked bars (inbound/outbound)
+      { metricId: 'conversations_by_channel', span: 6 },
       // Temporarily hidden — bring back later.
       // { metricId: 'new_vs_returning', span: 5 }, // donut (7 + 5 = 12, one row)
       // { metricId: 'deal_stage_funnel' }, // full-width funnel
@@ -178,10 +188,10 @@ export const TEMPLATES: Template[] = [
       // Under drag-and-drop + resize you can't guarantee rows fill, so gaps have to look
       // deliberate rather than broken — a consistent column rhythm gives predictable
       // snap targets, and the trailing empty slot is where "+ Add widget" will live.
-      // SLA compliance is only present when the capability is on (metric
-      // `requires: 'sla'`). It leads the row deliberately: it's the verdict on the two
-      // timers that follow it. With SLA off the page is exactly as before; with it on,
-      // the 7 KPIs become 8 and the two rows fill completely.
+      // SLA compliance leads the row deliberately: it's the verdict on the two timers that
+      // follow it. Always shown since the registry moved it to Phase 1 / Operate
+      // (2026-10-06). With it there are NINE KPIs, so they run 4 / 4 / 1 — Longest call
+      // duration sits alone on a third row (the deliberate trailing gap, but a wide one).
       { metricId: 'sla_compliance' },
       // Temporarily hidden — bring back later. They split the strict headline into which
       // promise broke, each with its own denominator (AI-only tickets have no

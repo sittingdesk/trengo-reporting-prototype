@@ -81,6 +81,7 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
     label: 'Contacts',
     metricIds: [
       'conversations_and_new_contacts',
+      'tickets_new_vs_returning',
       'new_contacts_by_channel',
       'new_vs_returning',
     ],
@@ -90,6 +91,8 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
     label: 'Calls',
     metricIds: [
       'calls_volume',
+      'inbound_calls',
+      'outbound_calls',
       'call_volume',
       'missed_calls',
       'time_to_answer',

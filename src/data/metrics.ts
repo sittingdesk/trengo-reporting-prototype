@@ -228,17 +228,20 @@ export const METRICS: MetricDef[] = [
     ],
   },
   {
-    // registry: sla_compliance — ⚠️ marked Phase 2, EXCLUDED FROM MVP (confirmed by
-    // Deborah, 2026-06-29). Present here as design-ahead, which is exactly why it sits
-    // behind the SLA capability rather than in the default page.
-    // Definition from the SLA project (`sla-definitions-and-how.md`, Theme 3).
+    // registry (4), 2026-10-06: sla_compliance — now **Phase 1, Operate page**, "definition
+    // still in progress; no calculation yet" (was Phase 2 / excluded from MVP, Deborah
+    // 2026-06-29). So it's shown on Operate again, always — no capability gate: Jeff,
+    // 2026-10-09. The number is still illustrative until the calculation lands.
+    // Definition from the SLA project (`sla-definitions-and-how.md`, Theme 3), which matches
+    // the registry's new description: one missed target fails the whole ticket.
+    // The channel table's SLA column stays behind the gate: the registry's
+    // performance_by_channel has no SLA column.
     id: 'sla_compliance',
     label: 'SLA compliance',
     unit: 'percentage',
     resultType: 'value',
     status: 'ready',
     category: 'efficiency',
-    requires: 'sla',
     base: 0.85, // the doc's worked example: 1,275 of 1,500 measured tickets
     caveat:
       'Share of tickets that met every SLA target that applied to them — miss one and the whole ticket counts as a breach. Tickets on channels without a policy are not measured.',
@@ -763,6 +766,36 @@ export const METRICS: MetricDef[] = [
       'Tickets created per day, alongside contacts messaging for the first time. A widening gap means existing contacts are driving the volume.',
   },
   {
+    // registry: tickets_new_vs_returning_contact — per ticket, "new" when it is the contact's
+    // first-ever ticket for the agency, "returning" when an earlier ticket exists. Ticket grain
+    // throughout, so the two parts add up to tickets created. The registry entry returns a
+    // period share; grouping it by DATE(ticket_created_at) is the one data ask.
+    //
+    // The proposed replacement for "Tickets & new contacts", shown beside it for comparison
+    // (Jeff, 2026-10-09). That chart plots tickets and new CONTACTS — two units — on one
+    // axis, and its tooltip's "gap" reading is false (a new contact's own second ticket lands
+    // in the gap too). This answers the same question — is volume growing from new customers
+    // or from existing ones coming back? — in one unit. Also supersedes the parked
+    // `new_vs_returning` donut, the same idea without the trend.
+    id: 'tickets_new_vs_returning',
+    // The unit leads, like the other ticket charts on the page. Sized to the title row: with
+    // the legend now just "● New ● Returning" (~120px), this (193px) fits a half-width card
+    // down to ~1280px; "Tickets from new vs returning contacts" (299px) only fits from 1440.
+    label: 'Tickets: new vs returning',
+    unit: 'count',
+    resultType: 'time_series',
+    status: 'ready',
+    category: 'volume',
+    neutral: true, // volume — the split is the finding, not a direction
+    stacked: true,
+    base: 500,
+    caveat:
+      // "Returning" means an earlier TICKET, not any earlier contact — so not "been in
+      // touch". And "first ticket", not "first ever": whether the history is complete or a
+      // 12-month window is still open with the data team.
+      "Tickets created in the period, from new contacts (their first ticket) or returning contacts (they've had one before).",
+  },
+  {
     // registry: conversations_created (billing-window grain) — ⚠️ we label it 'Tickets created'; orphaned
     id: 'conversations_created',
     label: 'Tickets created',
@@ -775,7 +808,10 @@ export const METRICS: MetricDef[] = [
     caveat: 'Tickets created in this period.',
   },
   {
-    // registry: entry_channel_tickets — ticket grain, so the 'Tickets' label is correct
+    // registry: entry_channel_tickets — ticket grain, so the 'Tickets' label is correct.
+    // COUNT(*) GROUP BY channel_type, with no first_message_direction filter: outbound-first
+    // tickets (agent, broadcast, automation or API — the registry doesn't say who) count too,
+    // which "entry" in the title doesn't suggest; the caveat says so.
     id: 'conversations_by_channel',
     label: 'Tickets by entry channel',
     unit: 'count',
@@ -783,7 +819,7 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'volume',
     base: 900, // per channel-ish, scaled by filters
-    caveat: 'Tickets created in this period, split by the channel they came in on.',
+    caveat: 'Tickets created in the period, by channel type, whoever sent the first message.',
   },
   {
     // registry: entry_channel_new_contacts
@@ -808,7 +844,10 @@ export const METRICS: MetricDef[] = [
     caveat: 'Contacts in this period, split into first-time (new) and returning.',
   },
   {
-    // registry: voip_call_outcomes_by_day is the closest; inbound/outbound split not separately defined
+    // registry (4): voip_call_outcomes_by_day — answered and missed calls per direction per
+    // day. Inbound here = inbound_answered + inbound_missed, Outbound the same; every call is
+    // one of the two (voip_call_type is only INBOUND/OUTBOUND), so Inbound + Outbound =
+    // voip_total_calls. No `pages` tag on that entry. Week/month buckets re-aggregate the days.
     id: 'call_volume',
     label: 'Call volume',
     unit: 'count',
@@ -817,7 +856,7 @@ export const METRICS: MetricDef[] = [
     category: 'voice',
     base: 12, // calls per day, split inbound/outbound
     stacked: true,
-    caveat: 'Calls per day, split into inbound and outbound.',
+    caveat: 'Every inbound and outbound call in the period, answered or not.',
   },
   // --- Automate page ---
   {
@@ -988,7 +1027,36 @@ export const METRICS: MetricDef[] = [
     category: 'voice',
     neutral: true, // volume — reports the change, doesn't judge it
     base: 90, // ≈ the Call volume chart's 7-day total, for coherence
-    caveat: 'All calls in this period, inbound and outbound, including missed ones.',
+    // Same wording as the Call volume chart's tooltip: the card IS that chart's total.
+    caveat: 'Every inbound and outbound call in the period, answered or not.',
+  },
+  {
+    // registry (4): no single-number entry. Derived from voip_call_outcomes_by_day:
+    // inbound_answered + inbound_missed over the period. NOT voip_missed_calls' population
+    // alone — that's the missed part of this. One of the three KPIs that replaced the
+    // numbers in Call volume's header (Jeff, 2026-10-09).
+    id: 'inbound_calls',
+    label: 'Inbound calls',
+    unit: 'count',
+    resultType: 'value',
+    status: 'ready',
+    category: 'voice',
+    neutral: true, // volume — reports the change, doesn't judge it
+    base: 29,
+    caveat: 'Calls customers made to you in the period, answered or not.',
+  },
+  {
+    // registry (4): no single-number entry. Derived from voip_call_outcomes_by_day:
+    // outbound_answered + outbound_missed over the period.
+    id: 'outbound_calls',
+    label: 'Outbound calls',
+    unit: 'count',
+    resultType: 'value',
+    status: 'ready',
+    category: 'voice',
+    neutral: true,
+    base: 61,
+    caveat: 'Calls your team made in the period, answered or not.',
   },
   {
     // registry: voip_missed_rate [Overview] — added 2026-09-04, and it settles two things

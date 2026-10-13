@@ -3,6 +3,7 @@
 // src/lib/chart.ts). Reads colours from the CSS design tokens so it stays on-brand.
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Chart, CHART_HEIGHT } from '@/lib/chart'
+import type { SeriesTint } from '@/lib/mock'
 import { fmtCount } from '@/lib/format'
 
 const props = withDefaults(
@@ -10,7 +11,7 @@ const props = withDefaults(
     labels: (string | number)[]
     /** `prev` — the same series over the previous period, bucket by bucket. Adds a
      *  "· prev. N" to that series' tooltip line and nothing to the plot. */
-    series: { name: string; tint: 'sky' | 'peach'; data: number[]; dashed?: boolean; prev?: number[] }[]
+    series: { name: string; tint: SeriesTint; data: number[]; dashed?: boolean; prev?: number[] }[]
     legend?: boolean
     legendPosition?: 'top' | 'bottom'
     height?: number
@@ -53,9 +54,11 @@ function datasets() {
   //
   // Both halves are light (1.60:1 and 2.46:1), so colour is still not the sole identifier:
   // multi-series line charts dash their second series. See the mock.
-  const colors: Record<'sky' | 'peach', string> = {
+  const colors: Record<SeriesTint, string> = {
     sky: token('--color-sky-500', '#81d7ff'),
     peach: token('--color-peach-500', '#fe8161'),
+    purple: token('--color-purple-500', '#d999ff'),
+    sun: token('--color-sun-500', '#ffd467'),
   }
   return props.series.map((s) => ({
     label: s.name,

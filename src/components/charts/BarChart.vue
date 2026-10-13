@@ -4,6 +4,7 @@
 // Supports an optional second "Average" series drawn beside the primary one.
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Chart, CHART_HEIGHT } from '@/lib/chart'
+import type { SeriesTint } from '@/lib/mock'
 import { fmtDuration, fmtPercent } from '@/lib/format'
 
 const props = withDefaults(
@@ -12,7 +13,7 @@ const props = withDefaults(
     data?: number[]
     average?: number[]
     // Multi-series grouped bars (overrides data/average when provided).
-    series?: { name: string; tint: 'sky' | 'peach'; data: number[]; prev?: number[] }[]
+    series?: { name: string; tint: SeriesTint; data: number[]; prev?: number[] }[]
     /** Previous-period value per bar, for a single-series chart (`data`). With `series`,
      *  each series carries its own `prev` instead. Either way it only adds a tooltip line. */
     previous?: number[]
@@ -115,9 +116,11 @@ function datasets() {
     // stacked bar, it cannot use a dash the way the line charts do, so it is the one place
     // where the colours have to carry the distinction on their own. At ΔE 55.1 worst-case
     // they do — which the pastel pair before this (9.0) did not.
-    const colors: Record<'sky' | 'peach', string> = {
+    const colors: Record<SeriesTint, string> = {
       sky: token('--color-sky-500', '#81d7ff'),
       peach: token('--color-peach-500', '#fe8161'),
+      purple: token('--color-purple-500', '#d999ff'),
+      sun: token('--color-sun-500', '#ffd467'),
     }
     return props.series.map((s) => ({
       label: s.name,

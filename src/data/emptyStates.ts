@@ -56,6 +56,7 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
 
   // ---- Understand page ----
   conversations_and_new_contacts: { noun: 'tickets', icon: 'Inbox' },
+  tickets_new_vs_returning: { noun: 'tickets', icon: 'Inbox' },
   conversations_created: { noun: 'tickets', icon: 'Inbox' },
   conversations_by_channel: { noun: 'tickets', icon: 'Inbox' },
   new_contacts_by_channel: { noun: 'contacts', icon: 'Users' },
@@ -67,6 +68,8 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
   pipeline_value: { noun: 'deals', icon: 'Target' },
   average_sales_cycle: { noun: 'closed deals', icon: 'Target' },
   calls_volume: { noun: 'calls', icon: 'Phone' },
+  inbound_calls: { noun: 'inbound calls', icon: 'CallIncoming' },
+  outbound_calls: { noun: 'outbound calls', icon: 'CallOutgoing' },
 }
 
 /** Copy template — the ONLY place empty/error-state wording lives. */

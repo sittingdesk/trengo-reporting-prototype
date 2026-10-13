@@ -61,7 +61,7 @@ function token(name: string, fallback: string): string {
 /**
  * Colour by ROLE, not by `tint`.
  *
- * The chart `tint` union is `'sky' | 'peach'` — two peers, for series that are equals
+ * The chart `SeriesTint` colours are for peer series — series that are equals
  * (Created vs Closed, Inbound vs Outbound). These two aren't equals: one is the subject and
  * one is its context. So the line takes leaf-600, the darkest green already used for
  * meaning-carrying text, and the bars take a grey — the same role BarChart's own "Average"

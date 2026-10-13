@@ -27,7 +27,7 @@ import MetricErrorState from '@/components/dashboard/MetricErrorState.vue'
 import { getMetric } from '@/data/metrics'
 import { resolveEmptyState, COPY } from '@/data/emptyStates'
 import { formatValue, fmtDuration } from '@/lib/format'
-import { metricValue, filterSignature } from '@/lib/mock'
+import { metricValue, filterSignature, type SeriesTint } from '@/lib/mock'
 import { deltaOf, toneClassFor, type Direction } from '@/lib/delta'
 import { CHART_HEIGHT } from '@/lib/chart'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -307,19 +307,13 @@ const showDelta = computed(
     !!delta.value,
 )
 
-// Stacked time-series (Call volume): per-series totals + grand total, folded into the
-// header legend so the numbers live with the chart (no separate KPI tiles).
-const seriesTotals = computed(() => {
-  const lines = sample.value?.lines
-  if (!lines) return null
-  const items = lines.map((l) => ({
-    name: l.name,
-    tint: l.tint,
-    value: l.data.reduce((a, b) => a + b, 0),
-  }))
-  return { items, total: items.reduce((a, i) => a + i.value, 0) }
-})
-const fmtCount = (n: number) => formatValue(n, 'count')
+/** Legend dot per series colour — full class strings so Tailwind's JIT keeps them. */
+const TINT_DOT: Record<SeriesTint, string> = {
+  sky: 'bg-sky-500',
+  peach: 'bg-peach-500',
+  purple: 'bg-purple-500',
+  sun: 'bg-sun-500',
+}
 
 const skeletonVariant = computed<'value' | 'graph' | 'line' | 'donut' | 'funnel' | 'table'>(() => {
   const rt = resultType.value
@@ -400,23 +394,17 @@ const skeletonBars = computed(() =>
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-leaf-600" /> {{ sample.combo.score.name }}</span>
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-grey-400" /> {{ sample.combo.volume.name }}</span>
       </div>
-      <!-- Stacked time-series (e.g. Call volume): legend enriched with per-series totals + Total -->
+      <!-- Multi-series time charts, stacked or not: a plain key — dot and name, no numbers.
+           Stacked charts (Call volume, New vs returning) used to print each series' total and
+           a grand Total here. Those numbers are KPI cards now (Total / Inbound / Outbound
+           calls), which a page can add or remove like any widget, so the chart is just the
+           shape over time — and the title row has room again. -->
       <div
-        v-else-if="resultType === 'time_series' && metric.stacked && seriesTotals && showHeaderExtras"
-        class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
-      >
-        <span v-for="item in seriesTotals.items" :key="item.name" class="flex items-center gap-1.5">
-          <span class="size-2 rounded-circle" :class="item.tint === 'sky' ? 'bg-sky-500' : 'bg-peach-500'" />
-          {{ item.name }} <span class="font-semibold tabular-nums text-grey-900">{{ fmtCount(item.value) }}</span>
-        </span>
-        <span class="flex items-center gap-1.5">Total <span class="font-semibold tabular-nums text-grey-900">{{ fmtCount(seriesTotals.total) }}</span></span>
-      </div>
-      <div
-        v-else-if="resultType === 'time_series' && !metric.stacked && sample?.lines && sample.lines.length > 1 && !sample?.legendBelow && showHeaderExtras"
+        v-else-if="resultType === 'time_series' && sample?.lines && sample.lines.length > 1 && !sample?.legendBelow && showHeaderExtras"
         class="flex shrink-0 items-center gap-3 text-xs leading-5 text-grey-600"
       >
         <span v-for="l in sample.lines" :key="l.name" class="flex items-center gap-1.5">
-          <span class="size-2 rounded-circle" :class="l.tint === 'sky' ? 'bg-sky-500' : 'bg-peach-500'" /> {{ l.name }}
+          <span class="size-2 rounded-circle" :class="TINT_DOT[l.tint]" /> {{ l.name }}
         </span>
       </div>
 

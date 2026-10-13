@@ -26,7 +26,7 @@ import DateRangeFilter from '@/components/layout/filters/DateRangeFilter.vue'
 import ChannelFilter from '@/components/layout/filters/ChannelFilter.vue'
 import SelectFilter from '@/components/layout/filters/SelectFilter.vue'
 import InlineEditName from '@/components/dashboard/InlineEditName.vue'
-import BetaFeedbackPill from '@/components/dashboard/BetaFeedbackPill.vue'
+import BetaBadge from '@/components/dashboard/BetaBadge.vue'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
@@ -160,8 +160,8 @@ const save = () => {
        or neither. -->
   <header ref="rowEl" class="px-8 pt-6">
     <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-      <!-- The title and, right after it, the beta's standing feedback route. The h1 can
-           still shrink (and truncate) — the pill keeps its size.
+      <!-- The title and, right after it, the grey Beta tag. The h1 can still shrink (and
+           truncate) — the tag keeps its size.
            The `[&>*]` cap: InlineEditName's box sits 8px left (-ml-2) so its hover outline
            lines up, and caps itself at max-w-full. While the h1 stretched across the row
            that never mattered; sized to its content, the h1 is 8px narrower than the
@@ -176,7 +176,7 @@ const save = () => {
             @rename="renameDashboard(dashboard.id, $event)"
           />
         </h1>
-        <BetaFeedbackPill :compact="compactFilters" />
+        <BetaBadge />
       </div>
 
       <!-- Scope, then Edit. Both belong to the dashboard, so both belong on its row. -->

@@ -44,6 +44,14 @@ export interface TableData {
   rows: Record<string, string | number>[]
 }
 
+/**
+ * Series colours for multi-series charts. Two pairs, so two stacked charts on one page don't
+ * read as the same chart: sky + peach (Call volume, Created vs closed, Tickets & new
+ * contacts) and sun + purple (New vs returning). Purple-500 + sun-500 separate at ΔE2000 59.6
+ * (53–54 under deutan/protan simulation) and sit ≥32 from either of the first pair.
+ */
+export type SeriesTint = 'sky' | 'peach' | 'purple' | 'sun'
+
 export interface MetricSample {
   value: number
   previous: number // comparable previous-period value (for the delta toggle)
@@ -57,7 +65,7 @@ export interface MetricSample {
   // the CSV column header for that series.
   lines?: {
     name: string
-    tint: 'sky' | 'peach'
+    tint: SeriesTint
     data: number[]
     dashed?: boolean
     csvKey?: string
@@ -293,7 +301,10 @@ function voiceQueue(signature: string, days: number, chFactor: number, tmFactor:
   // A true blend over the whole queue, not an average of two averages — the same rule the
   // SLA helper follows, and the reason it can't drift from its parts.
   const blendedWait = Math.round((answeredWait * answered + abandonedWait * abandoned) / inbound)
-  return { inbound, abandoned, answered, answeredWait, abandonedWait, blendedWait }
+  // Every call in the period, both directions — Total calls (Overview) and the Call volume
+  // chart (Understand) both read this, so the two can't print different totals.
+  const total = Math.max(inbound, Math.round(totalCalls))
+  return { total, inbound, abandoned, answered, answeredWait, abandonedWait, blendedWait }
 }
 
 /**
@@ -309,15 +320,23 @@ function splitToBuckets(total: number, buckets: number, rng: () => number): numb
   return splitByWeights(total, Array.from({ length: buckets }, () => jitter(rng, 0.5)))
 }
 
-/** Split `total` across buckets in proportion to `weights`, summing EXACTLY to `total`. */
+/**
+ * Split `total` across buckets in proportion to `weights`, summing EXACTLY to `total`.
+ *
+ * Largest remainder: floor every share, then hand the leftover units to the buckets with the
+ * biggest fractions. It used to round each share and dump the difference on the biggest
+ * bucket — which breaks when the total is small against the bucket count (24 inbound calls
+ * over 30 days rounds to 26, and the biggest day only had 1 to give back), so the parts came
+ * out a call short of the whole and two cards disagreed by one.
+ */
 function splitByWeights(total: number, weights: number[]): number[] {
+  const n = Math.max(0, Math.round(total))
   const sum = weights.reduce((a, b) => a + b, 0) || 1
-  const out = weights.map((w) => Math.max(0, Math.round((w / sum) * total)))
-  const drift = total - out.reduce((a, b) => a + b, 0)
-  if (drift !== 0) {
-    const biggest = out.indexOf(Math.max(...out))
-    out[biggest] = Math.max(0, out[biggest] + drift)
-  }
+  const exact = weights.map((w) => (w / sum) * n)
+  const out = exact.map(Math.floor)
+  let left = n - out.reduce((a, b) => a + b, 0)
+  const order = exact.map((v, i) => ({ i, frac: v - Math.floor(v) })).sort((a, b) => b.frac - a.frac)
+  for (let k = 0; left > 0 && order.length; k = (k + 1) % order.length, left--) out[order[k].i]++
   return out
 }
 
@@ -493,6 +512,36 @@ export function metricValue(
   // one is why the satisfied responses are split rather than the rate itself — dividing
   // per-day satisfied by per-day volume makes Σsatisfied/Σvolume identical to the period
   // rate by construction, where scaling a jittered rate can only get close.
+  // Tickets from new vs returning contacts: each day's tickets — the SAME daily counts the
+  // "Tickets & new contacts" chart draws as its Tickets line — split into the contact's first
+  // ticket vs a returning contact's. So new + returning = that line on every day, and the
+  // period total = Tickets by entry channel's bars too. Returning runs ~65%, a little noisy.
+  if (def.id === 'tickets_new_vs_returning') {
+    const ticketsDef = getMetric('conversations_and_new_contacts')
+    const tickets = ticketsDef ? metricValue(ticketsDef, signature, dateRange) : undefined
+    const line = tickets?.lines?.[0]
+    const labels = tickets?.labels ?? []
+    const shareRng = mulberry32(hashString(`${def.id}|share|${dateRange?.start?.toString() ?? ''}|${signature}`))
+    const split = (data: number[]) => {
+      const returning = data.map((c) => Math.min(c, Math.round(c * Math.min(0.95, 0.65 * jitter(shareRng, 0.08)))))
+      return { returning, fresh: data.map((c, i) => c - returning[i]) }
+    }
+    const cur = split(line?.data ?? [])
+    const prev = split(line?.prev ?? [])
+    const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
+    return {
+      value: sum(line?.data ?? []),
+      previous: sum(line?.prev ?? []),
+      labels,
+      lines: [
+        // Sun + purple, not sky + peach: Call volume sits on the same page in those, and two
+        // stacked charts in one palette read as the same chart twice.
+        { name: 'New', tint: 'sun', data: cur.fresh, prev: prev.fresh, csvKey: 'new_contact_tickets' },
+        { name: 'Returning', tint: 'purple', data: cur.returning, prev: prev.returning, csvKey: 'returning_contact_tickets' },
+      ],
+    }
+  }
+
   if (def.id === 'csat_score_over_time') {
     const { total, satisfied } = csatResponses(signature, days, chFactor, tmFactor)
     const bucketed = timeSeriesBuckets(dateRange?.start, dateRange?.end)
@@ -623,8 +672,14 @@ export function metricValue(
     // Inbound vs Outbound calls per bucket, stacked (outbound the larger share,
     // per the Voice Reporting reference). Rendered as stacked bars via metric.stacked.
     if (def.id === 'call_volume') {
-      const inbound = created.map((c) => Math.max(0, Math.round(c * 0.35 * jitter(tsRng, 0.35))))
-      const outbound = created.map((c) => Math.max(0, Math.round(c * 0.75 * jitter(tsRng, 0.35))))
+      // The SAME calls Overview counts: voiceQueue's inbound and total, split over the
+      // buckets. It used to draw its own volume from the ticket curve, so its header Total
+      // read 92 while Overview's Total calls read 100 for the same filters (395 vs 198 at
+      // 30 days). Now Inbound here = the "of N inbound" behind Missed calls, and Inbound +
+      // Outbound = Total calls, at every filter.
+      const q = voiceQueue(signature, days, chFactor, tmFactor)
+      const inbound = splitToBuckets(q.inbound, count, tsRng)
+      const outbound = splitToBuckets(q.total - q.inbound, count, tsRng)
       const inTotal = inbound.reduce((a, b) => a + b, 0)
       const outTotal = outbound.reduce((a, b) => a + b, 0)
       const inPrev = previousOf(inbound, prevRng)
@@ -850,8 +905,19 @@ export function metricValue(
   // Breakdown bars: one bar per channel category (WhatsApp / Live chat / Email / Voice).
   if (def.resultType === 'breakdown') {
     const labels = CATALOG.map((c) => c.label)
-    const perChannel = (base * chFactor * tmFactor * Math.sqrt(days / 7)) / labels.length
-    const series = labels.map(() => Math.max(0, Math.round(perChannel * jitter(rng, 0.5))))
+    // Tickets / new contacts by entry channel split the SAME totals the "Tickets & new
+    // contacts" line on Understand draws — read from that chart's own sample, the way
+    // Tickets with AI does. They used to draw their own (721 tickets beside a line summing to
+    // 3,324). Any other breakdown keeps the generic draw.
+    const lineIndex =
+      def.id === 'conversations_by_channel' ? 0 : def.id === 'new_contacts_by_channel' ? 1 : -1
+    const ticketsDef = lineIndex >= 0 ? getMetric('conversations_and_new_contacts') : undefined
+    const line = ticketsDef ? metricValue(ticketsDef, signature, dateRange).lines?.[lineIndex] : undefined
+    const series = line
+      ? splitToBuckets(line.data.reduce((a, b) => a + b, 0), labels.length, rng)
+      : labels.map(() =>
+          Math.max(0, Math.round(((base * chFactor * tmFactor * Math.sqrt(days / 7)) / labels.length) * jitter(rng, 0.5))),
+        )
     const total = series.reduce((a, b) => a + b, 0)
     const previousSeries = previousOf(series, mulberry32(hashString(`${def.id}|prev|${signature}`)))
     return {
@@ -923,6 +989,20 @@ export function metricValue(
       // tooltip already say these are tickets.
       secondary: `${fmtCount(pick.met)} of ${fmtCount(pick.pop)}`,
     }
+  }
+
+  // Total calls — the shared voice draw's total, so it equals the Call volume chart's
+  // Inbound + Outbound on Understand and contains Missed calls' "of N inbound".
+  if (def.id === 'calls_volume') {
+    const q = voiceQueue(signature, days, chFactor, tmFactor)
+    return { value: q.total, previous: Math.round(q.total * jitter(rng, 0.2)) }
+  }
+  // Its two parts, from the same draw: Inbound = the Call volume chart's Inbound bars and
+  // Missed calls' "of N inbound"; Inbound + Outbound = Total calls, always.
+  if (def.id === 'inbound_calls' || def.id === 'outbound_calls') {
+    const q = voiceQueue(signature, days, chFactor, tmFactor)
+    const value = def.id === 'inbound_calls' ? q.inbound : q.total - q.inbound
+    return { value, previous: Math.round(value * jitter(rng, 0.2)) }
   }
 
   // Tickets with AI — a share of the SAME ticket total the Understand page draws as its
