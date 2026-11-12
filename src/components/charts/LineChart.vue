@@ -15,6 +15,17 @@ const props = withDefaults(
     legend?: boolean
     legendPosition?: 'top' | 'bottom'
     height?: number
+    /** What the x-axis prints for a label ('' prints nothing there). The tooltip keeps the
+     *  full label, so a label can say "Jun 17 – Jun 21" while the axis says "Jun 17". */
+    tickLabel?: (label: string) => string
+    /** false: every label is considered and `tickLabel` alone decides which print — for
+     *  hourly, where auto-skipping would land on arbitrary hours. */
+    tickAutoSkip?: boolean
+    /** Points that hold less than a full bucket (a short week at the edge of the range),
+     *  with the note the tooltip shows, e.g. "Short week: 2 of 7 days". The line into and
+     *  out of such a point is drawn faded, so a short week's lower total doesn't read as a
+     *  drop in tickets. */
+    partial?: Record<number, string>
   }>(),
   { height: CHART_HEIGHT, legend: true, legendPosition: 'top' },
 )
@@ -60,9 +71,16 @@ function datasets() {
     purple: token('--color-purple-500', '#d999ff'),
     sun: token('--color-sun-500', '#ffd467'),
   }
+  const partial = props.partial ?? {}
+  // #rrggbb + alpha. The tokens are hex (index.css), so the faded stroke stays on-palette.
+  const faded = (c: string) => (/^#[0-9a-f]{6}$/i.test(c) ? `${c}59` : c)
   return props.series.map((s) => ({
     label: s.name,
     data: s.data,
+    segment: {
+      borderColor: (ctx: any) =>
+        ctx.p0DataIndex in partial || ctx.p1DataIndex in partial ? faded(colors[s.tint]) : undefined,
+    },
     borderColor: colors[s.tint],
     backgroundColor: colors[s.tint],
     borderWidth: 2,
@@ -71,6 +89,25 @@ function datasets() {
     pointRadius: 0,
     pointHoverRadius: 4,
   }))
+}
+
+/** The x-axis ticks, from the current props. Rebuilt on every update, so a switch between
+ *  axis modes (Daily ↔ Hourly) can never leave the previous mode's callback behind — that
+ *  stale callback once threw mid-draw, which blanked this chart and stopped every other
+ *  chart on the page from drawing (Chart.js animates them in one loop). */
+function xTicks(axis: string) {
+  const map = props.tickLabel
+  return {
+    color: axis,
+    font: { size: 10 },
+    maxRotation: 0,
+    autoSkip: props.tickAutoSkip !== false,
+    maxTicksLimit: props.tickAutoSkip === false ? undefined : 8,
+    callback(this: any, value: any) {
+      const label = String(this.getLabelForValue(value))
+      return map ? map(label) : label
+    },
+  }
 }
 
 function build() {
@@ -102,6 +139,7 @@ function build() {
           usePointStyle: true,
           padding: 10,
           callbacks: {
+            footer: (items: any[]) => (items.length ? (props.partial?.[items[0].dataIndex] ?? '') : ''),
             label: (ctx: any) => {
               const prev = props.series[ctx.datasetIndex]?.prev?.[ctx.dataIndex]
               const prevText = prev == null ? '' : ` · prev. ${fmtCount(prev)}`
@@ -111,7 +149,7 @@ function build() {
         },
       },
       scales: {
-        x: { grid: { display: false }, ticks: { color: axis, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
+        x: { grid: { display: false }, ticks: xTicks(axis) },
         y: { beginAtZero: true, grid: { color: grid }, border: { display: false }, ticks: { color: axis, font: { size: 10 }, maxTicksLimit: 4 } },
       },
     },
@@ -121,12 +159,16 @@ function build() {
 onMounted(build)
 onBeforeUnmount(() => chart?.destroy())
 
+
+// One watcher for data AND axis mode, so they always change together in a single update.
 watch(
-  () => [props.labels, props.series],
+  () => [props.labels, props.series, props.tickLabel, props.tickAutoSkip, props.partial],
   () => {
     if (!chart) return
     chart.data.labels = props.labels
     chart.data.datasets = datasets()
+    const x = chart.options.scales?.x as any
+    if (x) x.ticks = xTicks(token('--color-grey-600', '#70767b'))
     chart.update()
   },
   { deep: true },

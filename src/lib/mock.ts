@@ -10,6 +10,7 @@ import { CHANNEL_INSTANCE_IDS, CATALOG } from '@/data/channelData'
 import { fmtCount, fmtCurrency, fmtDays, fmtDuration, fmtPercent } from '@/lib/format'
 import type { Direction } from '@/lib/delta'
 import { BOARDS } from '@/data/boards'
+import type { TimeGrain } from '@/data/timeGrain'
 
 export interface TableColumn {
   key: string
@@ -91,6 +92,9 @@ export interface MetricSample {
    *  0 there would plot as "everyone was unhappy". */
   combo?: { score: { name: string; data: (number | null)[] }; volume: { name: string; data: number[] } }
   legendBelow?: boolean // render the line-chart legend below the chart (not header)
+  /** Time-series points that hold less than a full bucket, with the tooltip note — a short
+   *  week at either edge of the range, on the Weekly toggle. */
+  partial?: Record<number, string>
   /** Dashed reference line on a time chart (e.g. the period average). */
   referenceValue?: number
   /** A qualifier for the whole widget, shown top-right in the card header — how
@@ -168,6 +172,98 @@ function timeSeriesBuckets(start?: DateValue, end?: DateValue): { labels: string
     d = d.add({ months: 1 })
   }
   return { labels, grain: 'month' }
+}
+
+/** How a time chart's days are grouped for display: the toggle's three, plus monthly for
+ *  long ranges on charts without a toggle. */
+type Grouping = TimeGrain | 'month'
+
+/** Without a toggle the range length decides — the rule every time chart had before. */
+function autoGrouping(days: number): Grouping {
+  return days <= 31 ? 'day' : days <= 180 ? 'week' : 'month'
+}
+
+/** Every day in the range, oldest first. No range: the last `fallbackDays` days. */
+function dayDates(start: DateValue | undefined, end: DateValue | undefined, fallbackDays: number): Date[] {
+  if (start && end) {
+    return Array.from({ length: rangeDays(start, end) }, (_, i) => start.add({ days: i }).toDate(tz))
+  }
+  const today = new Date()
+  return Array.from({ length: fallbackDays }, (_, i) => {
+    const d = new Date(today)
+    d.setDate(today.getDate() - (fallbackDays - 1 - i))
+    return d
+  })
+}
+
+const hh = (h: number) => `${String(h).padStart(2, '0')}:00`
+
+/**
+ * Group per-day series for display, without changing any total.
+ * - hour: each day split over its 24 hours by `hourWeight` (busy midday, quiet night),
+ *   largest remainder, so the hours add up to the day. `hourShift[i]` moves series i's peak
+ *   later by that many hours. Labelled "Jun 17, 09:00" — the date always, so a tooltip
+ *   says which day; the axis shortens it (MetricBox).
+ * - day: as is.
+ * - week: Monday-start weeks, inside the range only — a range starting mid-week opens with
+ *   a short week rather than borrowing days it doesn't cover. Chosen on the toggle
+ *   (`spans`), a week is labelled with the days it holds, "Jun 17 – Jun 21", so a short
+ *   week can't pass for a full one; auto-grouped, by its first day, as before.
+ * - month: calendar months, labelled "Jul 25".
+ */
+function groupDays(
+  dates: Date[],
+  series: number[][],
+  grouping: Grouping,
+  hourShift: number[] = [],
+  spans = false,
+): { labels: string[]; data: number[][]; partial?: Record<number, string> } {
+  if (grouping === 'day') return { labels: dates.map((d) => tsDayFmt.format(d)), data: series }
+  if (grouping === 'hour') {
+    const labels = dates.flatMap((d) => Array.from({ length: 24 }, (_, h) => `${tsDayFmt.format(d)}, ${hh(h)}`))
+    const data = series.map((xs, i) => {
+      const weights = Array.from({ length: 24 }, (_, h) => hourWeight(h - (hourShift[i] ?? 0)))
+      return xs.flatMap((v) => splitByWeights(v, weights))
+    })
+    return { labels, data }
+  }
+  const keyOf = (d: Date) => {
+    if (grouping === 'month') return `${d.getFullYear()}-${d.getMonth()}`
+    const monday = new Date(d)
+    monday.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+    return monday.toDateString()
+  }
+  const labels: string[] = []
+  const data: number[][] = series.map(() => [])
+  const firsts: Date[] = []
+  const lasts: Date[] = []
+  let last = ''
+  dates.forEach((d, i) => {
+    const key = keyOf(d)
+    if (key !== last) {
+      firsts.push(d)
+      lasts.push(d)
+      data.forEach((col) => col.push(0))
+      last = key
+    }
+    lasts[lasts.length - 1] = d
+    series.forEach((xs, s) => (data[s][data[s].length - 1] += xs[i]))
+  })
+  firsts.forEach((first, i) => {
+    if (grouping === 'month') labels.push(tsMonthFmt.format(first))
+    else if (!spans || lasts[i].getTime() === first.getTime()) labels.push(tsDayFmt.format(first))
+    else labels.push(`${tsDayFmt.format(first)} – ${tsDayFmt.format(lasts[i])}`)
+  })
+  // A short week at the range's edge holds fewer days, so its total is lower without
+  // anything having dropped. Flagged so the chart can say so.
+  let partial: Record<number, string> | undefined
+  if (spans && grouping === 'week') {
+    firsts.forEach((first, i) => {
+      const n = Math.round((lasts[i].getTime() - first.getTime()) / 86_400_000) + 1
+      if (n < 7) (partial ??= {})[i] = `Short week: ${n} of 7 days`
+    })
+  }
+  return { labels, data, partial }
 }
 
 /** A stable string identifying the current filter combination. */
@@ -409,6 +505,9 @@ export function metricValue(
   /** The active break-down, from the card's ⋯ menu. Live again: First response time and
    *  Resolution time each declare an All / Human only pair. */
   dimensionId?: string,
+  /** How a time chart groups its points, from the card's own toggle. Absent: the range
+   *  length decides (daily / weekly / monthly). */
+  grain?: TimeGrain,
 ): MetricSample {
   const seed = hashString(`${def.id}|${signature}`)
   const rng = mulberry32(seed)
@@ -589,63 +688,37 @@ export function metricValue(
     }
   }
 
-  // Time series: Created vs Closed over the period, bucketed by real dates
-  // (daily / weekly / monthly depending on the selected range length).
+  // Time series — Tickets & new contacts, Created vs closed, Call volume, single-line flows.
+  // Generated PER DAY, then grouped for display: by the card's own toggle when it has one
+  // (`grain`, src/data/timeGrain.ts), otherwise by the range length (daily up to 31 days,
+  // weekly up to 180, monthly beyond). Grouping never changes a total — hours and weeks are
+  // the same days, split or summed — so a chart's number is the same however it's grouped,
+  // and Created vs closed's Created is always the Tickets line of Tickets & new contacts.
   if (def.resultType === 'time_series') {
-    const bucketed = timeSeriesBuckets(dateRange?.start, dateRange?.end)
-    const labels =
-      bucketed.labels.length > 0
-        ? bucketed.labels
-        : Array.from({ length: Math.min(12, Math.max(5, days)) }, (_, i) => `Day ${i + 1}`)
-    const count = labels.length
-    // Re-seed with the actual window so different date ranges show a different trend.
-    const tsRng = mulberry32(hashString(`${def.id}|ts|${dateRange?.start?.toString() ?? ''}|${signature}`))
-    // Volume per bucket = whole-period volume shared across the buckets, so a
-    // longer range (fewer, larger buckets) still reads as more per point.
-    const perBucket = (base * chFactor * tmFactor * days) / count
-    const created: number[] = []
-    const closed: number[] = []
-    for (let i = 0; i < count; i++) {
-      const c = Math.max(0, Math.round(perBucket * jitter(tsRng, 0.3)))
-      created.push(c)
-      closed.push(Math.max(0, Math.round(c * 0.9 * jitter(tsRng, 0.15))))
-    }
-    // Conversations (solid) + New contacts (dashed) — legend below, totals subtitle.
-    // A separate stream for the previous period — see `previousOf`.
-    const prevRng = mulberry32(hashString(`${def.id}|prev|${dateRange?.start?.toString() ?? ''}|${signature}`))
+    const dates = dayDates(dateRange?.start, dateRange?.end, days)
+    const grouping: Grouping = grain ?? autoGrouping(dates.length)
+    const startKey = dateRange?.start?.toString() ?? ''
     const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
-    if (def.id === 'conversations_and_new_contacts') {
-      const newc = created.map((c) => Math.max(0, Math.round(c * 0.3 * jitter(tsRng, 0.25))))
-      const convTotal = created.reduce((a, b) => a + b, 0)
-      const newTotal = newc.reduce((a, b) => a + b, 0)
-      const createdPrev = previousOf(created, prevRng)
-      const newcPrev = previousOf(newc, prevRng)
-      return {
-        value: convTotal + newTotal, // empty only when BOTH series are zero
-        previous: sum(createdPrev) + sum(newcPrev),
-        labels,
-        legendBelow: true,
-        lines: [
-          { name: 'Tickets', tint: 'sky', data: created, csvKey: 'tickets_created', prev: createdPrev },
-          { name: 'New contacts', tint: 'peach', data: newc, dashed: true, csvKey: 'new_contacts', prev: newcPrev },
-        ],
-      }
-    }
     // Inbound vs Outbound calls per bucket, stacked (outbound the larger share,
     // per the Voice Reporting reference). Rendered as stacked bars via metric.stacked.
     if (def.id === 'call_volume') {
+      // Split over the DISPLAYED buckets (it has no toggle), from voiceQueue's totals.
+      const labels = groupDays(dates, [], grouping).labels
+      const count = labels.length
+      const cvRng = mulberry32(hashString(`${def.id}|ts|${startKey}|${signature}`))
+      const cvPrevRng = mulberry32(hashString(`${def.id}|prev|${startKey}|${signature}`))
       // The SAME calls Overview counts: voiceQueue's inbound and total, split over the
       // buckets. It used to draw its own volume from the ticket curve, so its header Total
       // read 92 while Overview's Total calls read 100 for the same filters (395 vs 198 at
       // 30 days). Now Inbound here = the "of N inbound" behind Missed calls, and Inbound +
       // Outbound = Total calls, at every filter.
       const q = voiceQueue(signature, days, chFactor, tmFactor)
-      const inbound = splitToBuckets(q.inbound, count, tsRng)
-      const outbound = splitToBuckets(q.total - q.inbound, count, tsRng)
+      const inbound = splitToBuckets(q.inbound, count, cvRng)
+      const outbound = splitToBuckets(q.total - q.inbound, count, cvRng)
       const inTotal = inbound.reduce((a, b) => a + b, 0)
       const outTotal = outbound.reduce((a, b) => a + b, 0)
-      const inPrev = previousOf(inbound, prevRng)
-      const outPrev = previousOf(outbound, prevRng)
+      const inPrev = previousOf(inbound, cvPrevRng)
+      const outPrev = previousOf(outbound, cvPrevRng)
       return {
         value: inTotal + outTotal, // empty only when both directions are zero
         previous: sum(inPrev) + sum(outPrev),
@@ -657,31 +730,65 @@ export function metricValue(
       }
     }
     // Created vs closed's "Created" IS the Tickets line of Tickets & new contacts — the same
-    // tickets, created in the same range. Drawn separately, Operate said 3,167 created where
-    // Understand said 3,324 for the same filters, and the ticket export (which counts each card
-    // from its own sample) made that visible. Closed follows the shared created line.
-    if (def.id === 'created_vs_closed') {
-      const ticketsDef = getMetric('conversations_and_new_contacts')
-      const shared = ticketsDef ? metricValue(ticketsDef, signature, dateRange).lines?.[0]?.data : undefined
-      if (shared && shared.length === created.length) {
-        created.splice(0, created.length, ...shared)
-        closed.splice(0, closed.length, ...shared.map((c) => Math.max(0, Math.round(c * 0.9 * jitter(tsRng, 0.15)))))
+    // tickets, created in the same range, so both draw from the Tickets seed and base. Drawn
+    // separately, Operate once said 3,167 created where Understand said 3,324 for the same
+    // filters, and the ticket export made that visible.
+    const isCvc = def.id === 'created_vs_closed'
+    const seedId = isCvc ? 'conversations_and_new_contacts' : def.id
+    const seedBase = isCvc ? (getMetric(seedId)?.base ?? base) : base
+    const tsRng = mulberry32(hashString(`${seedId}|ts|${startKey}|${signature}`))
+    const perDay = seedBase * chFactor * tmFactor
+    const created = dates.map(() => Math.max(0, Math.round(perDay * jitter(tsRng, 0.3))))
+    // A separate stream for the previous period — see `previousOf`.
+    const prevRng = mulberry32(hashString(`${seedId}|prev|${startKey}|${signature}`))
+
+    // Tickets (solid) + New contacts (dashed), legend below.
+    if (def.id === 'conversations_and_new_contacts') {
+      const newc = created.map((c) => Math.max(0, Math.round(c * 0.3 * jitter(tsRng, 0.25))))
+      const createdPrev = previousOf(created, prevRng)
+      const newcPrev = previousOf(newc, prevRng)
+      const g = groupDays(dates, [created, newc, createdPrev, newcPrev], grouping)
+      return {
+        value: sum(created) + sum(newc), // empty only when BOTH series are zero
+        previous: sum(createdPrev) + sum(newcPrev),
+        labels: g.labels,
+        legendBelow: true,
+        lines: [
+          { name: 'Tickets', tint: 'sky', data: g.data[0], csvKey: 'tickets_created', prev: g.data[2] },
+          { name: 'New contacts', tint: 'peach', data: g.data[1], dashed: true, csvKey: 'new_contacts', prev: g.data[3] },
+        ],
       }
     }
-    const total = created.reduce((a, b) => a + b, 0)
-    // Single-line "flow" metrics (e.g. Conversations created) vs the two-line
-    // Created-vs-closed comparison.
-    const lines =
-      def.id === 'created_vs_closed'
-        ? [
-            { name: 'Created', tint: 'sky' as const, data: created },
-            // Dashed, like New contacts above. Not decoration: the series colours are two
-            // light pastels that a dichromat cannot separate (ΔE 9.0 under protanopia), so
-            // the pattern is what actually tells these two lines apart. See LineChart.
-            { name: 'Closed', tint: 'peach' as const, data: closed, dashed: true },
-          ]
-        : [{ name: 'Tickets', tint: 'sky' as const, data: created }]
-    return { value: total, previous: total * jitter(rng, 0.2), labels, lines }
+
+    if (isCvc) {
+      const closedRng = mulberry32(hashString(`${def.id}|ts|${startKey}|${signature}`))
+      const closed = created.map((c) => Math.max(0, Math.round(c * 0.9 * jitter(closedRng, 0.15))))
+      // Closing trails creating by about an hour, so the hourly view isn't two identical humps.
+      const g = groupDays(dates, [created, closed], grouping, [0, 1], grain !== undefined)
+      const total = sum(created)
+      return {
+        value: total,
+        previous: total * jitter(rng, 0.2),
+        labels: g.labels,
+        partial: g.partial,
+        lines: [
+          { name: 'Created', tint: 'sky', data: g.data[0] },
+          // Dashed, like New contacts above. Not decoration: the series colours are two
+          // light pastels that a dichromat cannot separate (ΔE 9.0 under protanopia), so
+          // the pattern is what actually tells these two lines apart. See LineChart.
+          { name: 'Closed', tint: 'peach', data: g.data[1], dashed: true },
+        ],
+      }
+    }
+
+    const g = groupDays(dates, [created], grouping)
+    const total = sum(created)
+    return {
+      value: total,
+      previous: total * jitter(rng, 0.2),
+      labels: g.labels,
+      lines: [{ name: 'Tickets', tint: 'sky', data: g.data[0] }],
+    }
   }
 
   // How many people answered at all — the qualifier that used to sit in the ratings card's

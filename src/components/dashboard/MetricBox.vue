@@ -1,8 +1,11 @@
 <script lang="ts">
+import type { TimeGrain } from '@/data/timeGrain'
 // Module scope — shared by every MetricBox instance, for state that must outlive one.
 /** The view each widget was last set to (All / Human only), keyed by widget `uid`. Session
  *  only, like every prototype setting; a real build would persist it beside `span`. */
 const chosenView = new Map<string, string>()
+/** Hourly / Daily / Weekly per widget `uid`, same lifetime as `chosenView`. */
+const chosenGrain = new Map<string, TimeGrain>()
 </script>
 
 <script setup lang="ts">
@@ -27,7 +30,8 @@ import MetricErrorState from '@/components/dashboard/MetricErrorState.vue'
 import { getMetric } from '@/data/metrics'
 import { resolveEmptyState, COPY } from '@/data/emptyStates'
 import { formatValue, fmtDuration } from '@/lib/format'
-import { metricValue, filterSignature, type SeriesTint } from '@/lib/mock'
+import { metricValue, filterSignature, rangeDays, type SeriesTint } from '@/lib/mock'
+import { TIME_GRAINS, DEFAULT_TIME_GRAIN, fallbackTimeGrain, timeGrainUnavailable } from '@/data/timeGrain'
 import { deltaOf, toneClassFor, type Direction } from '@/lib/delta'
 import { CHART_HEIGHT } from '@/lib/chart'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -117,10 +121,54 @@ const showDimensionControl = computed(
   () => dimensions.value.length > 1 && !inlinePicker.value && !loading.value && !errored.value,
 )
 
+// Hourly / Daily / Weekly, for time charts that declare `timeGrain` (Created vs closed).
+// The user picks it; the range never switches it (Team Lens Daily, 2026-11-12). Starts on
+// Daily. Switching only regroups the same days — no reload, no skeleton, same total.
+const hasTimeGrain = computed(() => metric.value?.timeGrain === true && resultType.value === 'time_series')
+const rangeLen = computed(() => rangeDays(dateRange.value.start, dateRange.value.end))
+const activeGrain = ref<TimeGrain>((props.uid && chosenGrain.get(props.uid)) || DEFAULT_TIME_GRAIN)
+watch(activeGrain, (g) => {
+  if (props.uid) chosenGrain.set(props.uid, g)
+})
+// The one case the toggle moves without a click: a new range that can't show the choice
+// (Hourly, then Last 30 days) puts it on Daily — or Hourly for a single day, where Daily is
+// one point — visibly, on the toggle itself, and it stays there when the range comes back.
+// Not a "smart" pick, just the valid one, the same every time for the same range.
+watch(
+  rangeLen,
+  (n) => {
+    if (timeGrainUnavailable(activeGrain.value, n)) activeGrain.value = fallbackTimeGrain(n)
+  },
+  { immediate: true },
+)
+const grainOptions = computed(() =>
+  TIME_GRAINS.map((g) => ({ ...g, reason: timeGrainUnavailable(g.id, rangeLen.value) })),
+)
+/** What the x-axis prints. The labels stay complete ("Jun 17, 09:00", "Jun 17 – Jun 21"),
+ *  so the tooltip names the exact hour or the exact days; the axis prints a short form.
+ *  - Hourly, one day: every third hour (00:00, 03:00 …) — 24 times don't fit.
+ *  - Hourly, several days: each date once, at its 00:00; auto-skipping 168 hours would
+ *    land on arbitrary times.
+ *  - Weekly: the week's first day. */
+const grainTickLabel = computed<((l: string) => string) | undefined>(() => {
+  if (!hasTimeGrain.value) return undefined
+  if (activeGrain.value === 'hour') {
+    if (rangeLen.value === 1) return (l) => (Number(l.slice(-5, -3)) % 3 === 0 ? l.slice(-5) : '')
+    return (l) => (l.endsWith(', 00:00') ? l.slice(0, -7) : '')
+  }
+  if (activeGrain.value === 'week') return (l) => l.split(' – ')[0]
+  return undefined
+})
+function chooseGrain(g: TimeGrain) {
+  if (!timeGrainUnavailable(g, rangeLen.value)) activeGrain.value = g
+}
+
 const signature = computed(() => filterSignature(dateRange.value, channelIds.value, teamIds.value))
 const sample = computed(() => {
   const m = metric.value
-  return m ? metricValue(m, signature.value, dateRange.value, activeDim.value) : null
+  return m
+    ? metricValue(m, signature.value, dateRange.value, activeDim.value, hasTimeGrain.value ? activeGrain.value : undefined)
+    : null
 })
 
 /** The ⓘ describes the view on screen: its own caveat, falling back to the metric's. */
@@ -401,6 +449,36 @@ const skeletonBars = computed(() =>
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-leaf-600" /> {{ sample.combo.score.name }}</span>
         <span class="flex items-center gap-1.5"><span class="size-2 rounded-circle bg-grey-400" /> {{ sample.combo.volume.name }}</span>
       </div>
+      <!-- Hourly / Daily / Weekly. Where the legend sits on other charts — the legend moves
+           under the plot, as on Tickets & new contacts — so the title row holds title,
+           toggle and ⋯. Visible at rest, like the current reporting's Hourly / Daily switch,
+           rather than in the ⋯ menu: it's how you read the chart, not an action on it.
+           An option the range can't show stays in place, greyed, with the reason on hover. -->
+      <div
+        v-else-if="hasTimeGrain && showHeaderExtras"
+        role="group"
+        aria-label="Group by"
+        class="flex shrink-0 items-center gap-0.5 rounded-base bg-grey-100 p-0.5"
+      >
+        <Tooltip v-for="g in grainOptions" :key="g.id" :text="g.reason">
+          <button
+            type="button"
+            class="rounded-sm px-2 text-xs font-semibold leading-5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            :class="
+              activeGrain === g.id
+                ? 'bg-white text-grey-900 shadow-100'
+                : g.reason
+                  ? 'cursor-not-allowed text-grey-400'
+                  : 'text-grey-600 hover:text-grey-900'
+            "
+            :aria-pressed="activeGrain === g.id"
+            :aria-disabled="g.reason ? true : undefined"
+            @click="chooseGrain(g.id)"
+          >
+            {{ g.label }}
+          </button>
+        </Tooltip>
+      </div>
       <!-- Multi-series time charts, stacked or not: a plain key — dot and name, no numbers.
            Stacked charts (Call volume, New vs returning) used to print each series' total and
            a grand Total here. Those numbers are KPI cards now (Total / Inbound / Outbound
@@ -562,8 +640,11 @@ const skeletonBars = computed(() =>
           v-else-if="sample?.lines && sample?.labels"
           :labels="sample.labels"
           :series="sample.lines"
-          :legend="!!sample?.legendBelow"
+          :legend="!!sample?.legendBelow || hasTimeGrain"
           legend-position="bottom"
+          :tick-label="grainTickLabel"
+          :tick-auto-skip="!(hasTimeGrain && activeGrain === 'hour')"
+          :partial="sample.partial"
           :height="CHART_HEIGHT"
         />
       </div>

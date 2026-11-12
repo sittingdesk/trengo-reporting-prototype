@@ -83,6 +83,9 @@ export interface MetricDef {
   footnote?: string
   /** Render a time_series as stacked bars (e.g. Inbound vs Outbound) instead of lines. */
   stacked?: boolean
+  /** A time_series whose card carries the Hourly / Daily / Weekly toggle (src/data/timeGrain.ts).
+   *  Without it the range length picks the grouping. */
+  timeGrain?: boolean
   /** Picks the rendering when a result type supports more than one — a time series can be
    *  bars or a line. Same field as `MetricDimension.viz`, at the measure level for a
    *  metric that has no break-downs. */
@@ -710,6 +713,8 @@ export const METRICS: MetricDef[] = [
     status: 'ready',
     category: 'volume',
     base: 500, // tickets created per day
+    // Hourly / Daily / Weekly, chosen by the user (Team Lens Daily, 2026-11-12; LEN-229 q7).
+    timeGrain: true,
     caveat: 'New tickets compared with closed ones. A widening gap means your backlog is growing.',
   },
   {
