@@ -81,7 +81,6 @@ export const METRIC_SUBJECTS: MetricSubject[] = [
     label: 'Contacts',
     metricIds: [
       'conversations_and_new_contacts',
-      'tickets_new_vs_returning',
       'new_contacts_by_channel',
       'new_vs_returning',
     ],

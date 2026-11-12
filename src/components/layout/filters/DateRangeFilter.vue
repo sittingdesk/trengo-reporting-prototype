@@ -12,9 +12,12 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { RangeCalendar } from '@/components/ui/range-calendar'
 import FilterChip from '@/components/layout/filters/FilterChip.vue'
 import { DATE_PRESETS } from '@/data/filters'
-import { useFilters } from '@/composables/useFilters'
+import { useFilters, type FilterSource } from '@/composables/useFilters'
 
-const { dateRange, presetId, dateRangeLabel, setPreset, setRange } = useFilters()
+// `source` lets the same chip drive a detached scope (the Export tickets modal) instead of
+// the page's filters. Read once: a caller passes one stable source for the chip's lifetime.
+const props = defineProps<{ source?: FilterSource }>()
+const { dateRange, presetId, dateRangeLabel, setPreset, setRange } = props.source ?? useFilters()
 
 const calKey = ref(0)
 function choosePreset(id: string) {

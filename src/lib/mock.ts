@@ -504,44 +504,6 @@ export function metricValue(
     return { value: total, previous: total * jitter(rng, 0.2), heatmap: grid }
   }
 
-  // Satisfaction over time — the score as a line, the survey volume behind it as bars.
-  //
-  // Every number here is the shared draw split into buckets, so the card cannot contradict
-  // its neighbours: the bars sum to the response count the ratings chart is built from, and
-  // the line's VOLUME-WEIGHTED mean is exactly the rate the Overview KPI shows. That second
-  // one is why the satisfied responses are split rather than the rate itself — dividing
-  // per-day satisfied by per-day volume makes Σsatisfied/Σvolume identical to the period
-  // rate by construction, where scaling a jittered rate can only get close.
-  // Tickets from new vs returning contacts: each day's tickets — the SAME daily counts the
-  // "Tickets & new contacts" chart draws as its Tickets line — split into the contact's first
-  // ticket vs a returning contact's. So new + returning = that line on every day, and the
-  // period total = Tickets by entry channel's bars too. Returning runs ~65%, a little noisy.
-  if (def.id === 'tickets_new_vs_returning') {
-    const ticketsDef = getMetric('conversations_and_new_contacts')
-    const tickets = ticketsDef ? metricValue(ticketsDef, signature, dateRange) : undefined
-    const line = tickets?.lines?.[0]
-    const labels = tickets?.labels ?? []
-    const shareRng = mulberry32(hashString(`${def.id}|share|${dateRange?.start?.toString() ?? ''}|${signature}`))
-    const split = (data: number[]) => {
-      const returning = data.map((c) => Math.min(c, Math.round(c * Math.min(0.95, 0.65 * jitter(shareRng, 0.08)))))
-      return { returning, fresh: data.map((c, i) => c - returning[i]) }
-    }
-    const cur = split(line?.data ?? [])
-    const prev = split(line?.prev ?? [])
-    const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
-    return {
-      value: sum(line?.data ?? []),
-      previous: sum(line?.prev ?? []),
-      labels,
-      lines: [
-        // Sun + purple, not sky + peach: Call volume sits on the same page in those, and two
-        // stacked charts in one palette read as the same chart twice.
-        { name: 'New', tint: 'sun', data: cur.fresh, prev: prev.fresh, csvKey: 'new_contact_tickets' },
-        { name: 'Returning', tint: 'purple', data: cur.returning, prev: prev.returning, csvKey: 'returning_contact_tickets' },
-      ],
-    }
-  }
-
   if (def.id === 'csat_score_over_time') {
     const { total, satisfied } = csatResponses(signature, days, chFactor, tmFactor)
     const bucketed = timeSeriesBuckets(dateRange?.start, dateRange?.end)
@@ -692,6 +654,18 @@ export function metricValue(
           { name: 'Inbound', tint: 'sky', data: inbound, prev: inPrev },
           { name: 'Outbound', tint: 'peach', data: outbound, prev: outPrev },
         ],
+      }
+    }
+    // Created vs closed's "Created" IS the Tickets line of Tickets & new contacts — the same
+    // tickets, created in the same range. Drawn separately, Operate said 3,167 created where
+    // Understand said 3,324 for the same filters, and the ticket export (which counts each card
+    // from its own sample) made that visible. Closed follows the shared created line.
+    if (def.id === 'created_vs_closed') {
+      const ticketsDef = getMetric('conversations_and_new_contacts')
+      const shared = ticketsDef ? metricValue(ticketsDef, signature, dateRange).lines?.[0]?.data : undefined
+      if (shared && shared.length === created.length) {
+        created.splice(0, created.length, ...shared)
+        closed.splice(0, closed.length, ...shared.map((c) => Math.max(0, Math.round(c * 0.9 * jitter(tsRng, 0.15)))))
       }
     }
     const total = created.reduce((a, b) => a + b, 0)
@@ -1341,4 +1315,165 @@ function channelCompliance(instanceId: string, rng: () => number) {
   }
   const pct = Math.min(0.99, Math.max(0.55, 0.85 * jitter(rng, 0.12)))
   return { sla: fmtPercent(pct), slaRaw: Math.round(pct * 100) }
+}
+
+// --- Export tickets (TicketExportDialog) ---
+
+/** One row of a ticket export — LEN-230's proposed fixed set. No customer names, emails,
+ *  phone numbers, custom fields or message text. Dates are JS Dates and durations are seconds,
+ *  so the dialog and the CSV each format them their own way; `null` = not happened yet. */
+export interface TicketRow {
+  id: number
+  agent: string
+  status: 'Open' | 'Assigned' | 'Closed'
+  /** The channel's own name, e.g. "Support". */
+  channel: string
+  /** The kind of channel, e.g. "WhatsApp" — its own column, so a sheet can count by it. */
+  channelType: string
+  created: Date
+  closed: Date | null
+  firstResponse: number | null
+  firstResolution: number | null
+  messagesSent: number
+  labels: string[]
+}
+
+/** How many tickets sit behind a ticket-count card, read from the card's OWN sample — so an
+ *  export from a card always holds exactly the number printed on it. `series` picks the line
+ *  on a two-line chart (Created vs closed: 0 = created, 1 = closed). Undefined when the
+ *  metric doesn't count tickets (durations, rates, calls…), so the card offers no export. */
+export function ticketCountFor(metricId: string, sample: MetricSample, series = 0): number | undefined {
+  const sum = (xs?: number[]) => (xs ?? []).reduce((a, b) => a + b, 0)
+  switch (metricId) {
+    case 'open_tickets':
+    case 'assigned_tickets':
+      return Math.round(sample.value)
+    case 'conversations_and_new_contacts': // the Tickets line, not New contacts
+    case 'created_vs_closed':
+      return sum(sample.lines?.[series]?.data)
+    case 'conversations_by_channel':
+      return sum(sample.series)
+    default:
+      return undefined
+  }
+}
+
+export type TicketStatusCounts = { open: number; assigned: number; closed: number }
+
+/**
+ * How the tickets created in a scope split by status, so every export reconciles with the
+ * cards: Open = the Open tickets card, Assigned = the Assigned tickets card, Closed = the rest
+ * of `total` (the Tickets line for the same filters). Picking Open + Assigned in the export
+ * therefore gives exactly what the two Overview cards add up to.
+ */
+export function ticketStatusSplit(
+  signature: string,
+  dateRange: { start?: DateValue; end?: DateValue },
+  total: number,
+): TicketStatusCounts {
+  const val = (id: string) => {
+    const d = getMetric(id)
+    return d ? Math.round(metricValue(d, signature, dateRange).value) : 0
+  }
+  const open = Math.min(total, val('open_tickets'))
+  const assigned = Math.min(total - open, val('assigned_tickets'))
+  return { open, assigned, closed: total - open - assigned }
+}
+
+/**
+ * The rows of a ticket export, generated on demand and seeded on the scope, so the same scope
+ * always gives the same file. Newest first, like V2 Ticket details. Channels come from the
+ * channel filter's own selection. `statusCounts` fixes exactly how many rows carry each
+ * status, so a file's statuses add up to the same numbers the cards show.
+ */
+export function ticketRows(opts: {
+  seedKey: string
+  statusCounts: TicketStatusCounts
+  dateRule: 'created' | 'closed'
+  dateRange: { start?: DateValue; end?: DateValue }
+  channelIds: string[]
+  agents?: readonly string[]
+  labels: readonly string[]
+}): TicketRow[] {
+  const rng = mulberry32(hashString(`tickets|${opts.seedKey}`))
+  const instances = CATALOG.flatMap((c) =>
+    c.instances
+      .filter((i) => !opts.channelIds.length || opts.channelIds.includes(i.id))
+      .map((i) => ({ name: i.name, type: c.label })),
+  )
+  const channels = instances.length ? instances : [{ name: '—', type: '—' }]
+  const agents = opts.agents ?? AGENTS
+  // Whole days in UTC, first to last INCLUDED (to midnight after the last day) — how the new
+  // reporting API filters, and what the file's "(UTC)" headers say (LEN-252). Today's file
+  // stops at 23:59:00 and loses the last minute.
+  const end = opts.dateRange.end ? opts.dateRange.end.toDate('UTC').getTime() + 86_400_000 : Date.now()
+  const start = opts.dateRange.start ? opts.dateRange.start.toDate('UTC').getTime() : end - 7 * 86_400_000
+  const { open, assigned, closed } = opts.statusCounts
+  const count = open + assigned + closed
+  // The range's date, newest first: CREATED dates, or CLOSE dates for a closed-in-range export
+  // (whose tickets may have been created before the range began).
+  const times = Array.from({ length: count }, () => start + rng() * (end - start)).sort((a, b) => b - a)
+  const HOUR = 3_600_000
+  /** A long-tailed duration in seconds, between `min` and `max`: most quick, a few slow. */
+  const tail = (min: number, max: number) => Math.round(min + (max - min) * Math.pow(rng(), 3))
+  // Exactly `open` Open rows, `assigned` Assigned, `closed` Closed, shuffled over the timeline.
+  const statuses: TicketRow['status'][] = [
+    ...Array<TicketRow['status']>(open).fill('Open'),
+    ...Array<TicketRow['status']>(assigned).fill('Assigned'),
+    ...Array<TicketRow['status']>(closed).fill('Closed'),
+  ]
+  for (let i = statuses.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[statuses[i], statuses[j]] = [statuses[j], statuses[i]]
+  }
+
+  let id = 992_300_000
+  return times.map((t, i) => {
+    id -= 1 + Math.floor(rng() * 3)
+    const status = statuses[i]
+    const nLabels = Math.floor(rng() * 3) // 0–2
+    const labels = Array.from(new Set(Array.from({ length: nLabels }, () => opts.labels[Math.floor(rng() * opts.labels.length)])))
+    const ch = channels[Math.floor(rng() * channels.length)]
+
+    // Times follow the status: an open ticket may have had no reply yet and has no resolution;
+    // only a closed one has a closed date and a first resolution.
+    const replied = status !== 'Open' || rng() < 0.4
+    let firstResponse = replied ? tail(20, 8 * 3600) : null
+    let created: number
+    let closedAt: number | null = null
+    let firstResolution: number | null = null
+    if (status === 'Closed') {
+      firstResolution = Math.max((firstResponse ?? 0) + 60, tail(10 * 60, 3 * 24 * 3600))
+      if (opts.dateRule === 'closed') {
+        closedAt = t
+        created = t - firstResolution * 1000 - rng() * 12 * HOUR
+      } else {
+        created = t
+        // A ticket can't close after "now": fit its resolution into the time it has had, and
+        // keep the first reply before it — so created + resolution = closed, always.
+        const room = Math.max(120, Math.floor((end - 60_000 - t) / 1000))
+        if (firstResolution > room) firstResolution = Math.max(120, Math.floor(room * (0.3 + 0.7 * rng())))
+        closedAt = t + firstResolution * 1000
+      }
+      if (firstResponse !== null && firstResponse >= firstResolution) {
+        firstResponse = Math.max(10, Math.floor(firstResolution * (0.1 + 0.5 * rng())))
+      }
+    } else {
+      created = t
+    }
+    return {
+      id,
+      // An open ticket has nobody on it yet — that's what Open means, next to Assigned.
+      agent: status === 'Open' ? 'Unassigned' : agents[Math.floor(rng() * agents.length)],
+      status,
+      channel: ch.name,
+      channelType: ch.type,
+      created: new Date(created),
+      closed: closedAt === null ? null : new Date(closedAt),
+      firstResponse,
+      firstResolution,
+      messagesSent: !replied ? 0 : status === 'Closed' ? 1 + Math.floor(rng() * 12) : 1 + Math.floor(rng() * 6),
+      labels,
+    }
+  })
 }

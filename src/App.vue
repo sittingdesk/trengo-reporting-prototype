@@ -11,6 +11,8 @@ import { RailSidebar } from '@/components/rail'
 import TabsSidebar from '@/components/layout/TabsSidebar.vue'
 import NewDashboardDialog from '@/components/dashboard/NewDashboardDialog.vue'
 import ReleaseIntroDialog from '@/components/onboarding/ReleaseIntroDialog.vue'
+import TicketExportDialog from '@/components/dashboard/TicketExportDialog.vue'
+import { Toaster } from '@/components/ui/sonner'
 import WidgetLibrary from '@/components/dashboard/WidgetLibrary.vue'
 </script>
 
@@ -44,6 +46,9 @@ import WidgetLibrary from '@/components/dashboard/WidgetLibrary.vue'
     <!-- App-level template picker (opened from the sidebar / empty state) -->
     <NewDashboardDialog />
     <ReleaseIntroDialog />
+    <TicketExportDialog />
+    <!-- Toasts (Sonner): bottom right, clear of the sidebar and the filters. -->
+    <Toaster position="bottom-right" :close-button="true" />
     <WidgetLibrary />
   </div>
 </template>

@@ -2,7 +2,7 @@
 // sample data, reflecting the active filters in the rows + filename.
 // Only chart/table widgets are exportable (see canExportWidget).
 import type { MetricDef } from '@/data/metrics'
-import type { MetricSample } from '@/lib/mock'
+import type { MetricSample, TicketRow } from '@/lib/mock'
 import { DAY_LABELS } from '@/lib/mock'
 
 export interface ExportFilters {
@@ -156,4 +156,37 @@ export function exportWidgetCSV(metric: MetricDef, sample: MetricSample, filters
   const rows = widgetRows(metric, sample)
   if (!rows.length) return
   downloadCSV(buildFilename(metric.id, filters), toCSV(rows))
+}
+
+/**
+ * Export tickets (TicketExportDialog): one row per ticket, the fixed columns of
+ * `TICKET_COLUMNS` under the names the page shows, plain values. Dates in UTC as
+ * "YYYY-MM-DD HH:mm" (the header says UTC) so a spreadsheet reads them as dates; durations as "HH:MM:SS"; several labels in one cell joined with "; ". Something
+ * that hasn't happened yet (no reply, not closed) is an EMPTY cell — today's file writes
+ * 00:00:00 there, which reads as an instant answer (LEN-252). No comparison data, as agreed.
+ */
+export function exportTicketsCSV(
+  rows: TicketRow[],
+  columns: readonly { key: keyof TicketRow; label: string; kind: 'text' | 'date' | 'duration' | 'list' }[],
+  source: string,
+  filters: ExportFilters,
+): void {
+  if (!rows.length) return
+  const hms = (sec: number) => {
+    const h = Math.floor(sec / 3600)
+    const m = Math.floor((sec % 3600) / 60)
+    const s = sec % 60
+    return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':')
+  }
+  const cell = (r: TicketRow, c: (typeof columns)[number]): string | number => {
+    const v = r[c.key]
+    if (v === null || v === undefined) return ''
+    if (c.kind === 'date' && v instanceof Date) return v.toISOString().slice(0, 16).replace('T', ' ')
+    if (c.kind === 'duration' && typeof v === 'number') return hms(v)
+    if (Array.isArray(v)) return v.join('; ')
+    return v as string | number
+  }
+  // Headers are the names the page shows ("Created on (UTC)"), not technical keys (LEN-252).
+  const out: Row[] = rows.map((r) => Object.fromEntries(columns.map((c) => [c.label, cell(r, c)])))
+  downloadCSV(buildFilename(`tickets_${slug(source)}`, filters), toCSV(out))
 }

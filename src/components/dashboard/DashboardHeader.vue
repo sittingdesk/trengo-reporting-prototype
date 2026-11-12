@@ -35,6 +35,8 @@ import Icon from '@/components/Icon.vue'
 import { useFilters } from '@/composables/useFilters'
 import { useWorkspace } from '@/composables/useWorkspace'
 import { TEAMS } from '@/data/filters'
+import { useTicketExport } from '@/composables/useTicketExport'
+import { useSettings } from '@/composables/useSettings'
 import type { Dashboard } from '@/data/dashboards'
 
 const props = defineProps<{ dashboard: Dashboard }>()
@@ -44,6 +46,26 @@ const emit = defineEmits<{ add: [] }>()
 
 const { teamIds, toggleTeam, clearTeams, applyScope, currentScope, isCustomRange, isDirty } =
   useFilters()
+
+// "Export tickets" for the whole page. The modal starts from this page's filters and counts
+// its own scope, so nothing to work out here.
+const { openTicketExport } = useTicketExport()
+// Which of the four Export placements is live (sidebar → Prototype → Export button).
+const { exportButton } = useSettings()
+function exportPageTickets(e: MouseEvent) {
+  openTicketExport(
+    { origin: 'page', source: 'all tickets', count: 0, dateRule: 'created' },
+    e.currentTarget as HTMLElement,
+  )
+}
+/** The ⋯ trigger — where focus returns when the export is opened from inside its menu. */
+const moreBtn = ref<{ $el: HTMLElement } | null>(null)
+function exportFromMenu() {
+  menuOpen.value = false
+  openTicketExport({ origin: 'page', source: 'all tickets', count: 0, dateRule: 'created' }, moreBtn.value?.$el ?? null)
+}
+/** The ⋯ shows on read-only dashboards too when it's the export's home. */
+const showMore = computed(() => !props.dashboard.readonly || exportButton.value === 'menu')
 const { saveScope, renameDashboard, editing, setEditing, removeDashboard } = useWorkspace()
 
 // Full-width filters cost 432px. Below this the title would be left under ~140px — less
@@ -205,6 +227,39 @@ const save = () => {
               @toggle="toggleTeam"
               @clear="clearTeams"
             />
+            <!-- The page's export starting point (agreed 2026-11-10). After the filters, because
+                 it exports exactly what they select. Read-only dashboards too: exporting
+                 changes nothing. Four placements under comparison (Prototype → Export button);
+                 the fourth, "In ⋯ menu", lives in the dashboard actions menu below. -->
+            <Button
+              v-if="exportButton === 'label'"
+              variant="field"
+              :size="compactFilters ? 'icon' : 'sm'"
+              :aria-label="compactFilters ? 'Export tickets' : undefined"
+              :title="compactFilters ? 'Export tickets' : undefined"
+              @click="exportPageTickets"
+            >
+              <Icon name="FileDownload" :size="20" />
+              <span v-if="!compactFilters">Export tickets</span>
+            </Button>
+            <!-- Icon: the ⋯ button's size and surface — an occasional action that doesn't
+                 compete with the filters. The tooltip and aria-label carry its name. -->
+            <Tooltip v-else-if="exportButton === 'icon'" text="Export tickets">
+              <Button variant="field" size="icon" aria-label="Export tickets" @click="exportPageTickets">
+                <Icon name="FileDownload" :size="20" />
+              </Button>
+            </Tooltip>
+            <!-- Text: no border or shadow, one word — present but quiet. -->
+            <Button
+              v-else-if="exportButton === 'text'"
+              variant="ghost"
+              size="sm"
+              class="text-grey-700 hover:text-grey-900"
+              @click="exportPageTickets"
+            >
+              <Icon name="FileDownload" :size="16" />
+              Export
+            </Button>
           </template>
 
           <!-- The repeatable action of the mode, so it sits left of the one that ends it.
@@ -251,14 +306,25 @@ const save = () => {
                exact. Hidden in edit mode, it took 40px with it and Done slid right into
                the space, so the one control that's meant to change face in place moved
                instead. -->
-          <Popover v-if="!dashboard.readonly" v-model:open="menuOpen">
+          <Popover v-if="showMore" v-model:open="menuOpen">
             <PopoverTrigger as-child>
-              <Button variant="field" size="icon" aria-label="Dashboard actions">
+              <Button ref="moreBtn" variant="field" size="icon" aria-label="Dashboard actions">
                 <Icon name="MoreHoriz" :size="20" />
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" class="w-52" @close-auto-focus="onMenuCloseFocus">
+              <!-- "In ⋯ menu": export sits with the dashboard's other actions, first. -->
               <button
+                v-if="exportButton === 'menu'"
+                type="button"
+                class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm text-grey-900 transition-colors hover:bg-grey-100 focus:outline-none focus-visible:bg-grey-100"
+                @click="exportFromMenu()"
+              >
+                <Icon name="FileDownload" :size="16" />
+                <span class="truncate">Export tickets</span>
+              </button>
+              <button
+                v-if="!dashboard.readonly"
                 type="button"
                 class="flex w-full items-center gap-2 rounded-base px-2 py-1.5 text-left text-sm text-grey-900 transition-colors hover:bg-grey-100 hover:text-error-600 focus:outline-none focus-visible:bg-grey-100"
                 @click="askRemove()"

@@ -14,7 +14,7 @@
 // calendar. Presets + the calendar are anchored to a fixed prototype "today"
 // (2026-06-23) so the demo lines up with the mock data — swap TODAY for
 // `today(getLocalTimeZone())` for a real build.
-import { reactive, computed, shallowRef, ref } from 'vue'
+import { reactive, computed, shallowRef, ref, type Ref } from 'vue'
 import {
   CalendarDate,
   startOfMonth,
@@ -202,5 +202,62 @@ export function useFilters() {
     currentScope,
     isCustomRange,
     isDirty,
+  }
+}
+
+/** What a date or channel filter chip reads and writes. The page's filters (`useFilters`)
+ *  provide it; so does a detached copy from `createLocalFilters`. */
+export interface FilterSource {
+  dateRange: Readonly<Ref<DateRange>>
+  presetId: Readonly<Ref<string | null>>
+  dateRangeLabel: Readonly<Ref<string>>
+  channelIds: Readonly<Ref<string[]>>
+  teamIds: Readonly<Ref<string[]>>
+  setPreset: (id: string) => void
+  setRange: (r: DateRange | undefined) => void
+  setChannels: (ids: string[]) => void
+  toggleTeam: (id: string) => void
+  clearTeams: () => void
+}
+
+/**
+ * A DETACHED copy of the filter state, for a place that sets its own scope without touching
+ * the page — the Export tickets modal. It starts from wherever `reset()` points it (the page's
+ * filters at the moment the modal opens), then changes only itself. The same filter chips run
+ * on it, so it looks and behaves exactly like the page's filters.
+ */
+export function createLocalFilters(): FilterSource & { reset: (from: FilterSource) => void } {
+  const range = shallowRef<DateRange>(presetRange('last7'))
+  const preset = ref<string | null>('last7')
+  const channels = ref<string[]>([...CHANNEL_INSTANCE_IDS])
+  const teams = ref<string[]>([])
+  return {
+    dateRange: range,
+    presetId: preset,
+    dateRangeLabel: computed(() =>
+      preset.value
+        ? (DATE_PRESETS.find((p) => p.id === preset.value)?.label ?? formatRange(range.value))
+        : formatRange(range.value),
+    ),
+    channelIds: channels,
+    teamIds: teams,
+    setPreset(id) {
+      preset.value = id
+      range.value = presetRange(id)
+    },
+    setRange(r) {
+      if (!r) return
+      range.value = r
+      preset.value = matchPreset(r)
+    },
+    setChannels: (ids) => (channels.value = ids),
+    toggleTeam: (id) => (teams.value = toggleId(teams.value, id)),
+    clearTeams: () => (teams.value = []),
+    reset(from) {
+      range.value = from.dateRange.value
+      preset.value = from.presetId.value
+      channels.value = [...from.channelIds.value]
+      teams.value = [...from.teamIds.value]
+    },
   }
 }

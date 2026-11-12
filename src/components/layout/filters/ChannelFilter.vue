@@ -12,12 +12,13 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import Icon from '@/components/Icon.vue'
 import FilterChip from '@/components/layout/filters/FilterChip.vue'
 import { CATALOG, CHANNEL_INSTANCE_IDS, type ChannelCategory } from '@/data/channelData'
-import { useFilters } from '@/composables/useFilters'
+import { useFilters, type FilterSource } from '@/composables/useFilters'
 
 // `compact` comes from the bar, which is the only thing that knows how much room there is.
-const props = withDefaults(defineProps<{ compact?: boolean }>(), { compact: false })
+// `source`: see DateRangeFilter — the same chip on a detached scope.
+const props = withDefaults(defineProps<{ compact?: boolean; source?: FilterSource }>(), { compact: false })
 
-const { channelIds, setChannels } = useFilters()
+const { channelIds, setChannels } = props.source ?? useFilters()
 
 // Only categories that actually have instances (empty categories are hidden).
 const categories = computed(() => CATALOG.filter((c) => c.instances.length > 0))

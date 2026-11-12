@@ -13,9 +13,17 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/Icon.vue'
+import { HELP_CENTRE } from '@/data/helpCentre'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useWorkspace, type Scenario } from '@/composables/useWorkspace'
-import { useSettings, type DataState, DEFAULT_HUMAN_ONLY_VIEW, type HumanOnlyView } from '@/composables/useSettings'
+import {
+  useSettings,
+  type DataState,
+  DEFAULT_HUMAN_ONLY_VIEW,
+  type HumanOnlyView,
+  DEFAULT_EXPORT_BUTTON,
+  type ExportButtonVariant,
+} from '@/composables/useSettings'
 import { useFilters } from '@/composables/useFilters'
 import { SELECTABLE_ITERATIONS } from '@/config/iterations'
 import { scopeLabel } from '@/data/dashboards'
@@ -43,7 +51,22 @@ const activeId = computed(() => String(route.params.dashboardId ?? ''))
 const defaultDashboards = computed(() => dashboards.value.filter((d) => d.readonly))
 const userDashboards = computed(() => dashboards.value.filter((d) => !d.readonly))
 
-const { setSla, dataState, setDataState, humanOnlyView, setHumanOnlyView, openReleaseIntro } = useSettings()
+const {
+  setSla,
+  dataState,
+  setDataState,
+  humanOnlyView,
+  setHumanOnlyView,
+  openReleaseIntro,
+  exportButton,
+  setExportButton,
+} = useSettings()
+const exportButtons: { id: ExportButtonVariant; label: string }[] = [
+  { id: 'label', label: 'Label' },
+  { id: 'icon', label: 'Icon' },
+  { id: 'menu', label: 'In ⋯ menu' },
+  { id: 'text', label: 'Text' },
+]
 const { applyScope } = useFilters()
 
 /**
@@ -57,6 +80,7 @@ function resetPrototype() {
   setSla(false)
   setDataState('normal')
   setHumanOnlyView(DEFAULT_HUMAN_ONLY_VIEW)
+  setExportButton(DEFAULT_EXPORT_BUTTON)
   // The reseeded dashboard keeps its slug id, so DashboardView's scope watcher — keyed on
   // that id — won't refire. Apply the fresh scope here or the old filters would survive a
   // reset, which is the one thing it must not do.
@@ -181,6 +205,25 @@ function changeIteration(id: string) {
       </div>
     </nav>
 
+    <!-- Help centre — the sidebar's last row, where apps keep Help: always in the same
+         place on every report, out of the way of the data. Quiet (grey-600 text, like the
+         scope lines above) and in the dashboard rows' shape, so it reads as part of the
+         list's furniture, not as a dashboard. The external-link icon says it leaves the app;
+         new tab + noopener/noreferrer so the page it opens can't touch this one. -->
+    <div class="px-2 pb-2">
+      <a
+        :href="HELP_CENTRE.href"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-2 rounded-base px-2.5 py-2 text-sm font-medium text-grey-600 transition-colors hover:bg-grey-200 hover:text-grey-900 focus-visible:shadow-focus-sm focus-visible:outline-none"
+      >
+        <Icon name="Question" :size="16" class="shrink-0" aria-hidden="true" />
+        <span class="flex-1">{{ HELP_CENTRE.label }}</span>
+        <Icon name="ExternalLink" :size="16" class="shrink-0" aria-hidden="true" />
+        <span class="sr-only">(opens in a new tab)</span>
+      </a>
+    </div>
+
     <!-- Prototype-only controls -->
     <div class="space-y-3 border-t border-grey-300 p-3">
       <!-- Names the block, and gives the reset somewhere to live. The group labels below
@@ -286,6 +329,28 @@ function changeIteration(id: string) {
             "
             :aria-pressed="humanOnlyView === v.id"
             @click="setHumanOnlyView(v.id)"
+          >
+            {{ v.label }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Export button: a DESIGN comparison — four ways to place the page's Export tickets
+           action in the dashboard header. Same segmented control as Human-only view, 2×2. -->
+      <div>
+        <div class="mb-1.5 text-xs font-medium text-grey-600">Export button</div>
+        <div class="grid grid-cols-2 gap-1 rounded-base bg-grey-200 p-0.5">
+          <button
+            v-for="v in exportButtons"
+            :key="v.id"
+            class="rounded-sm px-2 py-1 text-xs font-semibold transition-colors"
+            :class="
+              exportButton === v.id
+                ? 'bg-white text-grey-900 shadow-100'
+                : 'text-grey-600 hover:text-grey-900'
+            "
+            :aria-pressed="exportButton === v.id"
+            @click="setExportButton(v.id)"
           >
             {{ v.label }}
           </button>

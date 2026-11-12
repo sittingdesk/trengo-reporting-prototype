@@ -22,6 +22,15 @@ import { ref, computed } from 'vue'
 
 export type DataState = 'normal' | 'loading' | 'empty' | 'error'
 export type HumanOnlyView = 'toggle' | 'inline'
+/** Where and how the page's "Export tickets" action sits in the dashboard header — a DESIGN
+ *  switch to compare options on the real page (Jeff, 2026-11-12: the labelled button is too
+ *  big for an occasional action).
+ *   label — the labelled button after the filters (the first version)
+ *   icon  — a 32px icon button with a tooltip, the ⋯ button's size
+ *   menu  — "Export tickets" inside the ⋯ dashboard actions menu
+ *   text  — a quiet, borderless "Export" */
+export type ExportButtonVariant = 'label' | 'icon' | 'menu' | 'text'
+export const DEFAULT_EXPORT_BUTTON: ExportButtonVariant = 'icon'
 
 // 'inline' by default: it keeps Menu toggle's model (one number, switchable) and fixes
 // where the switch lives. Menu toggle stays one click away for comparison.
@@ -31,6 +40,7 @@ const state = ref({
   dataState: 'normal' as DataState,
   slaEnabled: false,
   humanOnlyView: DEFAULT_HUMAN_ONLY_VIEW as HumanOnlyView,
+  exportButton: DEFAULT_EXPORT_BUTTON as ExportButtonVariant,
   // The beta heads-up modal (ReleaseIntroDialog). Prototype-only trigger: in production it
   // opens once per user on their first visit after joining the beta.
   releaseIntroOpen: false,
@@ -55,11 +65,16 @@ export function useSettings() {
   const humanOnlyView = computed(() => state.value.humanOnlyView)
   const setHumanOnlyView = (v: HumanOnlyView) => (state.value.humanOnlyView = v)
 
+  const exportButton = computed(() => state.value.exportButton)
+  const setExportButton = (v: ExportButtonVariant) => (state.value.exportButton = v)
+
   const releaseIntroOpen = computed(() => state.value.releaseIntroOpen)
   const openReleaseIntro = () => (state.value.releaseIntroOpen = true)
   const closeReleaseIntro = () => (state.value.releaseIntroOpen = false)
 
   return {
+    exportButton,
+    setExportButton,
     releaseIntroOpen,
     openReleaseIntro,
     closeReleaseIntro,

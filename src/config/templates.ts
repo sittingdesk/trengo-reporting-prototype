@@ -166,13 +166,11 @@ export const TEMPLATES: Template[] = [
       { metricId: 'calls_volume' },
       { metricId: 'inbound_calls' },
       { metricId: 'outbound_calls' },
-      // Side by side FOR COMPARISON (Jeff, 2026-10-09): the current chart and its proposed
-      // replacement, same daily ticket counts. Once one is chosen the other goes, and the
-      // row below can return to Call volume 50/50 and Entry channel full width.
+      // The two trends 50/50, Entry channel full width beneath. "Tickets: new vs returning"
+      // was tried beside the line chart and dropped (Jeff, 2026-10-15): the line chart stays.
       { metricId: 'conversations_and_new_contacts', span: 6, newRow: true },
-      { metricId: 'tickets_new_vs_returning', span: 6 },
       { metricId: 'call_volume', span: 6 }, // stacked bars (inbound/outbound)
-      { metricId: 'conversations_by_channel', span: 6 },
+      { metricId: 'conversations_by_channel', span: 12 },
       // Temporarily hidden — bring back later.
       // { metricId: 'new_vs_returning', span: 5 }, // donut (7 + 5 = 12, one row)
       // { metricId: 'deal_stage_funnel' }, // full-width funnel

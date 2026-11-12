@@ -56,7 +56,6 @@ export const EMPTY_STATES: Record<string, EmptyStateConfig> = {
 
   // ---- Understand page ----
   conversations_and_new_contacts: { noun: 'tickets', icon: 'Inbox' },
-  tickets_new_vs_returning: { noun: 'tickets', icon: 'Inbox' },
   conversations_created: { noun: 'tickets', icon: 'Inbox' },
   conversations_by_channel: { noun: 'tickets', icon: 'Inbox' },
   new_contacts_by_channel: { noun: 'contacts', icon: 'Users' },

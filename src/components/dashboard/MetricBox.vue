@@ -204,7 +204,7 @@ const formatted = computed(() => {
   return formatValue(sample.value.value, m.unit)
 })
 
-// Per-card "More" menu (kebab). Holds Export as CSV (charts/tables).
+// Per-card "More" menu (kebab). Holds Export chart data (charts/tables) and the View picker.
 //
 // Remove moved OUT of here into edit mode. It was a no-op anyway ("widgets come from the
 // template; no removal yet"), and putting a destructive action behind a deliberate mode
@@ -216,8 +216,15 @@ const exportable = computed(() => (metric.value ? canExportWidget(metric.value) 
 /** Whether the ⋯ menu would have anything in it. Without this every KPI card's ⋯ opened a
  *  192×10px empty panel — CSV export excludes value cards and Remove moved to edit mode —
  *  so the menu now only renders when there's an item to put in it. */
+// "Export tickets" from a card is PARKED (2026-11-12). Exporting starts from the page header
+// only: the modal's own filters reproduce every card's scope, and the count on its button
+// does the "check this number" job. Card click-through may come back later as a proper
+// drill-in; TICKET_EXPORT_SOURCES and ticketCountFor are kept for that.
+
 const hasMenuContent = computed(
-  () => showDimensionControl.value || (exportable.value && !!sample.value && resolvedState.value === 'value'),
+  () =>
+    showDimensionControl.value ||
+    (exportable.value && !!sample.value && resolvedState.value === 'value'),
 )
 function onExport() {
   menuOpen.value = false
@@ -478,7 +485,7 @@ const skeletonBars = computed(() =>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-grey-600" aria-hidden="true">
               <path d="M12 3v12" /><path d="M7 12l5 5 5-5" /><path d="M5 21h14" />
             </svg>
-            Export as CSV
+            Export chart data
           </button>
         </PopoverContent>
       </Popover>

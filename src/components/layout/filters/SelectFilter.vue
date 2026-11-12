@@ -16,6 +16,9 @@ const props = withDefaults(
     selectedIds: string[]
     /** Collapse to icon-only — driven by the bar's measured width. */
     compact?: boolean
+    /** Name the choice instead of counting it ("Open, Assigned" rather than "2 statuss")
+     *  — for short option lists where the names say more than a number. */
+    showNames?: boolean
   }>(),
   { compact: false },
 )
@@ -32,9 +35,12 @@ const isSelected = (id: string) => props.selectedIds.includes(id)
 // own colour now carries "this is filtering", so a badge would say it twice. Matches how
 // the channel chip and the sidebar's scope subtitle already read.
 const noun = computed(() => props.label.toLowerCase())
-const triggerLabel = computed(() =>
-  count.value ? `${count.value} ${count.value === 1 ? noun.value : `${noun.value}s`}` : props.label,
-)
+const triggerLabel = computed(() => {
+  if (!count.value) return props.label
+  if (props.showNames)
+    return props.options.filter((o) => isSelected(o.id)).map((o) => o.label).join(', ')
+  return `${count.value} ${count.value === 1 ? noun.value : `${noun.value}s`}`
+})
 </script>
 
 <template>

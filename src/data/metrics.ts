@@ -766,36 +766,6 @@ export const METRICS: MetricDef[] = [
       'Tickets created per day, alongside contacts messaging for the first time. A widening gap means existing contacts are driving the volume.',
   },
   {
-    // registry: tickets_new_vs_returning_contact — per ticket, "new" when it is the contact's
-    // first-ever ticket for the agency, "returning" when an earlier ticket exists. Ticket grain
-    // throughout, so the two parts add up to tickets created. The registry entry returns a
-    // period share; grouping it by DATE(ticket_created_at) is the one data ask.
-    //
-    // The proposed replacement for "Tickets & new contacts", shown beside it for comparison
-    // (Jeff, 2026-10-09). That chart plots tickets and new CONTACTS — two units — on one
-    // axis, and its tooltip's "gap" reading is false (a new contact's own second ticket lands
-    // in the gap too). This answers the same question — is volume growing from new customers
-    // or from existing ones coming back? — in one unit. Also supersedes the parked
-    // `new_vs_returning` donut, the same idea without the trend.
-    id: 'tickets_new_vs_returning',
-    // The unit leads, like the other ticket charts on the page. Sized to the title row: with
-    // the legend now just "● New ● Returning" (~120px), this (193px) fits a half-width card
-    // down to ~1280px; "Tickets from new vs returning contacts" (299px) only fits from 1440.
-    label: 'Tickets: new vs returning',
-    unit: 'count',
-    resultType: 'time_series',
-    status: 'ready',
-    category: 'volume',
-    neutral: true, // volume — the split is the finding, not a direction
-    stacked: true,
-    base: 500,
-    caveat:
-      // "Returning" means an earlier TICKET, not any earlier contact — so not "been in
-      // touch". And "first ticket", not "first ever": whether the history is complete or a
-      // 12-month window is still open with the data team.
-      "Tickets created in the period, from new contacts (their first ticket) or returning contacts (they've had one before).",
-  },
-  {
     // registry: conversations_created (billing-window grain) — ⚠️ we label it 'Tickets created'; orphaned
     id: 'conversations_created',
     label: 'Tickets created',
